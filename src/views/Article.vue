@@ -6,7 +6,7 @@ import { computed } from "vue";
 const articleData = {
   id: 1,
   title: "松鼠的世界",
-  imageUrl: new URL("@/assets/images/articleThumb/2.jfif", import.meta.url).href,
+  imageUrl: new URL("@/assets/images/background-07.jpg", import.meta.url).href,
   topTag: "科技",
   subTag: "Vue",
   date: "2025-9-29",
@@ -32,9 +32,9 @@ const transitionName = `article-image-${articleId}`;
       <h1 class="article__title">{{ articleData.title }}</h1>
       <div class="article__meta">
         <div class="article__tags">
-          <router-link class="tag">{{ articleData.topTag }}</router-link>
+          <router-link class="tag tag--top">{{ articleData.topTag }}</router-link>
           <span> / </span>
-          <router-link class="tag">{{ articleData.subTag }}</router-link>
+          <router-link class="tag tag--sub">{{ articleData.subTag }}</router-link>
         </div>
         <time>{{ articleData.date }}</time>
       </div>
@@ -158,11 +158,17 @@ const transitionName = `article-image-${articleId}`;
 
 .article__tags .tag {
   text-decoration: none;
-  color: #6e6e6e;
+  color: #525252;
   font-size: 12px;
   font-weight: 600;
 
   transition: color 0.2s ease-in-out;
+}
+
+.article__tags .tag.tag--sub {
+  font-size: 10px;
+  margin-top: auto;
+  color: #868686;
 }
 
 .article__tags .tag:hover {
