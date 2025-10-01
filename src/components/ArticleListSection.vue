@@ -1,8 +1,10 @@
 <script setup>
-import { ref, computed } from "vue";
 import ArticleCard from "./ArticleCard.vue";
 
 defineProps({
+  title: {
+    type: String,
+  },
   articles: {
     type: Array,
     required: true,
@@ -11,8 +13,8 @@ defineProps({
 </script>
 
 <template>
-  <section class="recent-articles">
-    <h2 class="recent-articles__title">近期文章</h2>
+  <section class="article-list-section">
+    <h2 class="article-list-section__title">{{ title }}</h2>
     <ul class="article-list">
       <li class="article-list__item" v-for="article in articles" :key="article.link">
         <ArticleCard :article="article" />
@@ -22,7 +24,7 @@ defineProps({
 </template>
 
 <style scoped>
-.recent-articles {
+.article-list-section {
   max-width: 600px;
   min-width: 300px;
   width: 100%;
@@ -34,10 +36,11 @@ defineProps({
   border-radius: 15px;
 }
 
-.recent-articles__title {
-  padding-left: 10px;
+.article-list-section__title {
+  padding-left: 12px;
   margin: 0;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+  margin-top: 5px;
 
   font-size: 1.5rem;
   color: #535353;
@@ -45,7 +48,7 @@ defineProps({
   transition: color 0.4s ease;
 }
 
-.recent-articles__title:hover {
+.article-list-section__title:hover {
   color: #ffffff;
 }
 
@@ -62,7 +65,7 @@ defineProps({
 
 /* 移动端适配 */
 @media (max-width: 600px) {
-  .recent-articles {
+  .article-list-section {
     padding: 15px;
   }
 }

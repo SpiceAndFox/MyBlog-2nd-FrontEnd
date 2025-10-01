@@ -20,7 +20,7 @@ const routes = [
   {
     path: "/articles",
     name: "ArticleList",
-    component: Home,
+    component: ArticleList,
   },
 ];
 

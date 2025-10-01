@@ -1,11 +1,12 @@
 <script setup>
 import { ref } from "vue";
 import UserInfo from "@/components/UserInfo.vue";
-import RecentArticles from "@/components/RecentArticles.vue";
+import ArticleListSection from "@/components/ArticleListSection.vue";
 
 import img1 from "@/assets/images/articleThumb/1.png";
 import img2 from "@/assets/images/articleThumb/2.jfif";
 
+const articleListSectionTitle = ref("近期文章");
 const articlesData = ref([
   {
     id: 1,
@@ -34,7 +35,7 @@ const articlesData = ref([
 <template>
   <main class="main-content">
     <UserInfo></UserInfo>
-    <RecentArticles :articles="articlesData"></RecentArticles>
+    <ArticleListSection :title="articleListSectionTitle" :articles="articlesData"></ArticleListSection>
   </main>
 </template>
 
