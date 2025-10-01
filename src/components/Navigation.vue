@@ -246,6 +246,10 @@ function toggleMenu() {
     background-color: rgba(20, 20, 20, 0.95);
   }
 
+  .navigation-links li {
+    width: 100%;
+  }
+
   /* 移动端菜单里的链接样式 */
   .navigation-links a {
     width: 100%;

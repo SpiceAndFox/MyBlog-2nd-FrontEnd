@@ -48,11 +48,6 @@ defineProps({
   background-color: #a8a8a8cb;
   backdrop-filter: blur(4px);
 }
-.article-list-section.layout--grid .article-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 15px;
-}
 
 .article-list-section__title {
   padding-left: 12px;
@@ -78,6 +73,13 @@ defineProps({
   flex-direction: column;
   gap: 10px;
   width: 100%;
+}
+
+/* 针对ArticleList页的个性化 */
+.article-list-section.layout--grid .article-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
 }
 
 /* 移动端适配 */
