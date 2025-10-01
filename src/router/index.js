@@ -21,6 +21,9 @@ const routes = [
     path: "/articles",
     name: "ArticleList",
     component: ArticleList,
+    meta: {
+      layoutClass: "articleList",
+    },
   },
 ];
 

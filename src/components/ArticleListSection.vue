@@ -27,6 +27,7 @@ defineProps({
 .article-list-section {
   max-width: 600px;
   min-width: 300px;
+  min-height: 200px;
   width: 100%;
   background-color: #9e9e9e8c;
   padding: 10px;
@@ -64,9 +65,22 @@ defineProps({
 }
 
 /* 移动端适配 */
+@media (max-width: 768px) {
+  .article-list-section {
+    max-width: 100%;
+    padding: 15px;
+  }
+}
+
 @media (max-width: 600px) {
   .article-list-section {
     padding: 15px;
+  }
+
+  .article-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
   }
 }
 </style>
