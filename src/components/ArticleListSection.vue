@@ -1,5 +1,6 @@
 <script setup>
 import ArticleCard from "./ArticleCard.vue";
+import { vAutoAnimate } from "@formkit/auto-animate";
 
 defineProps({
   title: {
@@ -19,8 +20,8 @@ defineProps({
 <template>
   <section class="article-list-section" :class="`layout--${layout}`">
     <h2 class="article-list-section__title">{{ title }}</h2>
-    <ul class="article-list">
-      <li class="article-list__item" v-for="article in articles" :key="article.link">
+    <ul class="article-list" v-auto-animate>
+      <li class="article-list__item" v-for="article in articles" :key="article.id">
         <ArticleCard :article="article" :layout="layout" />
       </li>
     </ul>
