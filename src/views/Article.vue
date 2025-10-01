@@ -32,9 +32,9 @@ const transitionName = `article-image-${articleId}`;
       <h1 class="article__title">{{ articleData.title }}</h1>
       <div class="article__meta">
         <div class="article__tags">
-          <router-link class="tag tag--top">{{ articleData.topTag }}</router-link>
+          <a class="tag tag--top">{{ articleData.topTag }}</a>
           <span> / </span>
-          <router-link class="tag tag--sub">{{ articleData.subTag }}</router-link>
+          <a class="tag tag--sub">{{ articleData.subTag }}</a>
         </div>
         <time>{{ articleData.date }}</time>
       </div>

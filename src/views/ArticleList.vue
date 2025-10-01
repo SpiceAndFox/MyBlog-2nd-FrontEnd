@@ -89,23 +89,31 @@ const articleListSectionTitle = computed(() => {
 <template>
   <div class="article-list-container">
     <ArticleFilterPanel @filter-change="handleFilterChange"></ArticleFilterPanel>
-    <ArticleListSection :title="articleListSectionTitle" :articles="filteredArticles"></ArticleListSection>
+
+    <ArticleListSection
+      :title="articleListSectionTitle"
+      :articles="filteredArticles"
+      layout="grid"
+    ></ArticleListSection>
   </div>
 </template>
 
 <style scoped>
 .article-list-container {
-  width: 100%;
   display: flex;
   flex-direction: row;
-  justify-content: space-around;
+  justify-content: center;
   box-sizing: border-box;
   padding: 0 20px;
+  gap: 20px;
+  margin-top: 40px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .article-list-container {
     flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
   }
 }
 </style>

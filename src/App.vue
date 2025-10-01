@@ -11,6 +11,9 @@ const layoutClass = computed(() => {
   if (route.meta.layoutClass === "article") {
     return "layout--article";
   }
+  if (route.meta.layoutClass === "articleList") {
+    return "layout--articleList";
+  }
   return null;
 });
 </script>

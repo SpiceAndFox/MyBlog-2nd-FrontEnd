@@ -49,7 +49,7 @@ const articlesData = ref([
   padding: 0 20px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .main-content {
     flex-direction: column;
     justify-content: flex-start;

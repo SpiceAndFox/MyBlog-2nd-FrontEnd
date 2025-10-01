@@ -59,8 +59,11 @@ function toggleMenu() {
   align-items: center;
   justify-content: space-between;
   padding: 5px 20px;
-
   transition: background-color 0.3s ease;
+
+  /* 应对ArticleListSection中使用backdrop-filter导致的层叠上下文被覆盖 */
+  position: relative;
+  z-index: 1001;
 }
 
 .navigation.layout--article {
@@ -68,7 +71,11 @@ function toggleMenu() {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1;
+  z-index: 1001;
+}
+
+.navigation.layout--articleList {
+  background-color: rgba(255, 255, 255, 0.808);
 }
 
 .logo-container {
@@ -99,15 +106,11 @@ function toggleMenu() {
 
 .logo-container .char {
   display: inline-block;
-  color: #eeeded;
+  color: #252525;
   font-size: 1.2rem;
   font-weight: bold;
   font-family: "Aurora", serif;
   transition: color 1s;
-}
-
-.navigation.layout--article .char {
-  color: #252525;
 }
 
 .logo-container:hover .char {
@@ -185,25 +188,17 @@ function toggleMenu() {
   text-align: center;
 
   text-decoration: none;
-  color: white;
+  color: #535353;
   font-weight: 500;
   font-size: 18px;
   transition: color 0.3s, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
   border-radius: 15px;
 }
 
-.navigation.layout--article .navigation-links a {
-  color: #535353;
-}
-
 .navigation-links a:hover {
   background-color: #ffffffb4;
   color: #c44569;
   border-color: transparent;
-}
-
-.navigation.layout--article .navigation-links a:hover {
-  color: #c44569;
 }
 
 @media (max-width: 768px) {
@@ -228,7 +223,7 @@ function toggleMenu() {
     top: 0;
     left: 0;
     width: 100%;
-    height: 100vh;
+    height: 100dvh;
     background-color: transparent;
 
     /* 默认隐藏在视口之外 */
@@ -251,10 +246,6 @@ function toggleMenu() {
     background-color: rgba(20, 20, 20, 0.95);
   }
 
-  .navigation-links li {
-    width: 100%;
-  }
-
   /* 移动端菜单里的链接样式 */
   .navigation-links a {
     width: 100%;
@@ -266,11 +257,6 @@ function toggleMenu() {
     font-size: 2rem;
     background-color: transparent;
     border-color: transparent;
-  }
-
-  .navigation.layout--article .navigation-links a {
-    color: #eeeded;
-    font-size: 2rem;
   }
 }
 </style>

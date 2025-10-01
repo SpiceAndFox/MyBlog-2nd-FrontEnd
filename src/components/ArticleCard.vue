@@ -5,6 +5,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  layout: {
+    type: String,
+    required: true,
+  },
 });
 
 // ArticleCard和Aricle联动逻辑——头图放大载入页面
@@ -23,7 +27,7 @@ function navigate() {
 </script>
 
 <template>
-  <article class="article-card" @click="navigate">
+  <article class="article-card" @click="navigate" :class="`layout--${layout}`">
     <img
       class="article-card__image"
       :src="article.imgUrl"
@@ -57,6 +61,20 @@ function navigate() {
 .article-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* 针对aricleList页的个性化 */
+.article-card.layout--grid {
+  flex-direction: column;
+}
+.article-card.layout--grid .article-card__image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+.article-card.layout--grid .article-card__content {
+  width: 100%;
+  max-width: 100%;
 }
 
 .article-card__image {
@@ -111,8 +129,8 @@ function navigate() {
   margin-top: auto;
 }
 
-/* --- 把移动端适配 */
-@media (max-width: 600px) {
+/* --- 移动端适配 */
+@media (max-width: 768px) {
   .article-card {
     flex-direction: column;
   }

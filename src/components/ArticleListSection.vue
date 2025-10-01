@@ -9,15 +9,19 @@ defineProps({
     type: Array,
     required: true,
   },
+  layout: {
+    type: String,
+    default: "list",
+  },
 });
 </script>
 
 <template>
-  <section class="article-list-section">
+  <section class="article-list-section" :class="`layout--${layout}`">
     <h2 class="article-list-section__title">{{ title }}</h2>
     <ul class="article-list">
       <li class="article-list__item" v-for="article in articles" :key="article.link">
-        <ArticleCard :article="article" />
+        <ArticleCard :article="article" :layout="layout" />
       </li>
     </ul>
   </section>
@@ -35,6 +39,18 @@ defineProps({
 
   box-sizing: border-box;
   border-radius: 15px;
+}
+
+/* 针对ArticleList页的个性化 */
+.article-list-section.layout--grid {
+  max-width: 1200px;
+  background-color: #a8a8a8cb;
+  backdrop-filter: blur(4px);
+}
+.article-list-section.layout--grid .article-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
 }
 
 .article-list-section__title {
@@ -60,7 +76,6 @@ defineProps({
   display: flex;
   flex-direction: column;
   gap: 10px;
-
   width: 100%;
 }
 
@@ -70,17 +85,15 @@ defineProps({
     max-width: 100%;
     padding: 15px;
   }
-}
-
-@media (max-width: 600px) {
-  .article-list-section {
-    padding: 15px;
-  }
 
   .article-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 15px;
+  }
+
+  .article-list-section.layout--grid .article-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

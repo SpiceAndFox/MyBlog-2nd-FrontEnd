@@ -134,7 +134,6 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   max-width: 320px;
   width: 100%;
-  margin-right: 30px;
   box-sizing: border-box;
 }
 
@@ -274,10 +273,10 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
   border: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .article-filter-panel {
     max-width: 100%;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
   }
 }
 </style>
