@@ -9,8 +9,8 @@
 <style scoped>
 .user_info__description {
   display: flex;
-  height: 96px;
-  width: 372px;
+  /* height: 96px; */
+  max-width: 372px;
 
   background: rgba(52, 55, 63, 0.568);
   border-radius: 8px;
@@ -29,8 +29,8 @@
 }
 
 .user_info__description span {
-  width: 300px;
-  height: 64px;
+  max-width: 300px;
+  /* height: 64px; */
   padding: 16px;
 
   font-size: 18px;

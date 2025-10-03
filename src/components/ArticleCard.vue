@@ -56,6 +56,9 @@ function navigate() {
   border-radius: 15px;
   transition: box-shadow 0.3s, transform 0.3s ease;
   cursor: pointer;
+
+  container-type: inline-size;
+  container-name: article-card;
 }
 
 .article-card:hover {
@@ -130,7 +133,7 @@ function navigate() {
 }
 
 /* --- 移动端适配 */
-@media (max-width: 768px) {
+@container article-list-section (max-width: 500px) {
   .article-card {
     flex-direction: column;
   }

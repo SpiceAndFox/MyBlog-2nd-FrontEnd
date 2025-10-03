@@ -23,7 +23,7 @@ import UserInfoBase from "./UserInfoBase.vue";
   margin-bottom: 50px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .user-info {
     margin-right: 0;
     margin-bottom: 30px;

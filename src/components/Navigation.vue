@@ -75,7 +75,7 @@ function toggleMenu() {
 }
 
 .navigation.layout--articleList {
-  background-color: rgba(255, 255, 255, 0.808);
+  background-color: rgb(251, 251, 250);
 }
 
 .logo-container {
@@ -184,9 +184,9 @@ function toggleMenu() {
   width: 60px;
   height: 30px;
   line-height: 30px;
-  border: solid 2px #adadadcc;
   text-align: center;
 
+  background-color: #ffffffb4;
   text-decoration: none;
   color: #535353;
   font-weight: 500;

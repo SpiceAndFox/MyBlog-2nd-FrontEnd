@@ -180,6 +180,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
 }
 
 .article-search-bar__input {
+  min-width: 0;
   flex-grow: 1;
   border: 1px solid var(--panel-border-color);
   padding: 8px 12px;
@@ -276,7 +277,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
 @media (max-width: 1200px) {
   .article-filter-panel {
     max-width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
 }
 </style>

@@ -47,6 +47,8 @@ const articlesData = ref([
   align-items: center;
   justify-content: space-around;
   padding: 0 20px;
+
+  position: relative;
 }
 
 @media (max-width: 1200px) {

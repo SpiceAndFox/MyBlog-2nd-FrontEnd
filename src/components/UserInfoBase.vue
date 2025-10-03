@@ -44,7 +44,7 @@ import avatar from "@/assets/avatar-01.JPG";
   color: rgb(255, 255, 255);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .user-info__base {
     flex-direction: column;
     gap: 15px;

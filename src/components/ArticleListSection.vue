@@ -40,13 +40,9 @@ defineProps({
 
   box-sizing: border-box;
   border-radius: 15px;
-}
 
-/* 针对ArticleList页的个性化 */
-.article-list-section.layout--grid {
-  max-width: 1200px;
-  background-color: #a8a8a8cb;
-  backdrop-filter: blur(4px);
+  container-type: inline-size;
+  container-name: article-list-section;
 }
 
 .article-list-section__title {
@@ -76,17 +72,38 @@ defineProps({
 }
 
 /* 针对ArticleList页的个性化 */
+.article-list-section.layout--grid {
+  max-width: 1200px;
+  background-color: #777777b9;
+  backdrop-filter: blur(8px);
+}
+
 .article-list-section.layout--grid .article-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 15px;
 }
 
+.article-list-section.layout--grid .article-list-section__title {
+  color: aliceblue;
+}
+
+.article-list-section.layout--grid .article-list-section__title:hover {
+  color: #d7d7d7;
+}
+
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .article-list-section.layout--grid .article-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container article-list-section (max-width: 500px) {
   .article-list-section {
     max-width: 100%;
     padding: 15px;
+    margin-bottom: 20px;
   }
 
   .article-list {
@@ -94,9 +111,15 @@ defineProps({
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 15px;
   }
+}
+
+@container article-list-section (max-width: 320px) {
+  .article-list {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
 
   .article-list-section.layout--grid .article-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 }
 </style>
