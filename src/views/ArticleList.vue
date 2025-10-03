@@ -104,11 +104,11 @@ const articleListSectionTitle = computed(() => {
   <div class="article-list-container">
     <ArticleFilterPanel @filter-change="handleFilterChange"></ArticleFilterPanel>
 
-    <ArticleListSection
+    <!-- <ArticleListSection
       :title="articleListSectionTitle"
       :articles="filteredArticles"
       layout="grid"
-    ></ArticleListSection>
+    ></ArticleListSection> -->
   </div>
 </template>
 

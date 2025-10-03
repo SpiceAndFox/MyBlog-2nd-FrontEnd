@@ -75,7 +75,7 @@ function toggleMenu() {
 }
 
 .navigation.layout--articleList {
-  background-color: rgb(251, 251, 250);
+  background-color: rgb(238, 238, 238, 0);
 }
 
 .logo-container {
@@ -190,14 +190,14 @@ function toggleMenu() {
   text-decoration: none;
   color: #535353;
   font-weight: 500;
-  font-size: 18px;
+  font-size: 16px;
   transition: color 0.3s, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
   border-radius: 15px;
 }
 
 .navigation-links a:hover {
   background-color: #ffffffb4;
-  color: #c44569;
+  color: #3b82f6;
   border-color: transparent;
 }
 

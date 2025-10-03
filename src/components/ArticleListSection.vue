@@ -43,6 +43,7 @@ defineProps({
 
   container-type: inline-size;
   container-name: article-list-section;
+  z-index: 1;
 }
 
 .article-list-section__title {
@@ -74,22 +75,20 @@ defineProps({
 /* 针对ArticleList页的个性化 */
 .article-list-section.layout--grid {
   max-width: 1200px;
-  background-color: #777777b9;
+  background-color: #ffffffb9;
   backdrop-filter: blur(8px);
+  padding: 20px 20px;
 }
-
 .article-list-section.layout--grid .article-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 15px;
 }
-
 .article-list-section.layout--grid .article-list-section__title {
-  color: aliceblue;
+  color: rgb(108, 108, 108);
 }
-
 .article-list-section.layout--grid .article-list-section__title:hover {
-  color: #d7d7d7;
+  color: #3f3f3f;
 }
 
 /* 移动端适配 */

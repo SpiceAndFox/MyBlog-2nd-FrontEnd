@@ -69,7 +69,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
             :href="`/articles/${topTag}`"
             :key="topTag"
             @click.prevent="toggleTopTag(topTag)"
-            :class="{ 'is-active': selectedTopTag.includes(topTag) }"
+            :class="{ 'is-active': selectedTopTag === topTag }"
           >
             {{ topTag }}
           </a>
@@ -90,7 +90,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
               :href="`/articles/${subTag}`"
               :key="subTag"
               @click.prevent="toggleSubTag(subTag)"
-              :class="{ 'is-active': selectedSubTag.includes(subTag) }"
+              :class="{ 'is-active': selectedSubTag === subTag }"
             >
               {{ subTag }}
             </a>
@@ -135,6 +135,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
   max-width: 320px;
   width: 100%;
   box-sizing: border-box;
+  z-index: 1;
 }
 
 .article-filter-panel form {

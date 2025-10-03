@@ -43,4 +43,21 @@ const layoutClass = computed(() => {
   background-image: none;
   background-color: #ffffff;
 }
+
+.app-layout.layout--articleList {
+  position: relative;
+}
+
+.app-layout.layout--articleList::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  background: linear-gradient(to top, rgb(238, 238, 238) 0%, rgb(238, 238, 238) 70%, transparent 100%);
+  opacity: 1;
+  z-index: 0;
+}
 </style>

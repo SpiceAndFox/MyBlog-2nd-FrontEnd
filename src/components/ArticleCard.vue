@@ -66,20 +66,6 @@ function navigate() {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
-/* 针对aricleList页的个性化 */
-.article-card.layout--grid {
-  flex-direction: column;
-}
-.article-card.layout--grid .article-card__image {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-}
-.article-card.layout--grid .article-card__content {
-  width: 100%;
-  max-width: 100%;
-}
-
 .article-card__image {
   width: 110px;
   height: 110px;
@@ -130,6 +116,30 @@ function navigate() {
   font-size: 0.8rem;
   color: #d4d4d4;
   margin-top: auto;
+}
+
+/* 针对aricleList页的个性化 */
+.article-card.layout--grid {
+  flex-direction: column;
+  gap: 10px;
+}
+.article-card.layout--grid .article-card__title {
+  color: rgb(90, 90, 90);
+}
+.article-card.layout--grid .article-card__image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+.article-card.layout--grid .article-card__content {
+  width: 100%;
+  max-width: 100%;
+}
+.article-card.layout--grid .article-card__summary {
+  color: rgb(100, 100, 100);
+}
+.article-card.layout--grid .article-card__meta {
+  color: rgb(124, 124, 124);
 }
 
 /* --- 移动端适配 */
