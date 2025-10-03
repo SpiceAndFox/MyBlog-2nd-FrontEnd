@@ -1,7 +1,7 @@
 <script setup>
-import { ref, watch } from "vue";
-import { VueCal } from "vue-cal";
-import "vue-cal/style";
+import { ref, watch, onMounted } from "vue";
+import { useRoute } from "vue-router";
+import MonthPicker from "./MonthPicker.vue";
 
 // 模拟数据
 const topTags = ref(["科技", "生活"]);
@@ -13,6 +13,17 @@ const subTags = ref({
 // active数据
 const selectedTopTag = ref("");
 const selectedSubTag = ref("");
+const selectedYear = ref(null);
+const selectedMonth = ref(-1);
+
+// 从URL初始化筛选状态
+const route = useRoute();
+onMounted(() => {
+  selectedTopTag.value = route.query.topTag || "";
+  selectedSubTag.value = route.query.subTag || "";
+  selectedYear.value = parseInt(route.query.year) || null;
+  selectedMonth.value = parseInt(route.query.month) || -1;
+});
 
 // Tag触发函数
 function toggleTopTag(topTag) {
@@ -35,14 +46,48 @@ function toggleSubTag(subTag) {
   } else selectedSubTag.value = "";
 }
 
+// 动态生成tag对应的链接
+// todo
+// https://gemini.google.com/u/2/app/9b02ac4e8f74fc23
+function getTagLink(tagType, tagValue) {
+  const params = new URLSearchParams(window.location.search);
+
+  if (tagType === "topTag") {
+    if (params.get("topTag") === tagValue) {
+      // 如果当前已经选中，则点击取消
+      params.delete("topTag");
+      params.delete("subTag"); // 取消主标签时，二级标签也应取消
+    } else {
+      params.set("topTag", tagValue);
+      params.delete("subTag"); // 切换主标签时，清空二级标签
+    }
+  } else if (tagType === "subTag") {
+    if (params.get("subTag") === tagValue) {
+      // 如果当前已经选中，则点击取消
+      params.delete("subTag");
+    } else {
+      params.set("subTag", tagValue);
+    }
+  }
+
+  const queryString = params.toString();
+  return queryString ? `/articles?${queryString}` : "/articles";
+}
+
 // 定义emit事件
 const emit = defineEmits(["filter-change"]);
-watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
-  emit("filter-change", {
-    topTag: newTopTag,
-    subTag: newSubTag,
-  });
-});
+watch(
+  [selectedTopTag, selectedSubTag, selectedYear, selectedMonth],
+  ([newTopTag, newSubTag, newYear, newMonth]) => {
+    emit("filter-change", {
+      topTag: newTopTag,
+      subTag: newSubTag,
+      year: newYear,
+      month: newMonth,
+    });
+  },
+  { deep: true }
+);
 </script>
 
 <template>
@@ -66,7 +111,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
           <a
             class="tag-list__tag"
             v-for="topTag in topTags"
-            :href="`/articles/${topTag}`"
+            :href="getTagLink('topTag', topTag)"
             :key="topTag"
             @click.prevent="toggleTopTag(topTag)"
             :class="{ 'is-active': selectedTopTag === topTag }"
@@ -87,7 +132,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
             <a
               class="tag-list__tag"
               v-for="subTag in subTags[selectedTopTag]"
-              :href="`/articles/${subTag}`"
+              :href="getTagLink('subTag', subTag)"
               :key="subTag"
               @click.prevent="toggleSubTag(subTag)"
               :class="{ 'is-active': selectedSubTag === subTag }"
@@ -99,18 +144,20 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
       </transition>
 
       <section class="filter-section">
-        <div class="filter-section__header">
-          <h3>日期范围</h3>
-        </div>
         <div class="time-filter-container">
-          <!-- <VueCal></VueCal> -->
+          <MonthPicker
+            v-model:selectedYear="selectedYear"
+            v-model:selectedMonth="selectedMonth"
+            :selected-sub-tag="selectedSubTag"
+            :selected-top-tag="selectedTopTag"
+          ></MonthPicker>
         </div>
       </section>
     </form>
   </aside>
 </template>
 
-<style>
+<style scoped>
 .article-filter-panel {
   --panel-bg: rgba(255, 255, 255, 0.75);
   --panel-border-color: rgba(229, 231, 235, 1);
@@ -133,6 +180,7 @@ watch([selectedTopTag, selectedSubTag], ([newTopTag, newSubTag]) => {
   border: 1px solid var(--panel-border-color);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   max-width: 320px;
+  max-height: 600px;
   width: 100%;
   box-sizing: border-box;
   z-index: 1;

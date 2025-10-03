@@ -14,7 +14,8 @@
     "pnpm": "^10.17.1",
     "vue": "^3.5.21",
     "vue-cal": "5.0.1-rc.29",
-    "vue-router": "^4.5.1"
+    "vue-router": "^4.5.1",
+    "vue-select": "4.0.0-beta.6"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",

@@ -32,7 +32,8 @@ import avatar from "@/assets/avatar-01.JPG";
 .user-info__name {
   width: 120px;
   margin: 0;
-  margin-left: 40px;
+  margin-left: 30px;
+  margin-right: 10px;
   text-align: center;
 
   font-size: 40px;

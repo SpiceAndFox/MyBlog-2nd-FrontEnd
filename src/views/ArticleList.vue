@@ -1,9 +1,8 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ArticleListSection from "@/components/ArticleListSection.vue";
 import ArticleFilterPanel from "@/components/ArticleFilterPanel.vue";
-import UserInfoBase from "@/components/UserInfoBase.vue";
 
 // 模拟数据
 import img1 from "@/assets/images/articleThumb/1.png";
@@ -65,38 +64,90 @@ const allArticles = ref([
   },
 ]);
 
+// 定义路由
+const route = useRoute();
+const router = useRouter();
+
 // 存储当前筛选条件的状态
 const currentFilter = ref({
   topTag: "",
   subTag: "",
+  year: null,
+  month: -1,
 });
 
-// 响应tag变化
-function handleFilterChange(filter) {
-  currentFilter.value = filter;
+// 从路由中读取数据以更新变量
+function updateFilterFromRoute(currentRoute) {
+  currentFilter.value.topTag = currentRoute.query.topTag || "";
+  currentFilter.value.subTag = currentRoute.query.subTag || "";
+  currentFilter.value.year = parseInt(currentRoute.query.year) || null;
+  currentFilter.value.month = parseInt(currentRoute.query.month) || -1;
 }
 
-// 定义文章列表数据（随Tag更新）
-const filteredArticles = computed(() => {
-  const { topTag, subTag } = currentFilter.value;
-  if (!topTag && !subTag) {
-    return allArticles.value;
-  }
+// 挂载时初始化参数
+onMounted(() => {
+  updateFilterFromRoute(route);
+});
 
-  // 临时的前端逻辑，后续调整为后端筛选
+// 监听路由变化，以便在浏览器前进/后退时更新筛选
+watch(
+  () => route.query,
+  () => {
+    updateFilterFromRoute(route);
+  }
+);
+
+// 响应筛选条件变化
+function handleFilterChange(filter) {
+  currentFilter.value = filter;
+  // 更新URL
+  const params = new URLSearchParams();
+  if (filter.topTag) params.append("topTag", filter.topTag);
+  if (filter.subTag) params.append("subTag", filter.subTag);
+  if (filter.year) params.append("year", filter.year);
+  if (filter.month && filter.month !== -1) params.append("month", filter.month);
+
+  router.push({ path: "/articles", query: Object.fromEntries(params) });
+}
+
+// 定义文章列表数据（随筛选条件更新）
+const filteredArticles = computed(() => {
+  const { topTag, subTag, year, month } = currentFilter.value;
   return allArticles.value.filter((article) => {
+    // 标签筛选
     const topMatch = topTag ? article.topTag === topTag : true;
     const subMatch = subTag ? article.subTag === subTag : true;
-    return topMatch && subMatch;
+
+    // 日期筛选
+    const articleDate = new Date(article.datetime);
+    const yearMatch = year ? articleDate.getFullYear() === year : true;
+
+    // month 为-1代表不筛选月份
+    const monthMatch = month !== -1 ? articleDate.getMonth() + 1 === month : true;
+    return topMatch && subMatch && yearMatch && monthMatch;
   });
 });
 
 // 定义文章列表标题（随Tag更新）
 const articleListSectionTitle = computed(() => {
-  const { topTag, subTag } = currentFilter.value;
-  if (subTag) return `${topTag} / ${subTag}`;
-  if (topTag) return topTag;
-  return "全部文章";
+  const { topTag, subTag, year, month } = currentFilter.value;
+  let title = "";
+
+  if (subTag) {
+    title = `${topTag} / ${subTag}`;
+  } else if (topTag) {
+    title = topTag;
+  } else {
+    title = "全部文章";
+  }
+
+  if (year && month !== -1) {
+    title += ` (${year}-${String(month).padStart(2, "0")})`;
+  } else if (year) {
+    title += ` (${year})`;
+  }
+
+  return title;
 });
 </script>
 
@@ -104,11 +155,11 @@ const articleListSectionTitle = computed(() => {
   <div class="article-list-container">
     <ArticleFilterPanel @filter-change="handleFilterChange"></ArticleFilterPanel>
 
-    <!-- <ArticleListSection
+    <ArticleListSection
       :title="articleListSectionTitle"
       :articles="filteredArticles"
       layout="grid"
-    ></ArticleListSection> -->
+    ></ArticleListSection>
   </div>
 </template>
 
@@ -121,7 +172,7 @@ const articleListSectionTitle = computed(() => {
   box-sizing: border-box;
   padding: 0 150px;
   gap: 20px;
-  margin-top: 30px;
+  margin-top: 40px;
   margin-bottom: 20px;
 }
 

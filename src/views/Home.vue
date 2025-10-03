@@ -56,6 +56,7 @@ const articlesData = ref([
     flex-direction: column;
     justify-content: flex-start;
     padding-top: 40px;
+    margin-bottom: 20px;
   }
 }
 </style>

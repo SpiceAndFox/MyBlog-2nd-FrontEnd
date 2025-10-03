@@ -26,6 +26,9 @@ importers:
       vue-router:
         specifier: ^4.5.1
         version: 4.5.1(vue@3.5.21)
+      vue-select:
+        specifier: 4.0.0-beta.6
+        version: 4.0.0-beta.6(vue@3.5.21)
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
@@ -490,6 +493,11 @@ packages:
     peerDependencies:
       vue: ^3.2.0
 
+  vue-select@4.0.0-beta.6:
+    resolution: {integrity: sha512-K+zrNBSpwMPhAxYLTCl56gaMrWZGgayoWCLqe5rWwkB8aUbAUh7u6sXjIR7v4ckp2WKC7zEEUY27g6h1MRsIHw==}
+    peerDependencies:
+      vue: 3.x
+
   vue@3.5.21:
     resolution: {integrity: sha512-xxf9rum9KtOdwdRkiApWL+9hZEMWE90FHh8yS1+KJAiWYh+iGWV1FquPjoO9VUHQ+VIhsCXNNyZ5Sf4++RVZBA==}
     peerDependencies:
@@ -843,6 +851,10 @@ snapshots:
   vue-router@4.5.1(vue@3.5.21):
     dependencies:
       '@vue/devtools-api': 6.6.4
+      vue: 3.5.21
+
+  vue-select@4.0.0-beta.6(vue@3.5.21):
+    dependencies:
       vue: 3.5.21
 
   vue@3.5.21:
