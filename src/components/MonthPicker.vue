@@ -1,29 +1,35 @@
 <script setup>
-import { ref, watch, computed } from "vue";
+import { computed } from "vue";
 import CustomSelect from "./CustomSelect.vue";
 
-defineProps({
-  selectedTopTag: {
-    type: String,
+// 模拟数据
+const years = [2025, 2024, 2023, 2022];
+
+// 定义参数
+const props = defineProps({
+  selectedYear: {
+    type: Number,
+    required: true,
   },
-  selectedSubTag: {
-    type: String,
+  selectedMonth: {
+    type: Number,
+    required: true,
   },
+  selectedTopTag: String,
+  selectedSubTag: String,
 });
 
-const years = ref([2025, 2024, 2023, 2022]); // 模拟数据
-const selectedYearModel = defineModel("selectedYear", { type: Number });
-const selectedMonthModel = defineModel("selectedMonth", { type: Number });
+// 定义emit信号
+const emit = defineEmits(["update:selectedYear", "update:selectedMonth"]);
 
-// 月份设置
-function monthLinkToggled(month) {
-  selectedMonthModel.value = month;
+// 修改数据时，发出emit事件
+function updateYear(newYear) {
+  emit("update:selectedYear", newYear);
 }
 
-// 监听年份变化
-watch(selectedYearModel, () => {
-  selectedMonthModel.value = -1;
-});
+function updateMonth(newMonth) {
+  emit("update:selectedMonth", newMonth);
+}
 
 // 设置每个月份对应的链接
 const generateMonthLink = (month) => {
@@ -52,29 +58,30 @@ const generateMonthLink = (month) => {
     <div class="month-picker-header">
       <h3>日期范围</h3>
       <div class="year-picker">
-        <button aria-label="上一年" class="year-picker__btn" @click="selectedYearModel = selectedYearModel - 1">
-          &lt;
-        </button>
-        <CustomSelect v-model="selectedYearModel" :options="years" placeholder="20xx"></CustomSelect>
-        <button aria-label="下一年" class="year-picker__btn" @click="selectedYearModel = selectedYearModel + 1">
-          &gt;
-        </button>
+        <button aria-label="上一年" class="year-picker__btn" @click.prevent="updateYear(selectedYear - 1)">&lt;</button>
+        <CustomSelect
+          :modelValue="selectedYear"
+          @update:modelValue="updateYear($event)"
+          :options="years"
+          placeholder="20xx"
+        ></CustomSelect>
+        <button aria-label="下一年" class="year-picker__btn" @click.prevent="updateYear(selectedYear + 1)">&gt;</button>
       </div>
     </div>
     <div class="month-picker-content">
       <a
         class="month-picker__all"
         href="generateMonthLink(-1)"
-        @click.prevent="monthLinkToggled(-1)"
-        :class="{ 'is-active': selectedMonthModel === -1 }"
+        @click.prevent="updateMonth(-1)"
+        :class="{ 'is-active': selectedMonth === -1 }"
         >All</a
       >
       <a
         v-for="month in 12"
         :key="month"
         href="generateMonthLink(month)"
-        @click.prevent="monthLinkToggled(month)"
-        :class="{ 'is-active': selectedMonthModel === month }"
+        @click.prevent="updateMonth(month)"
+        :class="{ 'is-active': selectedMonth === month }"
         >{{ month }}</a
       >
     </div>

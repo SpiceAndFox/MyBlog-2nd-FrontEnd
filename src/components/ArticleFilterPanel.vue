@@ -1,54 +1,28 @@
 <script setup>
-import { ref, watch, onMounted } from "vue";
-import { useRoute } from "vue-router";
 import MonthPicker from "./MonthPicker.vue";
 
-// 模拟数据
-const topTags = ref(["科技", "生活"]);
-const subTags = ref({
-  科技: ["Vue", "Cpp", "ML"],
-  生活: ["旅行", "杂项", "动画", "Book", "电影", "音乐"],
+// 定义参数
+const props = defineProps({
+  selectedTopTag: String,
+  selectedSubTag: String,
+  selectedYear: Number,
+  selectedMonth: Number,
+  tags: Object, // 接收动态生成的标签数据
 });
 
-// active数据
-const selectedTopTag = ref("");
-const selectedSubTag = ref("");
-const selectedYear = ref(null);
-const selectedMonth = ref(-1);
+// 定义emit事件
+const emit = defineEmits(["update"]);
 
-// 从URL初始化筛选状态
-const route = useRoute();
-onMounted(() => {
-  selectedTopTag.value = route.query.topTag || "";
-  selectedSubTag.value = route.query.subTag || "";
-  selectedYear.value = parseInt(route.query.year) || null;
-  selectedMonth.value = parseInt(route.query.month) || -1;
-});
-
-// Tag触发函数
-function toggleTopTag(topTag) {
-  if (!selectedTopTag.value) {
-    selectedTopTag.value = topTag;
-  } else if (selectedTopTag.value != topTag) {
-    selectedTopTag.value = topTag;
-    selectedSubTag.value = "";
-  } else {
-    selectedTopTag.value = "";
-    selectedSubTag.value = "";
-  }
+// 点击处理逻辑，只发出事件
+function handleTagClick(type, value) {
+  emit("update", { type, value });
 }
 
-function toggleSubTag(subTag) {
-  if (!selectedSubTag.value) {
-    selectedSubTag.value = subTag;
-  } else if (selectedSubTag.value != subTag) {
-    selectedSubTag.value = subTag;
-  } else selectedSubTag.value = "";
+function handleDateChange(type, value) {
+  emit("update", { type, value });
 }
 
 // 动态生成tag对应的链接
-// todo
-// https://gemini.google.com/u/2/app/9b02ac4e8f74fc23
 function getTagLink(tagType, tagValue) {
   const params = new URLSearchParams(window.location.search);
 
@@ -73,21 +47,6 @@ function getTagLink(tagType, tagValue) {
   const queryString = params.toString();
   return queryString ? `/articles?${queryString}` : "/articles";
 }
-
-// 定义emit事件
-const emit = defineEmits(["filter-change"]);
-watch(
-  [selectedTopTag, selectedSubTag, selectedYear, selectedMonth],
-  ([newTopTag, newSubTag, newYear, newMonth]) => {
-    emit("filter-change", {
-      topTag: newTopTag,
-      subTag: newSubTag,
-      year: newYear,
-      month: newMonth,
-    });
-  },
-  { deep: true }
-);
 </script>
 
 <template>
@@ -110,10 +69,10 @@ watch(
         <div class="tag-list">
           <a
             class="tag-list__tag"
-            v-for="topTag in topTags"
+            v-for="topTag in tags.topTags"
             :href="getTagLink('topTag', topTag)"
             :key="topTag"
-            @click.prevent="toggleTopTag(topTag)"
+            @click.prevent="handleTagClick('topTag', topTag)"
             :class="{ 'is-active': selectedTopTag === topTag }"
           >
             {{ topTag }}
@@ -131,10 +90,10 @@ watch(
           <div class="tag-list">
             <a
               class="tag-list__tag"
-              v-for="subTag in subTags[selectedTopTag]"
+              v-for="subTag in tags.subTags[selectedTopTag]"
               :href="getTagLink('subTag', subTag)"
               :key="subTag"
-              @click.prevent="toggleSubTag(subTag)"
+              @click.prevent="handleTagClick('subTag', subTag)"
               :class="{ 'is-active': selectedSubTag === subTag }"
             >
               {{ subTag }}
@@ -146,10 +105,12 @@ watch(
       <section class="filter-section">
         <div class="time-filter-container">
           <MonthPicker
-            v-model:selectedYear="selectedYear"
-            v-model:selectedMonth="selectedMonth"
+            :selectedYear="selectedYear"
+            :selectedMonth="selectedMonth"
             :selected-sub-tag="selectedSubTag"
             :selected-top-tag="selectedTopTag"
+            @update:selectedYear="handleDateChange('year', $event)"
+            @update:selectedMonth="handleDateChange('month', $event)"
           ></MonthPicker>
         </div>
       </section>

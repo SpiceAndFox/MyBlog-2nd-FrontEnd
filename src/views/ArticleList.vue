@@ -5,6 +5,11 @@ import ArticleListSection from "@/components/ArticleListSection.vue";
 import ArticleFilterPanel from "@/components/ArticleFilterPanel.vue";
 
 // 模拟数据
+const tags = {
+  topTags: ["科技", "生活"],
+  subTags: { 科技: ["Vue", "Cpp", "ML"], 生活: ["旅行", "杂项"] },
+};
+
 import img1 from "@/assets/images/articleThumb/1.png";
 import img2 from "@/assets/images/articleThumb/2.jfif";
 import img3 from "@/assets/images/articleThumb/3.jpg";
@@ -98,8 +103,34 @@ watch(
 );
 
 // 响应筛选条件变化
-function handleFilterChange(filter) {
-  currentFilter.value = filter;
+function handleFilterChange({ type, value }) {
+  const filter = currentFilter.value;
+  switch (type) {
+    case "topTag":
+      if (filter.topTag === value) {
+        filter.topTag = "";
+        filter.subTag = "";
+      } else {
+        filter.topTag = value;
+        filter.subTag = "";
+      }
+      break;
+    case "subTag":
+      if (filter.subTag === value) {
+        filter.subTag = "";
+      } else {
+        filter.subTag = value;
+      }
+      break;
+    case "year":
+      filter.year = value;
+      filter.month = -1; // 切换年份时重置月份
+      break;
+    case "month":
+      filter.month = value;
+      break;
+  }
+
   // 更新URL
   const params = new URLSearchParams();
   if (filter.topTag) params.append("topTag", filter.topTag);
@@ -128,7 +159,7 @@ const filteredArticles = computed(() => {
   });
 });
 
-// 定义文章列表标题（随Tag更新）
+// 定义文章列表标题（随筛选条件更新）
 const articleListSectionTitle = computed(() => {
   const { topTag, subTag, year, month } = currentFilter.value;
   let title = "";
@@ -153,7 +184,14 @@ const articleListSectionTitle = computed(() => {
 
 <template>
   <div class="article-list-container">
-    <ArticleFilterPanel @filter-change="handleFilterChange"></ArticleFilterPanel>
+    <ArticleFilterPanel
+      :selectedTopTag="currentFilter.topTag"
+      :selectedSubTag="currentFilter.subTag"
+      :selectedYear="currentFilter.year"
+      :selectedMonth="currentFilter.month"
+      :tags="tags"
+      @update="handleFilterChange($event)"
+    ></ArticleFilterPanel>
 
     <ArticleListSection
       :title="articleListSectionTitle"
