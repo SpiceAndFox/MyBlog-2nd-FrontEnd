@@ -1,6 +1,7 @@
 <script setup>
-import myLogo from "@/assets/logo.jpg";
-import { ref, onMounted } from "vue";
+import myLogo from "@/assets/logo-1.jpg";
+import { ref } from "vue";
+import { useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
 defineProps({
@@ -19,22 +20,39 @@ const isMenuOpen = ref(false);
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }
+
+// 路由跳转
+const router = useRouter();
+function linkToggled(link) {
+  if (!document.startViewTransition) {
+    router.push(link);
+    return;
+  }
+  document.startViewTransition(() => {
+    router.push(link);
+  });
+}
 </script>
 
 <template>
   <nav class="navigation" :class="layoutClass">
-    <router-link to="/" class="logo-container">
-      <img :src="myLogo" alt="SpiceNest Logo" />
+    <a @click.prevent="linkToggled('/')" href="/" class="logo-container">
+      <img
+        :src="myLogo"
+        alt="SpiceNest Logo"
+        :style="{ viewTransitionName: 'user-avatar' }"
+        v-show="layoutClass !== 'layout--home'"
+      />
       <div class="blog-name-container">
         <span v-for="(char, index) in blogNameChars" :key="index" class="char">
           {{ char }}
         </span>
       </div>
-    </router-link>
+    </a>
 
     <ul class="navigation-links" :class="{ 'is-open': isMenuOpen }">
       <li>
-        <router-link to="/articles" @click="isMenuOpen = false">文章</router-link>
+        <a @click.prevent="linkToggled('/articles')" href="/articles" @click="isMenuOpen = false">文章</a>
       </li>
     </ul>
 

@@ -4,7 +4,7 @@ import avatar from "@/assets/avatar-01.JPG";
 
 <template>
   <div class="user-info__base">
-    <img class="user-info__avatar" :src="avatar" />
+    <img class="user-info__avatar" :src="avatar" :style="{ viewTransitionName: 'user-avatar' }" />
     <h2 class="user-info__name">香辛料</h2>
   </div>
 </template>

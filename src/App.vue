@@ -8,6 +8,7 @@ const route = useRoute();
 
 // 页面显示样式判断
 const layoutMap = {
+  home: "layout--home",
   article: "layout--article",
   articleList: "layout--articleList",
   admin: "layout--admin",
