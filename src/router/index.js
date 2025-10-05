@@ -5,6 +5,7 @@ import ArticleList from "@/views/ArticleList.vue";
 import LogIn from "@/views/LogIn.vue";
 import ArticleWrite from "@/views/Admin/ArticleWrite.vue";
 import AdminLayout from "@/views/AdminLayout.vue";
+import ArticleManage from "@/views/Admin/ArticleManage.vue";
 
 const routes = [
   {
@@ -43,17 +44,22 @@ const routes = [
     path: "/admin",
     name: "AdminLayout",
     component: AdminLayout,
+    redirect: "/admin/write",
     meta: {
       layoutClass: "admin",
     },
-  },
-  {
-    path: "/admin/write",
-    name: "ArticleWrite",
-    component: ArticleWrite,
-    meta: {
-      layoutClass: "admin",
-    },
+    children: [
+      {
+        path: "write",
+        name: "ArticleWrite",
+        component: ArticleWrite,
+      },
+      {
+        path: "articles",
+        name: "ArticleManage",
+        component: ArticleManage,
+      },
+    ],
   },
 ];
 

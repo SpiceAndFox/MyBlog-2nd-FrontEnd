@@ -1,9 +1,9 @@
 <script setup>
 import { useRoute } from "vue-router";
-import AdminSidebar from "@/components/AdminSidebar.vue";
+import AdminDockBar from "@/components/Admin/AdminDockBar.vue";
 </script>
 
 <template>
-  <AdminSidebar></AdminSidebar>
+  <AdminDockBar></AdminDockBar>
   <router-view></router-view>
 </template>
