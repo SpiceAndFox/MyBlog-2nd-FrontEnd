@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import CustomSelect from "./CustomSelect.vue";
 
 // 模拟数据
@@ -8,8 +8,8 @@ const years = [2025, 2024, 2023, 2022];
 // 定义参数
 const props = defineProps({
   selectedYear: {
-    type: Number,
-    required: true,
+    type: [Number, null],
+    default: null,
   },
   selectedMonth: {
     type: Number,
@@ -23,6 +23,10 @@ const props = defineProps({
 const emit = defineEmits(["update:selectedYear", "update:selectedMonth"]);
 
 // 修改数据时，发出emit事件
+function yearPickerBtnToggled(num) {
+  if (props.selectedYear) updateYear(props.selectedYear + num);
+}
+
 function updateYear(newYear) {
   emit("update:selectedYear", newYear);
 }
@@ -58,14 +62,14 @@ const generateMonthLink = (month) => {
     <div class="month-picker-header">
       <h3>日期范围</h3>
       <div class="year-picker">
-        <button aria-label="上一年" class="year-picker__btn" @click.prevent="updateYear(selectedYear - 1)">&lt;</button>
+        <button aria-label="上一年" class="year-picker__btn" @click.prevent="yearPickerBtnToggled(-1)">&lt;</button>
         <CustomSelect
           :modelValue="selectedYear"
           @update:modelValue="updateYear($event)"
           :options="years"
           placeholder="20xx"
         ></CustomSelect>
-        <button aria-label="下一年" class="year-picker__btn" @click.prevent="updateYear(selectedYear + 1)">&gt;</button>
+        <button aria-label="下一年" class="year-picker__btn" @click.prevent="yearPickerBtnToggled(1)">&gt;</button>
       </div>
     </div>
     <div class="month-picker-content">
