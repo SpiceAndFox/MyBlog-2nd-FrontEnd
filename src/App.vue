@@ -7,15 +7,12 @@ import Navigation from "@/components/Navigation.vue";
 const route = useRoute();
 
 // 页面显示样式判断
-const layoutClass = computed(() => {
-  if (route.meta.layoutClass === "article") {
-    return "layout--article";
-  }
-  if (route.meta.layoutClass === "articleList") {
-    return "layout--articleList";
-  }
-  return null;
-});
+const layoutMap = {
+  article: "layout--article",
+  articleList: "layout--articleList",
+  admin: "layout--admin",
+};
+const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 </script>
 
 <template>
@@ -59,5 +56,11 @@ const layoutClass = computed(() => {
   background: linear-gradient(to top, rgb(238, 238, 238) 0%, rgb(238, 238, 238) 70%, transparent 100%);
   opacity: 1;
   z-index: 0;
+}
+
+.app-layout.layout--admin {
+  background-image: none;
+  background-color: rgb(238, 238, 238);
+  display: flex;
 }
 </style>
