@@ -44,7 +44,6 @@ const handleDelete = (id) => {
 </template>
 
 <style scoped>
-/* 这里粘贴之前 ArticleManage.vue 中所有关于 .article-card 及其子元素的样式 */
 .article-card {
   background-color: #ffffff;
   border-radius: 12px;
@@ -53,7 +52,6 @@ const handleDelete = (id) => {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* 点击卡片主体也可以触发事件，但按钮部分要阻止事件冒泡 .stop */
 .article-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);

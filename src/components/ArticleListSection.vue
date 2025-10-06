@@ -74,7 +74,8 @@ defineProps({
 
 /* 针对ArticleList页的个性化 */
 .article-list-section.layout--grid {
-  max-width: 1200px;
+  width: 60%;
+  max-width: 9999px;
   background-color: #ffffffb9;
   backdrop-filter: blur(8px);
   padding: 20px 20px;
@@ -92,7 +93,16 @@ defineProps({
 }
 
 /* 移动端适配 */
+@media (max-width: 1200px) {
+  .article-list-section.layout--grid {
+    width: 80%;
+  }
+}
+
 @media (max-width: 900px) {
+  .article-list-section.layout--grid {
+    width: 85%;
+  }
   .article-list-section.layout--grid .article-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -112,7 +122,7 @@ defineProps({
   }
 }
 
-@container article-list-section (max-width: 320px) {
+@container article-list-section (max-width: 425px) {
   .article-list {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }

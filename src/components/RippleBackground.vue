@@ -5,7 +5,7 @@ const props = defineProps({
   // 水波出现的间隔时间（毫秒）
   interval: {
     type: Number,
-    default: 5000,
+    default: 2000,
   },
   // 动画的持续时间（毫秒）
   animationDuration: {
@@ -20,7 +20,7 @@ const props = defineProps({
   // 水波的最终大小（直径，像素）
   size: {
     type: Number,
-    default: 300,
+    default: 500,
   },
 });
 

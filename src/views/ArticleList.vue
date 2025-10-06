@@ -208,7 +208,6 @@ const articleListSectionTitle = computed(() => {
   flex-direction: row;
   justify-content: center;
   box-sizing: border-box;
-  padding: 0 150px;
   gap: 20px;
   margin-top: 40px;
   margin-bottom: 20px;
@@ -219,19 +218,6 @@ const articleListSectionTitle = computed(() => {
     flex-direction: column;
     align-items: center;
     margin-bottom: 20px;
-    padding: 0 150px;
-  }
-}
-
-@media (max-width: 900px) {
-  .article-list-container {
-    padding: 0 100px;
-  }
-}
-
-@media (max-width: 768px) {
-  .article-list-container {
-    padding: 0 20px;
   }
 }
 </style>

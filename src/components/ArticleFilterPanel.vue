@@ -273,8 +273,14 @@ function getTagLink(tagType, tagValue) {
 
 @media (max-width: 1200px) {
   .article-filter-panel {
-    max-width: 100%;
+    max-width: 80%;
     margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .article-filter-panel {
+    max-width: 85%;
   }
 }
 </style>

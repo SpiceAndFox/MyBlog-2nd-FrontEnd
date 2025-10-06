@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import ArticleCard from "@/components/Admin/ArticleCardAdmin.vue";
+import ArticleCardAdmin from "@/components/Admin/ArticleCardAdmin.vue";
 
 // 模拟文章数据
 import img1 from "@/assets/images/articleThumb/1.png";
@@ -89,7 +89,7 @@ const deleteArticle = (id) => {
     </header>
 
     <div v-if="filteredArticles.length > 0" class="article-grid">
-      <ArticleCard
+      <ArticleCardAdmin
         v-for="article in filteredArticles"
         :key="article.id"
         :article="article"
@@ -106,12 +106,12 @@ const deleteArticle = (id) => {
 </template>
 
 <style scoped>
-/* 3. 只保留父组件自身的样式 */
 .article-manage-container {
   width: 90%;
   max-width: 1200px;
   margin: 40px auto 120px;
   padding: 0 20px;
+  box-sizing: border-box;
 }
 
 .manage-header {
@@ -146,7 +146,7 @@ const deleteArticle = (id) => {
 
 .article-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 25px;
 }
 
@@ -164,5 +164,16 @@ const deleteArticle = (id) => {
   font-size: 1.2rem;
   background-color: #f9fafb;
   border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .manage-header {
+    flex-direction: column;
+  }
+
+  .search-input {
+    width: 90%;
+    max-width: 280px;
+  }
 }
 </style>
