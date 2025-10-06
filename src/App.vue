@@ -18,6 +18,10 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 
 <template>
   <div class="app-layout" :class="layoutClass">
+    <video v-if="layoutClass === 'layout--home'" class="background-video" autoplay muted loop playsinline>
+      <source src="@/assets/videos/background-1.mp4" type="video/mp4" />
+    </video>
+
     <Navigation :layoutClass="layoutClass"></Navigation>
     <router-view></router-view>
   </div>
@@ -40,6 +44,7 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 
 <style scoped>
 .app-layout {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -49,6 +54,23 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+
+  overflow: hidden; /* 避免视频溢出 */
+}
+
+/* 背景视频层 */
+.background-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+
+.app-layout.layout--home {
+  background-image: none;
 }
 
 .app-layout.layout--article {
@@ -68,7 +90,6 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
   left: 0;
   width: 100%;
   height: 100%;
-
   background: linear-gradient(to top, rgb(238, 238, 238) 0%, rgb(238, 238, 238) 70%, transparent 100%);
   opacity: 1;
   z-index: 0;

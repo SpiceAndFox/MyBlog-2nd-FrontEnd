@@ -52,7 +52,7 @@ const allArticles = ref([
     thumbnail: img5,
     publishDate: "2025-09-25",
     topTag: "科技",
-    subTags: ["Linux", "Cpp"],
+    subTags: ["Linux", "C"],
     status: "published",
   },
 ]);

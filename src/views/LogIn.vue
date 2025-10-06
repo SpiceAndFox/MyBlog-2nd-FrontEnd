@@ -88,4 +88,41 @@ import GooeyAnimation from "@/components/GooeyAnimation.vue";
     margin-bottom: 20px;
   }
 }
+
+/* 2k屏、4k屏适配 */
+@media (min-width: 1920px) and (max-width: 3000px) {
+  .log-in-stack {
+    max-width: 600px;
+  }
+
+  .log-in-content h2 {
+    font-size: 40px;
+  }
+
+  .input-field {
+    max-width: 400px;
+    gap: 28px;
+    margin-bottom: 40px;
+  }
+
+  .input-field md-outlined-text-field {
+    --md-outlined-text-field-container-shape: 30px;
+  }
+}
+
+@media (min-width: 3000px) {
+  .log-in-stack {
+    max-width: 800px;
+  }
+
+  .log-in-content h2 {
+    font-size: 52px;
+  }
+
+  .input-field {
+    max-width: 500px;
+    gap: 32px;
+    margin-bottom: 50px;
+  }
+}
 </style>
