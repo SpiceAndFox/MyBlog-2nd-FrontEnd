@@ -15,6 +15,10 @@ defineProps({
     type: String,
     default: "请选择",
   },
+  customClass: {
+    type: String,
+    default: "",
+  },
 });
 
 // 定义组件的 emits
@@ -28,11 +32,11 @@ function toggleDropdown() {
 }
 
 function selectOption(option) {
-  emit("update:modelValue", option); // 通过 emit 更新 v-model 的值
-  isOpen.value = false; // 选择后关闭
+  emit("update:modelValue", option);
+  isOpen.value = false;
 }
 
-// 自定义指令：用于处理点击外部区域关闭下拉框
+// 处理点击外部区域关闭下拉框
 const vClickOutside = {
   mounted(el, binding) {
     el.__ClickOutsideHandler__ = (event) => {
@@ -49,7 +53,7 @@ const vClickOutside = {
 </script>
 
 <template>
-  <div class="custom-select" v-click-outside="() => (isOpen = false)">
+  <div class="custom-select" :class="customClass" v-click-outside="() => (isOpen = false)">
     <button class="custom-select__trigger" @click="toggleDropdown">
       {{ modelValue || placeholder }}
       <span class="custom-select__arrow" :class="{ 'is-open': isOpen }"></span>

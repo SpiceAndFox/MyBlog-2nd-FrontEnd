@@ -1,5 +1,5 @@
 <script setup>
-import avatar from "@/assets/avatar-01.JPG";
+import avatar from "@/assets/images/icons/avatar.JPG";
 </script>
 
 <template>
@@ -22,11 +22,11 @@ import avatar from "@/assets/avatar-01.JPG";
   object-fit: cover;
   border-radius: 50%;
 
-  transition: box-shadow 0.4s;
+  transition: box-shadow 0.4s, transform 0.3s ease-out;
 }
 
 .user-info__avatar:hover {
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 20px rgba(163, 163, 163, 0.7);
 }
 
 .user-info__name {

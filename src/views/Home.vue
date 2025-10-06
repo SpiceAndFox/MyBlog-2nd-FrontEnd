@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import UserInfo from "@/components/UserInfo.vue";
 import ArticleListSection from "@/components/ArticleListSection.vue";
+import RippleBackground from "@/components/RippleBackground.vue";
 
 import img1 from "@/assets/images/articleThumb/1.png";
 import img2 from "@/assets/images/articleThumb/2.jfif";
@@ -34,6 +35,7 @@ const articlesData = ref([
 
 <template>
   <main class="main-content">
+    <RippleBackground></RippleBackground>
     <UserInfo></UserInfo>
     <ArticleListSection :title="articleListSectionTitle" :articles="articlesData"></ArticleListSection>
   </main>
@@ -49,6 +51,7 @@ const articlesData = ref([
   padding: 0 20px;
 
   position: relative;
+  overflow: hidden;
 }
 
 @media (max-width: 1200px) {

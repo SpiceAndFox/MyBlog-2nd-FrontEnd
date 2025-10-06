@@ -1,59 +1,63 @@
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useRoute } from "vue-router";
+import writeIcon from "@/assets/images/icons/write.svg";
+import articleIcon from "@/assets/images/icons/article.svg";
+import tagIcon from "@/assets/images/icons/tag.svg";
 
-// 定义导航项的数据结构
+// 导航项
 const navItems = ref([
-  {
-    name: "articles",
-    path: "/admin/articles",
-    icon: "📚",
-    text: "文章管理",
-  },
-  {
-    name: "write",
-    path: "/admin/write",
-    icon: "✍️",
-    text: "发布文章",
-  },
-  {
-    name: "tags",
-    path: "/admin/tags",
-    icon: "🏷️",
-    text: "标签管理",
-  },
+  { name: "articles", path: "/admin/articles", icon: articleIcon, text: "文章管理" },
+  { name: "write", path: "/admin/write", icon: writeIcon, text: "发布文章" },
+  { name: "tags", path: "/admin/tags", icon: tagIcon, text: "标签管理" },
 ]);
 
-// 追踪当前展开的项
 const expandedItemName = ref(null);
 const route = useRoute();
+const indicatorStyle = ref({ left: "0px", width: "0px" });
 
-// 点击时，设置当前展开的项
 function handleItemClick(itemName) {
   expandedItemName.value = itemName;
+  nextTick(updateIndicator);
 }
 
-// 根据当前路由路径来更新展开项，确保刷新页面或手动改URL时状态正确
 const updateExpandedItemFromRoute = (currentPath) => {
   const currentItem = navItems.value.find((item) => currentPath.startsWith(item.path));
-  if (currentItem) {
-    expandedItemName.value = currentItem.name;
-  } else {
-    expandedItemName.value = null;
-  }
+  expandedItemName.value = currentItem ? currentItem.name : null;
+  nextTick(updateIndicator);
 };
 
-// 组件挂载时，根据当前路由初始化状态
+// 更新滑块位置
+function updateIndicator() {
+  const activeEl = document.querySelector(".nav-item.is-expanded");
+  if (activeEl) {
+    indicatorStyle.value = {
+      left: `${activeEl.offsetLeft}px`,
+      width: `${activeEl.offsetWidth}px`,
+    };
+  } else {
+    // 如果没有激活项，则隐藏指示器
+    indicatorStyle.value = { ...indicatorStyle.value, width: "0px" };
+  }
+}
+
+// 监听窗口大小变化，重新计算指示器位置
+const onResize = () => {
+  updateIndicator();
+};
+
 onMounted(() => {
   updateExpandedItemFromRoute(route.path);
+  window.addEventListener("resize", onResize);
 });
 
-// 监听路由变化，自动更新展开项
+onUnmounted(() => {
+  window.removeEventListener("resize", onResize);
+});
+
 watch(
   () => route.path,
-  (newPath) => {
-    updateExpandedItemFromRoute(newPath);
-  }
+  (newPath) => updateExpandedItemFromRoute(newPath)
 );
 </script>
 
@@ -61,6 +65,8 @@ watch(
   <aside class="admin-bottom-bar">
     <nav>
       <ul>
+        <div class="active-indicator" :style="indicatorStyle"></div>
+
         <li v-for="item in navItems" :key="item.name">
           <router-link
             :to="item.path"
@@ -68,7 +74,7 @@ watch(
             :class="{ 'is-expanded': expandedItemName === item.name }"
             @click="handleItemClick(item.name)"
           >
-            <span class="icon">{{ item.icon }}</span>
+            <span class="icon"><img :src="item.icon" class="icon-img" /></span>
             <span v-if="expandedItemName === item.name" class="text">{{ item.text }}</span>
           </router-link>
         </li>
@@ -79,25 +85,24 @@ watch(
 
 <style scoped>
 .admin-bottom-bar {
-  /* 固定在页面底部中心 */
   position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
 
-  /* * [核心改造] 灰色毛玻璃风格
-   */
-  background-color: rgba(255, 255, 255, 0.2); /* 关键：使用带透明度的浅色背景 */
-  backdrop-filter: blur(12px); /* 关键：模糊背景 */
+  background-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 50px;
-  border: 1px solid rgba(255, 255, 255, 0.25); /* 关键：添加微妙的亮色边框，模拟玻璃边缘 */
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15); /* 柔和的阴影 */
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
   padding: 8px;
+  transition: all 0.3s ease-in-out;
 }
 
 nav ul {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -107,45 +112,54 @@ nav ul {
   padding: 0;
 }
 
+/* 滑块背景，带弹性过渡 */
+.active-indicator {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 40px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+  transition: left 0.6s cubic-bezier(0.25, 1.25, 0.5, 1), width 0.6s cubic-bezier(0.25, 1.25, 0.5, 1);
+  z-index: 0;
+}
+
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 48px;
   min-width: 48px;
   padding: 0 16px;
-
-  /* [改造] 修改文字和图标颜色以适应浅色背景 */
-  color: #333; /* 使用深灰色文字，对比度更高 */
+  color: #333;
   text-decoration: none;
   font-size: 1rem;
   font-weight: 500;
-
   border-radius: 40px;
   cursor: pointer;
-
-  transition: all 0.3s ease-in-out; /* 动画稍作调整 */
+  transition: color 0.3s ease, background-color 0.3s ease;
   overflow: hidden;
+  z-index: 1;
 }
 
-/* [改造] 悬停效果 */
 .nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.3); /* 悬停时变得更亮一点 */
+  background-color: rgba(255, 255, 255, 0.8);
 }
 
-/* * [改造] 激活/展开状态
- * 放弃了原来的绿色，统一为灰色系
- */
-.nav-item.router-link-exact-active,
 .nav-item.is-expanded {
-  background-color: #ffffff; /* 使用不透明的白色作为激活背景 */
-  color: #000000; /* 激活时使用纯黑色文字，最清晰 */
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 给激活项一个轻微的阴影，使其“浮”起来 */
+  color: #000000;
 }
 
-.icon {
-  font-size: 1.5rem;
-  line-height: 1;
+/* 当滑块存在时，激活项不再有hover效果，防止颜色叠加 */
+.nav-item.is-expanded:hover {
+  background-color: transparent;
+}
+
+.icon-img {
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 
 .text {
@@ -162,6 +176,41 @@ nav ul {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+/* --- 移动端适配 --- */
+@media (max-width: 425px) {
+  .admin-bottom-bar {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    transform: translateX(0);
+    bottom: 10px;
+    padding: 6px;
+  }
+
+  nav ul {
+    justify-content: space-around;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .nav-item {
+    height: 44px;
+    min-width: 44px;
+    padding: 0 12px;
+    flex: 1;
+  }
+
+  .text {
+    font-size: 0.9rem;
+    margin-left: 6px;
+  }
+
+  .icon-img {
+    width: 22px;
+    height: 22px;
   }
 }
 </style>

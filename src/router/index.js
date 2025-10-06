@@ -6,6 +6,7 @@ import LogIn from "@/views/LogIn.vue";
 import ArticleWrite from "@/views/Admin/ArticleWrite.vue";
 import AdminLayout from "@/views/AdminLayout.vue";
 import ArticleManage from "@/views/Admin/ArticleManage.vue";
+import ArticleTagManage from "../views/Admin/ArticleTagManage.vue";
 
 const routes = [
   {
@@ -55,9 +56,19 @@ const routes = [
         component: ArticleWrite,
       },
       {
+        path: "write/:id",
+        name: "ArticleWriteEdit",
+        component: ArticleWrite,
+      },
+      {
         path: "articles",
         name: "ArticleManage",
         component: ArticleManage,
+      },
+      {
+        path: "tags",
+        name: "ArticleTagManage",
+        component: ArticleTagManage,
       },
     ],
   },

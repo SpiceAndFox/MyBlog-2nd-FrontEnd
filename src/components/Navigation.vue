@@ -1,5 +1,5 @@
 <script setup>
-import myLogo from "@/assets/logo-1.jpg";
+import myLogo from "@/assets/images/icons/logo.jpg";
 import { ref } from "vue";
 import { useRouter } from "vue-router"; // 引入 useRoute
 
@@ -148,6 +148,25 @@ function linkToggled(link) {
   padding: 5px;
   border-radius: 15px;
   transition: background-color 0.3s ease;
+}
+
+.navigation.layout--admin .menu-toggle {
+  border-color: rgb(176, 176, 176);
+}
+
+.navigation.layout--admin .menu-toggle:hover {
+  background-color: rgb(223, 223, 223);
+}
+
+.navigation.layout--admin .menu-toggle:active {
+  background-color: rgb(172, 172, 172);
+}
+
+.navigation.layout--admin .hamburger,
+.navigation.layout--admin .hamburger::before,
+.navigation.layout--admin .hamburger::after {
+  background-color: rgba(137, 137, 137, 0.87);
+  height: 3px;
 }
 
 .menu-toggle:active {

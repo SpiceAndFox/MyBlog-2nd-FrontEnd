@@ -23,6 +23,21 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
   </div>
 </template>
 
+<style>
+.app-layout {
+  --panel-bg: rgba(255, 255, 255, 0.75);
+  --panel-border-color: rgba(229, 231, 235, 1);
+  --primary-text-color: #1f2937;
+  --secondary-text-color: #6b7280;
+  --accent-color: #3b82f6;
+  --accent-color-dark: #2563eb;
+  --accent-text-color: #ffffff;
+  --base-radius: 8px;
+  --tag-bg: #f3f4f6;
+  --tag-hover-bg: #e5e7eb;
+}
+</style>
+
 <style scoped>
 .app-layout {
   display: flex;
