@@ -14,12 +14,15 @@ const layoutMap = {
   admin: "layout--admin",
 };
 const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
+const isVideoBackground = computed(() => {
+  if (layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList") return true;
+});
 </script>
 
 <template>
   <div class="app-layout" :class="layoutClass">
-    <video v-if="layoutClass === 'layout--home'" class="background-video" autoplay muted loop playsinline>
-      <source src="@/assets/videos/background-1.mp4" type="video/mp4" />
+    <video v-if="isVideoBackground" class="background-video" autoplay muted loop playsinline>
+      <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
 
     <Navigation :layoutClass="layoutClass"></Navigation>
@@ -48,13 +51,6 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-
-  background-image: url("@/assets/images/background-10.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-
   overflow: hidden; /* 避免视频溢出 */
 }
 
@@ -67,20 +63,6 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
   height: 100%;
   object-fit: cover;
   z-index: -1;
-}
-
-.app-layout.layout--home {
-  background-image: none;
-}
-
-.app-layout.layout--article {
-  position: relative;
-  background-image: none;
-  background-color: #ffffff;
-}
-
-.app-layout.layout--articleList {
-  position: relative;
 }
 
 .app-layout.layout--articleList::after {
@@ -96,7 +78,6 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 }
 
 .app-layout.layout--admin {
-  background-image: none;
   background-color: rgb(238, 238, 238);
   display: flex;
 }

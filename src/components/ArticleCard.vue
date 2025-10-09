@@ -98,7 +98,7 @@ function navigate() {
 .article-card__summary {
   margin: 8px 0;
   font-size: 0.9rem;
-  color: #dadada;
+  color: rgb(231, 231, 231);
   line-height: 1.5;
   overflow: hidden;
   display: -webkit-box;
