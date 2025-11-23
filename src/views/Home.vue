@@ -12,7 +12,8 @@ const articlesData = ref([
   {
     id: 1,
     link: "/article1",
-    imgUrl: img1,
+    headImgUrl: "",
+    thumbnail: img1,
     title: "文章1,这是一个标题很长的文章，很长很长，有多长呢，两三层楼那么长吧",
     topTag: "生活",
     subTag: "杂谈",
@@ -23,7 +24,8 @@ const articlesData = ref([
   {
     id: 2,
     link: "/article2",
-    imgUrl: img2,
+    headImgUrl: "",
+    thumbnail: img2,
     title: "文章2",
     topTag: "技术",
     subTag: "Web开发",

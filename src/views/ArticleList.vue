@@ -20,7 +20,8 @@ const allArticles = ref([
   {
     id: 1,
     link: "/article1",
-    imgUrl: img1,
+    headImgUrl: "",
+    thumbnail: img1,
     title: "文章1：好好学习天天向上",
     topTag: "生活",
     subTag: "杂项",
@@ -30,7 +31,8 @@ const allArticles = ref([
   {
     id: 2,
     link: "/article2",
-    imgUrl: img2,
+    headImgUrl: "",
+    thumbnail: img2,
     title: "文章2",
     topTag: "科技",
     subTag: "Cpp",
@@ -40,7 +42,8 @@ const allArticles = ref([
   {
     id: 3,
     link: "/article3",
-    imgUrl: img3,
+    headImgUrl: "",
+    thumbnail: img3,
     title: "Vue进阶技巧",
     topTag: "科技",
     subTag: "Vue",
@@ -50,7 +53,8 @@ const allArticles = ref([
   {
     id: 4,
     link: "/article4",
-    imgUrl: img4,
+    headImgUrl: "",
+    thumbnail: img4,
     title: "一次有趣的旅行",
     topTag: "生活",
     subTag: "旅行",
@@ -60,7 +64,8 @@ const allArticles = ref([
   {
     id: 5,
     link: "/article5",
-    imgUrl: img5,
+    headImgUrl: "",
+    thumbnail: img5,
     title: "爬山是个好方法",
     topTag: "生活",
     subTag: "旅行",

@@ -30,7 +30,7 @@ function navigate() {
   <article class="article-card" @click="navigate" :class="`layout--${layout}`">
     <img
       class="article-card__image"
-      :src="article.imgUrl"
+      :src="article.thumbnail"
       alt="文章头图"
       :style="{ viewTransitionName: transitionName }"
     />

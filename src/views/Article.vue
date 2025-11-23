@@ -6,7 +6,8 @@ import { computed } from "vue";
 const articleData = {
   id: 1,
   title: "松鼠的世界",
-  imageUrl: new URL("@/assets/images/background-07.jpg", import.meta.url).href,
+  thumbnail: "",
+  headImgUrl: new URL("@/assets/images/background-07.jpg", import.meta.url).href,
   topTag: "科技",
   subTag: "Vue",
   date: "2025-9-29",
@@ -23,7 +24,7 @@ const transitionName = `article-image-${articleId}`;
   <article class="article-container">
     <header class="article-header">
       <img
-        :src="articleData.imageUrl"
+        :src="articleData.headImgUrl"
         alt="文章头图"
         class="article-header__image"
         :style="{ viewTransitionName: transitionName }"
