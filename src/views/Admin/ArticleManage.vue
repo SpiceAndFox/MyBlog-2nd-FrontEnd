@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import ArticleCardAdmin from "@/components/Admin/ArticleCardAdmin.vue";
 import { getAdminArticles, deleteArticleAdmin } from "@/api/articles";
@@ -20,6 +20,8 @@ const page = ref(1);
 const limit = ref(3); // 每页条数
 const totalPages = ref(1);
 const total = ref(0);
+
+const loadingGif = "/loading-02.gif";
 
 // 判断是否请求到文章
 const hasArticles = computed(() => articles.value.length > 0);
@@ -125,6 +127,7 @@ const loadDebounced = useDebounceFn(loadArticles, 250); // 防抖
 watch(
   [searchQuery, page, limit],
   ([newSearch], [oldSearch]) => {
+    loading.value = true;
     if (newSearch !== oldSearch) page.value = 1; // 搜索词变回第一页
     loadDebounced();
   },
@@ -143,7 +146,12 @@ watch(
 
     <!-- 错误提示、加载中 -->
     <div v-if="error" class="error-message">{{ error }}</div>
-    <div v-if="loading" class="loading">正在加载文章...</div>
+
+    <!-- 加载动画 -->
+    <div v-if="loading" class="loading-overlay">
+      <img :src="loadingGif" alt="正在加载" class="loading-gif" />
+      <p>正在加载文章...</p>
+    </div>
 
     <!-- 加载完成后内容 -->
     <template v-else>
@@ -305,21 +313,26 @@ watch(
   animation: fade-slide-down 0.25s ease-out;
 }
 
-/* 悬浮式加载提示 */
-.loading {
+.loading-overlay {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(55, 65, 81, 0.9); /* 类似 Tailwind 的 gray-700 */
-  color: #fff;
-  padding: 12px 22px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  font-size: 0.95rem;
+  min-width: 240px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
   z-index: 9998;
   backdrop-filter: blur(6px);
-  animation: fade-slide-down 0.25s ease-out;
+}
+.loading-gif {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
 }
 
 /* 小动画：淡入 + 下滑  */
