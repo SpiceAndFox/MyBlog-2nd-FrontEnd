@@ -67,3 +67,30 @@ export async function deleteArticleAdmin(id) {
   }
   return data;
 }
+
+// 取单篇文章（后台）
+export async function getArticleByIdAdmin(id) {
+  const res = await fetch(`/api/admin/articles/${id}`, { headers: { ...getAuthHeader() } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || "获取文章失败");
+  return data; // { id, title, content, thumbnail_url, header_image_url, status, tag_ids }
+}
+
+// 更新文章（后台）
+// payload 可以是 FormData（含 headerImage）或普通对象
+export async function updateArticle(id, payload) {
+  const isFormData = payload instanceof FormData;
+  const headers = isFormData
+    ? { ...getAuthHeader() } // 不要手动设 Content-Type
+    : { "Content-Type": "application/json", ...getAuthHeader() };
+
+  const res = await fetch(`/api/admin/articles/${id}`, {
+    method: "PUT",
+    headers,
+    body: isFormData ? payload : JSON.stringify(payload),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || "更新文章失败");
+  return data;
+}

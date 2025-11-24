@@ -123,7 +123,7 @@ const changePage = (newPage) => {
 };
 
 // 输入框内容变化时重新请求，初始挂载时也会发起一次请求
-const loadDebounced = useDebounceFn(loadArticles, 250); // 防抖
+const loadDebounced = useDebounceFn(loadArticles, 0); // 防抖
 watch(
   [searchQuery, page, limit],
   ([newSearch], [oldSearch]) => {

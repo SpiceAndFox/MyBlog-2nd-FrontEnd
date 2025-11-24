@@ -5,7 +5,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import EditorToolBar from "@/components/Admin/EditorToolBar.vue";
 import CustomSelect from "@/components/CustomSelect.vue";
-import { createArticle } from "@/api/articles";
+import { useRoute } from "vue-router";
+import { createArticle, getArticleByIdAdmin, updateArticle } from "@/api/articles";
 import { fetchAllTags } from "@/api/tags";
 
 // 文章标题
@@ -32,6 +33,15 @@ const selectedSubTags = ref([]);
 // 顶层标签列表
 const topTagList = computed(() => rawTags.value.map((t) => t.name));
 
+// 文章修改部分
+const route = useRoute();
+const articleId = computed(() => route.params.id);
+const isEditMode = computed(() => Boolean(articleId.value));
+const articleLoading = ref(false);
+const existingHeaderUrl = ref("");
+const existingThumbUrl = ref("");
+const prefillTagIds = ref([]);
+
 // 当前选中子标签列表（名称数组）
 const subTagList = computed(() => {
   const parent = rawTags.value.find((t) => t.name === selectedTopTag.value);
@@ -45,10 +55,10 @@ const onHeadImgChange = (event) => {
   const file = target.files?.[0];
 
   // 清理旧预览 URL
-  if (headImgPreviewUrl.value) {
+  if (headImgPreviewUrl.value && headImgPreviewUrl.value.startsWith("blob:")) {
     URL.revokeObjectURL(headImgPreviewUrl.value);
-    headImgPreviewUrl.value = "";
   }
+  headImgPreviewUrl.value = "";
 
   if (!file) {
     headImgFile.value = null;
@@ -56,8 +66,7 @@ const onHeadImgChange = (event) => {
   }
 
   headImgFile.value = file;
-  // 生成本地预览 URL
-  headImgPreviewUrl.value = URL.createObjectURL(file);
+  headImgPreviewUrl.value = URL.createObjectURL(file); // 生成本地预览 URL
 };
 
 // 初始化编辑器
@@ -78,9 +87,15 @@ onBeforeUnmount(() => {
     editor.value.destroy();
   }
 
-  if (headImgPreviewUrl.value) {
+  // 防止预览撤销误操作，确保服务器URL不会被撤销
+  if (headImgPreviewUrl.value && headImgPreviewUrl.value.startsWith("blob:")) {
     URL.revokeObjectURL(headImgPreviewUrl.value);
   }
+  headImgPreviewUrl.value = "";
+
+  // if (headImgPreviewUrl.value) {
+  //   URL.revokeObjectURL(headImgPreviewUrl.value);
+  // }
 });
 
 // 从后端获取标签
@@ -102,8 +117,41 @@ const fetchTags = async () => {
   }
 };
 
-onMounted(() => {
-  fetchTags();
+// 编辑模式下加载文章；与标签加载合并：
+const mapTagIdsToNames = (ids) => {
+  const top = rawTags.value.find((t) => ids.includes(t.id));
+  if (top) selectedTopTag.value = top.name;
+  const subs = [];
+  rawTags.value.forEach((t) => {
+    (t.subTags || []).forEach((s) => {
+      if (ids.includes(s.id)) subs.push(s.name);
+    });
+  });
+  selectedSubTags.value = subs;
+};
+
+const loadArticleIfEdit = async () => {
+  if (!isEditMode.value) return;
+  articleLoading.value = true;
+  try {
+    const article = await getArticleByIdAdmin(articleId.value);
+    title.value = article.title || "";
+    existingHeaderUrl.value = article.header_image_url || "";
+    existingThumbUrl.value = article.thumbnail_url || "";
+    headImgPreviewUrl.value = existingHeaderUrl.value || existingThumbUrl.value || "";
+    prefillTagIds.value = Array.isArray(article.tag_ids) ? article.tag_ids : [];
+    if (editor.value) editor.value.commands.setContent(article.content || "");
+  } catch (err) {
+    errorMsg.value = err.message || "加载文章失败";
+  } finally {
+    articleLoading.value = false;
+  }
+};
+
+onMounted(async () => {
+  await fetchTags();
+  await loadArticleIfEdit();
+  if (prefillTagIds.value.length) mapTagIdsToNames(prefillTagIds.value);
 });
 
 // 子标签选中/取消
@@ -170,31 +218,39 @@ const submitArticle = async (status) => {
   submitting.value = true;
 
   try {
-    const formData = new FormData();
-    formData.append("title", title.value.trim());
-    formData.append("content", contentHtml);
-    formData.append("status", status);
+    if (!isEditMode.value) {
+      const formData = new FormData();
+      formData.append("title", title.value.trim());
+      formData.append("content", contentHtml);
+      formData.append("status", status);
+      formData.append("tag_ids", JSON.stringify(buildTagIds()));
+      if (headImgFile.value) formData.append("headerImage", headImgFile.value);
+      await createArticle(formData);
+      successMsg.value = status === "published" ? "文章发布成功" : "草稿保存成功";
 
-    const tagIds = buildTagIds();
-    formData.append("tag_ids", JSON.stringify(tagIds));
-
-    if (headImgFile.value) {
-      formData.append("headerImage", headImgFile.value); // 字段名要和后端 uploadArticleCover.single("headerImage") 一致
-    }
-
-    await createArticle(formData);
-
-    successMsg.value = status === "published" ? "文章发布成功" : "草稿保存成功";
-
-    //提交后清空表单
-    title.value = "";
-    editor.value.commands.setContent("");
-    headImgFile.value = null;
-    if (headImgPreviewUrl.value) {
-      URL.revokeObjectURL(headImgPreviewUrl.value);
+      // 发布成功后清除数据
+      title.value = "";
+      editor.value.commands.setContent("");
+      headImgFile.value = null;
+      if (headImgPreviewUrl.value && headImgPreviewUrl.value.startsWith("blob:")) {
+        URL.revokeObjectURL(headImgPreviewUrl.value);
+      }
       headImgPreviewUrl.value = "";
+      selectedSubTags.value = [];
+    } else {
+      const formData = new FormData();
+      formData.append("title", title.value.trim());
+      formData.append("content", contentHtml);
+      formData.append("status", status);
+      formData.append("tag_ids", JSON.stringify(buildTagIds()));
+      if (headImgFile.value) formData.append("headerImage", headImgFile.value);
+      // 如果没选新图，也可附带原有 url 以防置空
+      if (existingHeaderUrl.value) formData.append("header_image_url", existingHeaderUrl.value);
+      if (existingThumbUrl.value) formData.append("thumbnail_url", existingThumbUrl.value);
+      await updateArticle(articleId.value, formData); // 需要让 updateArticle 支持 FormData
+
+      successMsg.value = status === "published" ? "文章更新成功" : "草稿更新成功";
     }
-    selectedSubTags.value = [];
   } catch (err) {
     console.error(err);
     errorMsg.value = err.message || "提交失败";
@@ -276,10 +332,14 @@ const submitArticle = async (status) => {
 
     <!-- 提交按钮 -->
     <div class="submit-wrapper">
-      <button class="article-editor__submit" :disabled="submitting" @click="submitArticle('published')">
+      <button
+        class="article-editor__submit"
+        :disabled="submitting || articleLoading"
+        @click="submitArticle('published')"
+      >
         {{ submitting ? "提交中..." : "提交" }}
       </button>
-      <button class="article-editor__save" :disabled="submitting" @click="submitArticle('draft')">
+      <button class="article-editor__save" :disabled="submitting || articleLoading" @click="submitArticle('draft')">
         {{ submitting ? "保存中..." : "存草稿" }}
       </button>
     </div>
