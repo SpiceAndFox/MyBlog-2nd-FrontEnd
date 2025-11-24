@@ -1,82 +1,135 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import ArticleCardAdmin from "@/components/Admin/ArticleCardAdmin.vue";
+import { getAdminArticles, deleteArticleAdmin } from "@/api/articles";
+import { useDebounceFn } from "@vueuse/core";
 
-// 模拟文章数据
-import img1 from "@/assets/images/articleThumb/1.png";
-import img2 from "@/assets/images/articleThumb/2.jfif";
-import img3 from "@/assets/images/articleThumb/3.jpg";
-import img4 from "@/assets/images/articleThumb/4.jfif";
-import img5 from "@/assets/images/articleThumb/5.jfif";
-const allArticles = ref([
-  {
-    id: 1,
-    title: "停下来，听听身边的风声",
-    thumbnail: img1,
-    publishDate: "2025-09-29",
-    topTag: "生活",
-    subTags: ["杂项"],
-    status: "published",
-  },
-  {
-    id: 2,
-    title: "文章2：C++ 从入门到放弃的那些事",
-    thumbnail: img2,
-    publishDate: "2025-09-28",
-    topTag: "科技",
-    subTags: ["Cpp"],
-    status: "published",
-  },
-  {
-    id: 3,
-    title: "Vue进阶技巧与最佳实践探索与发现",
-    thumbnail: img3,
-    publishDate: "2025-09-27",
-    topTag: "科技",
-    subTags: ["Vue", "Js"],
-    status: "draft",
-  },
-  {
-    id: 4,
-    title: "一次说走就走的旅行",
-    thumbnail: img4,
-    publishDate: "2025-09-26",
-    topTag: "生活",
-    subTags: ["旅行"],
-    status: "published",
-  },
-  {
-    id: 5,
-    title: "如何成为一名优秀的Linux内核开发者",
-    thumbnail: img5,
-    publishDate: "2025-09-25",
-    topTag: "科技",
-    subTags: ["Linux", "C"],
-    status: "published",
-  },
-]);
-
+// 初始化路由
 const router = useRouter();
+
+// 列表 & 状态
+const articles = ref([]);
+const loading = ref(false);
+const error = ref("");
+const hasFetchedOnce = ref(false);
+
+// 搜索 & 分页
 const searchQuery = ref("");
+const page = ref(1);
+const limit = ref(3); // 每页条数
+const totalPages = ref(1);
+const total = ref(0);
 
-const filteredArticles = computed(() => {
-  if (!searchQuery.value) {
-    return allArticles.value;
+// 判断是否请求到文章
+const hasArticles = computed(() => articles.value.length > 0);
+
+// 判断是否应该显示无任何内容被获取
+const showEmpty = computed(() => hasFetchedOnce.value && !loading.value && articles.value.length === 0);
+
+// 将后端返回的文章格式化成 ArticleCardAdmin 需要的数据结构
+function formatArticle(a) {
+  const rawTags = Array.isArray(a.tags) ? a.tags : [];
+
+  const topTag = rawTags.length > 0 ? rawTags[0].name : "未分类";
+  const subTags = rawTags.slice(1).map((t) => t.name);
+
+  // 格式化发布日期
+  let publishDate = "";
+  if (a.published_at) {
+    const d = new Date(a.published_at);
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      publishDate = `${y}-${m}-${day}`;
+    }
   }
-  return allArticles.value.filter((article) => article.title.toLowerCase().includes(searchQuery.value.toLowerCase()));
-});
 
-// 这两个函数现在作为事件处理函数
+  return {
+    id: a.id,
+    title: a.title,
+    thumbnail: a.thumbnail_url || "",
+    status: a.status,
+    publishDate,
+    topTag,
+    subTags,
+  };
+}
+
+// 从后端拉取文章列表（Admin）
+async function loadArticles() {
+  loading.value = true;
+  error.value = "";
+
+  try {
+    const res = await getAdminArticles({
+      search: searchQuery.value.trim(),
+      page: page.value,
+      limit: limit.value,
+    });
+    // 后端返回：{ articles, pagination: { total, page, limit, totalPages } }
+    const list = Array.isArray(res.articles) ? res.articles : [];
+
+    // 映射成前端 ArticleCardAdmin 需要的结构
+    articles.value = list.map(formatArticle);
+
+    if (res.pagination) {
+      totalPages.value = res.pagination.totalPages ?? 1;
+      total.value = res.pagination.total ?? articles.value.length;
+    } else {
+      totalPages.value = 1;
+      total.value = articles.value.length;
+    }
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || "加载文章列表失败";
+  } finally {
+    loading.value = false;
+    hasFetchedOnce.value = true;
+  }
+}
+
+// 点击“修改”：跳转到写作页面，携带 id
 const editArticle = (id) => {
   router.push(`/admin/write/${id}`);
 };
 
-const deleteArticle = (id) => {
-  if (window.confirm("确定要删除这篇文章吗？此操作不可撤销。")) {
-    allArticles.value = allArticles.value.filter((article) => article.id !== id);
+// 点击“删除”：调用后端 DELETE，再刷新列表
+const deleteArticle = async (id) => {
+  if (!window.confirm("确定要删除这篇文章吗？此操作不可撤销。")) return;
+
+  try {
+    await deleteArticleAdmin(id);
+
+    // 如果当前页只有一条被删了，并且不是第一页，就回到上一页
+    if (articles.value.length === 1 && page.value > 1) {
+      page.value -= 1;
+    }
+
+    await loadArticles();
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || "删除文章失败";
   }
 };
+
+// 分页切换
+const changePage = (newPage) => {
+  if (newPage < 1 || newPage > totalPages.value || newPage === page.value) return;
+  page.value = newPage;
+};
+
+// 输入框内容变化时重新请求，初始挂载时也会发起一次请求
+const loadDebounced = useDebounceFn(loadArticles, 250); // 防抖
+watch(
+  [searchQuery, page, limit],
+  ([newSearch], [oldSearch]) => {
+    if (newSearch !== oldSearch) page.value = 1; // 搜索词变回第一页
+    loadDebounced();
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -88,20 +141,37 @@ const deleteArticle = (id) => {
       </div>
     </header>
 
-    <div v-if="filteredArticles.length > 0" class="article-grid">
-      <ArticleCardAdmin
-        v-for="article in filteredArticles"
-        :key="article.id"
-        :article="article"
-        @edit="editArticle"
-        @delete="deleteArticle"
-        class="card-wrapper"
-      />
-    </div>
+    <!-- 错误提示、加载中 -->
+    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="loading" class="loading">正在加载文章...</div>
 
-    <div v-else class="no-data-placeholder">
-      <p>没有找到匹配的文章</p>
-    </div>
+    <!-- 加载完成后内容 -->
+    <template v-else>
+      <div v-if="hasArticles" class="article-grid">
+        <ArticleCardAdmin
+          v-for="article in articles"
+          :key="article.id"
+          :article="article"
+          @edit="editArticle"
+          @delete="deleteArticle"
+          class="card-wrapper"
+        />
+      </div>
+
+      <div v-else-if="showEmpty" class="no-data-placeholder">
+        <p>没有找到匹配的文章</p>
+      </div>
+
+      <!-- 分页条 -->
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="page-btn" :disabled="page === 1" @click="changePage(page - 1)">上一页</button>
+        <span class="page-info">
+          第 {{ page }} / {{ totalPages }} 页
+          <span v-if="total">（共 {{ total }} 篇）</span>
+        </span>
+        <button class="page-btn" :disabled="page === totalPages" @click="changePage(page + 1)">下一页</button>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -130,6 +200,7 @@ const deleteArticle = (id) => {
 .search-wrapper {
   position: relative;
 }
+
 .search-input {
   padding: 10px 18px;
   border: 1px solid #dcdfe6;
@@ -138,6 +209,7 @@ const deleteArticle = (id) => {
   font-size: 1rem;
   transition: all 0.3s ease;
 }
+
 .search-input:focus {
   outline: none;
   border-color: #a78061;
@@ -166,14 +238,129 @@ const deleteArticle = (id) => {
   border-radius: 12px;
 }
 
+/* 分页条整体容器 */
+.pagination {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+/* 页码信息 */
+.page-info {
+  font-size: 0.95rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* 分页按钮 */
+.page-btn {
+  min-width: 86px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* hover 状态 */
+.page-btn:hover:not(:disabled) {
+  border-color: #a78061;
+  color: #a78061;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+/* 禁用状态 */
+.page-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 悬浮式错误提示 */
+.error-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 77, 79, 0.9);
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.95rem;
+  z-index: 9999;
+  backdrop-filter: blur(6px);
+  animation: fade-slide-down 0.25s ease-out;
+}
+
+/* 悬浮式加载提示 */
+.loading {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(55, 65, 81, 0.9); /* 类似 Tailwind 的 gray-700 */
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.95rem;
+  z-index: 9998;
+  backdrop-filter: blur(6px);
+  animation: fade-slide-down 0.25s ease-out;
+}
+
+/* 小动画：淡入 + 下滑  */
+@keyframes fade-slide-down {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 @media (max-width: 768px) {
   .manage-header {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .search-input {
-    width: 90%;
-    max-width: 280px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* 移动端分页条纵向堆叠，更好点按 */
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 16px;
+  }
+
+  .page-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .page-info {
+    text-align: center;
+    width: 100%;
   }
 }
 </style>
