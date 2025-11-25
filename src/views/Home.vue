@@ -1,38 +1,47 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import UserInfo from "@/components/UserInfo.vue";
 import ArticleListSection from "@/components/ArticleListSection.vue";
 import RippleBackground from "@/components/RippleBackground.vue";
-
-import img1 from "@/assets/images/articleThumb/1.png";
-import img2 from "@/assets/images/articleThumb/2.jfif";
+import { getPublishedArticles } from "@/api/articles";
 
 const articleListSectionTitle = ref("近期文章");
-const articlesData = ref([
-  {
-    id: 1,
-    link: "/article1",
-    headImgUrl: "",
-    thumbnail: img1,
-    title: "文章1,这是一个标题很长的文章，很长很长，有多长呢，两三层楼那么长吧",
-    topTag: "生活",
-    subTag: "杂谈",
-    datetime: "2025-09-29",
-    summary:
-      "文章1的简要概述，但是也不是很简要。这个也很长很长，很长很长，超级无敌长，长啊长啊！超级无敌长！超级超级无敌长！",
-  },
-  {
-    id: 2,
-    link: "/article2",
-    headImgUrl: "",
-    thumbnail: img2,
-    title: "文章2",
-    topTag: "技术",
-    subTag: "Web开发",
-    datetime: "2025-09-28",
-    summary: "文章2的简要概述",
-  },
-]);
+const articlesData = ref([]);
+const loading = ref(false);
+const errorMessage = ref("");
+
+// 后端返回的字段转成卡片需要的结构
+const mapArticle = (article) => {
+  const tags = Array.isArray(article.tags) ? article.tags : [];
+  const topTag = tags.find((t) => t && t.parent_id === null)?.name || tags[0]?.name || "未分类";
+  const subTag = tags.find((t) => t && t.parent_id !== null)?.name || "";
+  return {
+    id: article.id,
+    link: `/article/${article.id}`,
+    headImgUrl: article.header_image_url || "",
+    thumbnail: article.thumbnail_url || "",
+    title: article.title,
+    topTag,
+    subTag,
+    datetime: article.published_at ? article.published_at.slice(0, 10) : "",
+    summary: article.summary || "",
+  };
+};
+
+const fetchArticles = async () => {
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const { articles = [] } = await getPublishedArticles({ page: 1, limit: 2 });
+    articlesData.value = articles.map(mapArticle);
+  } catch (err) {
+    errorMessage.value = err.message || "文章加载失败";
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(fetchArticles);
 </script>
 
 <template>

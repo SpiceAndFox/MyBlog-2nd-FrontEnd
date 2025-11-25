@@ -1,5 +1,24 @@
 // src/api/articles.js
 
+// 公开接口
+export async function getPublishedArticles({ topTag, subTag, year, month, page = 1, limit = 5 } = {}) {
+  const params = new URLSearchParams();
+  if (topTag) params.set("topTag", topTag);
+  if (subTag) params.set("subTag", subTag);
+  if (year) params.set("year", year);
+  if (month) params.set("month", month);
+  if (page) params.set("page", page);
+  if (limit) params.set("limit", limit);
+
+  const url = params.toString() ? `/api/articles?${params.toString()}` : "/api/articles";
+  const res = await fetch(url);
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "加载文章失败");
+  return data; // { articles, pagination }
+}
+
+// 获取认证信息
 export function getAuthHeader() {
   const token = localStorage.getItem("token");
   if (!token) throw new Error("尚未登录或登录已过期");

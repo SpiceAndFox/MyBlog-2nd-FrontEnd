@@ -1,188 +1,174 @@
 <script setup>
-import { computed, ref, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ArticleListSection from "@/components/ArticleListSection.vue";
 import ArticleFilterPanel from "@/components/ArticleFilterPanel.vue";
+import { fetchAllTags } from "@/api/tags";
+import { getPublishedArticles } from "@/api/articles";
+import LoadingOverlay from "@/components/LoadingOverlay.vue";
 
-// 模拟数据
-const tags = {
-  topTags: ["科技", "生活"],
-  subTags: { 科技: ["Vue", "Cpp", "ML"], 生活: ["旅行", "杂项"] },
-};
-
-import img1 from "@/assets/images/articleThumb/1.png";
-import img2 from "@/assets/images/articleThumb/2.jfif";
-import img3 from "@/assets/images/articleThumb/3.jpg";
-import img4 from "@/assets/images/articleThumb/4.jfif";
-import img5 from "@/assets/images/articleThumb/5.jfif";
-
-const allArticles = ref([
-  {
-    id: 1,
-    link: "/article1",
-    headImgUrl: "",
-    thumbnail: img1,
-    title: "文章1：好好学习天天向上",
-    topTag: "生活",
-    subTag: "杂项",
-    datetime: "2025-09-29",
-    summary: "文章1的简要概述...,大家好啊，我是说的道理，说的道理也是道理",
-  },
-  {
-    id: 2,
-    link: "/article2",
-    headImgUrl: "",
-    thumbnail: img2,
-    title: "文章2",
-    topTag: "科技",
-    subTag: "Cpp",
-    datetime: "2025-09-28",
-    summary: "文章2的简要概述",
-  },
-  {
-    id: 3,
-    link: "/article3",
-    headImgUrl: "",
-    thumbnail: img3,
-    title: "Vue进阶技巧",
-    topTag: "科技",
-    subTag: "Vue",
-    datetime: "2025-09-27",
-    summary: "探讨Vue的深入用法",
-  },
-  {
-    id: 4,
-    link: "/article4",
-    headImgUrl: "",
-    thumbnail: img4,
-    title: "一次有趣的旅行",
-    topTag: "生活",
-    subTag: "旅行",
-    datetime: "2025-09-26",
-    summary: "记录旅途中的点滴",
-  },
-  {
-    id: 5,
-    link: "/article5",
-    headImgUrl: "",
-    thumbnail: img5,
-    title: "爬山是个好方法",
-    topTag: "生活",
-    subTag: "旅行",
-    datetime: "2025-09-25",
-    summary: "有时候就得爬山",
-  },
-]);
+// 基本变量
+const tags = ref({ topTags: [], subTags: {} });
+const articles = ref([]);
+const loading = ref(false);
+const errorMessage = ref("");
 
 // 定义路由
 const route = useRoute();
 const router = useRouter();
 
-// 存储当前筛选条件的状态
 const currentFilter = ref({
   topTag: "",
   subTag: "",
   year: null,
   month: -1,
+  page: 1,
+  limit: 6, // 一页多少篇
 });
 
-// 从路由中读取数据以更新变量
-function updateFilterFromRoute(currentRoute) {
-  currentFilter.value.topTag = currentRoute.query.topTag || "";
-  currentFilter.value.subTag = currentRoute.query.subTag || "";
-  currentFilter.value.year = parseInt(currentRoute.query.year) || null;
-  currentFilter.value.month = parseInt(currentRoute.query.month) || -1;
-}
+// 分页功能相关
+const pagination = ref({ total: 0, page: 1, limit: 9, totalPages: 1 });
+const hasPagination = computed(() => pagination.value.totalPages > 1);
 
-// 挂载时初始化参数
-onMounted(() => {
-  updateFilterFromRoute(route);
-});
+// 统一把当前筛选状态写回路由（避免多处拼 query）
+const syncRouteWithFilter = () => {
+  const { topTag, subTag, year, month, page, limit } = currentFilter.value;
+  const params = new URLSearchParams();
+  if (topTag) params.set("topTag", topTag);
+  if (subTag) params.set("subTag", subTag);
+  if (year) params.set("year", year);
+  if (month && month !== -1) params.set("month", month);
+  if (page && page !== 1) params.set("page", page);
+  if (limit && limit !== 9) params.set("limit", limit);
+  router.push({ path: "/articles", query: Object.fromEntries(params) });
+};
 
-// 监听路由变化，以便在浏览器前进/后退时更新筛选
-watch(
-  () => route.query,
-  () => {
-    updateFilterFromRoute(route);
+// 翻页处理
+const handlePageChange = (newPage) => {
+  const totalPages = pagination.value.totalPages || 1;
+  if (newPage < 1 || newPage > totalPages || newPage === currentFilter.value.page) return;
+  currentFilter.value.page = newPage;
+  syncRouteWithFilter();
+};
+
+// 把后端返回的标签数组转成组件需要的结构
+const mapTagsFromApi = (raw = []) => {
+  const top = [];
+  const subMap = {};
+  raw.forEach((t) => {
+    if (!t || !t.name) return;
+    top.push(t.name);
+    subMap[t.name] = Array.isArray(t.subTags) ? t.subTags.map((s) => s.name) : [];
+  });
+  return { topTags: top, subTags: subMap };
+};
+
+// 把后端文章数据转成 ArticleCard 需要的字段
+const mapArticleFromApi = (article) => {
+  const tagList = Array.isArray(article.tags) ? article.tags : [];
+  const topTag = tagList.find((t) => t && t.parent_id === null)?.name || tagList[0]?.name || "未分类";
+  const subTag = tagList.find((t) => t && t.parent_id !== null)?.name || "";
+  return {
+    id: article.id,
+    link: `/article/${article.id}`,
+    headImgUrl: article.header_image_url || "",
+    thumbnail: article.thumbnail_url || "",
+    title: article.title,
+    topTag,
+    subTag,
+    datetime: article.published_at ? article.published_at.slice(0, 10) : "",
+    summary: article.summary || "",
+  };
+};
+
+// 解析路由时也带上 limit，默认落回 9
+const updateFilterFromRoute = (r) => {
+  const q = r.query || {};
+  currentFilter.value.topTag = q.topTag || "";
+  currentFilter.value.subTag = q.subTag || "";
+  currentFilter.value.year = q.year ? parseInt(q.year, 10) || null : null;
+  currentFilter.value.month = q.month ? parseInt(q.month, 10) || -1 : -1;
+  currentFilter.value.page = q.page ? parseInt(q.page, 10) || 1 : 1;
+  currentFilter.value.limit = q.limit ? parseInt(q.limit, 10) || currentFilter.value.limit : currentFilter.value.limit;
+};
+
+const fetchTags = async () => {
+  const data = await fetchAllTags();
+  tags.value = mapTagsFromApi(data);
+};
+
+// 拉取文章时，把后端分页结果同步回状态，缺失时按 total/limit 兜底
+const fetchArticles = async () => {
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const { topTag, subTag, year, month, page, limit } = currentFilter.value;
+    const res = await getPublishedArticles({
+      topTag,
+      subTag,
+      year,
+      month: month === -1 ? undefined : month,
+      page,
+      limit,
+    });
+    articles.value = (res.articles || []).map(mapArticleFromApi);
+
+    const serverPagination = res.pagination || {};
+    const total = serverPagination.total ?? 0;
+    const limitFromServer = serverPagination.limit ?? limit;
+    const totalPages = serverPagination.totalPages ?? Math.max(1, Math.ceil(total / limitFromServer));
+    const pageFromServer = serverPagination.page ?? page;
+    pagination.value = { total, page: pageFromServer, limit: limitFromServer, totalPages };
+    currentFilter.value.page = pageFromServer;
+    currentFilter.value.limit = limitFromServer;
+  } catch (err) {
+    errorMessage.value = err.message || "文章加载失败";
+  } finally {
+    loading.value = false;
   }
-);
+};
 
-// 响应筛选条件变化
-function handleFilterChange({ type, value }) {
+// 筛选变化时只改状态并同步路由，让 watch(route.query) 触发请求，避免重复 fetch
+const handleFilterChange = ({ type, value }) => {
   const filter = currentFilter.value;
   switch (type) {
     case "topTag":
-      if (filter.topTag === value) {
-        filter.topTag = "";
-        filter.subTag = "";
-      } else {
-        filter.topTag = value;
-        filter.subTag = "";
-      }
+      filter.topTag = filter.topTag === value ? "" : value;
+      filter.subTag = "";
       break;
     case "subTag":
-      if (filter.subTag === value) {
-        filter.subTag = "";
-      } else {
-        filter.subTag = value;
-      }
+      filter.subTag = filter.subTag === value ? "" : value;
       break;
     case "year":
       filter.year = value;
-      filter.month = -1; // 切换年份时重置月份
+      filter.month = -1;
       break;
     case "month":
       filter.month = value;
       break;
   }
+  filter.page = 1;
+  syncRouteWithFilter();
+};
 
-  // 更新URL
-  const params = new URLSearchParams();
-  if (filter.topTag) params.append("topTag", filter.topTag);
-  if (filter.subTag) params.append("subTag", filter.subTag);
-  if (filter.year) params.append("year", filter.year);
-  if (filter.month && filter.month !== -1) params.append("month", filter.month);
+watch(
+  () => route.query,
+  () => {
+    updateFilterFromRoute(route);
+    fetchArticles();
+  }
+);
 
-  router.push({ path: "/articles", query: Object.fromEntries(params) });
-}
-
-// 定义文章列表数据（随筛选条件更新）
-const filteredArticles = computed(() => {
-  const { topTag, subTag, year, month } = currentFilter.value;
-  return allArticles.value.filter((article) => {
-    // 标签筛选
-    const topMatch = topTag ? article.topTag === topTag : true;
-    const subMatch = subTag ? article.subTag === subTag : true;
-
-    // 日期筛选
-    const articleDate = new Date(article.datetime);
-    const yearMatch = year ? articleDate.getFullYear() === year : true;
-
-    // month 为-1代表不筛选月份
-    const monthMatch = month !== -1 ? articleDate.getMonth() + 1 === month : true;
-    return topMatch && subMatch && yearMatch && monthMatch;
-  });
+onMounted(async () => {
+  updateFilterFromRoute(route);
+  await Promise.all([fetchTags(), fetchArticles()]);
 });
 
-// 定义文章列表标题（随筛选条件更新）
 const articleListSectionTitle = computed(() => {
   const { topTag, subTag, year, month } = currentFilter.value;
-  let title = "";
-
-  if (subTag) {
-    title = `${topTag} / ${subTag}`;
-  } else if (topTag) {
-    title = topTag;
-  } else {
-    title = "全部文章";
-  }
-
-  if (year && month !== -1) {
-    title += ` (${year}-${String(month).padStart(2, "0")})`;
-  } else if (year) {
-    title += ` (${year})`;
-  }
-
+  let title = subTag ? `${topTag} / ${subTag}` : topTag || "全部文章";
+  if (year && month !== -1) title += ` (${year}-${String(month).padStart(2, "0")})`;
+  else if (year) title += ` (${year})`;
   return title;
 });
 </script>
@@ -198,11 +184,31 @@ const articleListSectionTitle = computed(() => {
       @update="handleFilterChange($event)"
     ></ArticleFilterPanel>
 
-    <ArticleListSection
-      :title="articleListSectionTitle"
-      :articles="filteredArticles"
-      layout="grid"
-    ></ArticleListSection>
+    <div class="article-list-content">
+      <ArticleListSection :title="articleListSectionTitle" :articles="articles" layout="grid" />
+
+      <p v-if="errorMessage" class="article-error">{{ errorMessage }}</p>
+
+      <!-- 页数切换功能 -->
+      <div v-if="hasPagination" class="pagination">
+        <button class="page-btn" :disabled="pagination.page === 1" @click="handlePageChange(pagination.page - 1)">
+          上一页
+        </button>
+        <span class="page-info">
+          第 {{ pagination.page }} / {{ pagination.totalPages }} 页
+          <span v-if="pagination.total">（共 {{ pagination.total }} 篇）</span>
+        </span>
+        <button
+          class="page-btn"
+          :disabled="pagination.page === pagination.totalPages"
+          @click="handlePageChange(pagination.page + 1)"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
+
+    <LoadingOverlay :show="loading"></LoadingOverlay>
   </div>
 </template>
 
@@ -212,17 +218,92 @@ const articleListSectionTitle = computed(() => {
   display: flex;
   flex-direction: row;
   justify-content: center;
-  box-sizing: border-box;
+  align-items: flex-start;
   gap: 20px;
   margin-top: 40px;
   margin-bottom: 20px;
+}
+
+.article-list-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 1;
+  width: 60%;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background-color: #ffffffc8;
+  backdrop-filter: blur(6px);
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.page-btn {
+  min-width: 86px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.page-btn:hover:not(:disabled) {
+  border-color: var(--accent-color, #3b82f6);
+  color: var(--accent-color, #3b82f6);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+.page-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.page-info {
+  font-size: 0.95rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.article-error {
+  margin: 0;
+  color: #ef4444;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  padding: 8px 12px;
+  border-radius: 10px;
+  width: 100%;
+  text-align: center;
 }
 
 @media (max-width: 1200px) {
   .article-list-container {
     flex-direction: column;
     align-items: center;
-    margin-bottom: 20px;
+  }
+  .article-list-content {
+    width: 100%;
+  }
+}
+
+@media (max-width: 450px) {
+  .pagination {
+    width: 60%;
+    border-radius: 30px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .page-btn,
+  .page-info {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

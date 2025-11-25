@@ -74,7 +74,7 @@ defineProps({
 
 /* 针对ArticleList页的个性化 */
 .article-list-section.layout--grid {
-  width: 60%;
+  width: 100%;
   max-width: 9999px;
   background-color: #ffffffb9;
   backdrop-filter: blur(8px);
