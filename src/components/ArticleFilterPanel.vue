@@ -1,4 +1,5 @@
 <script setup>
+import { ref, watch } from "vue";
 import MonthPicker from "./MonthPicker.vue";
 
 // 定义参数
@@ -8,10 +9,20 @@ const props = defineProps({
   selectedYear: Number,
   selectedMonth: Number,
   tags: Object, // 接收动态生成的标签数据
+  search: String,
 });
 
 // 定义emit事件
 const emit = defineEmits(["update"]);
+
+// 搜索框内容
+const searchInput = ref(props.search || "");
+watch(
+  () => props.search,
+  (val) => {
+    if (val !== searchInput.value) searchInput.value = val || "";
+  }
+);
 
 // 点击处理逻辑，只发出事件
 function handleTagClick(type, value) {
@@ -21,6 +32,10 @@ function handleTagClick(type, value) {
 function handleDateChange(type, value) {
   emit("update", { type, value });
 }
+
+const handleSearchSubmit = () => {
+  emit("update", { type: "search", value: searchInput.value.trim() });
+};
 
 // 动态生成tag对应的链接
 function getTagLink(tagType, tagValue) {
@@ -51,11 +66,17 @@ function getTagLink(tagType, tagValue) {
 
 <template>
   <aside class="article-filter-panel">
-    <form @submit.prevent>
+    <form @submit.prevent="handleSearchSubmit">
       <section class="filter-section">
         <div class="article-search-bar">
           <label for="article-search-input" class="visually-hidden">搜索文章</label>
-          <input type="search" placeholder="搜索文章..." id="article-search-input" class="article-search-bar__input" />
+          <input
+            v-model="searchInput"
+            type="search"
+            placeholder="搜索文章..."
+            id="article-search-input"
+            class="article-search-bar__input"
+          />
           <button type="submit" class="article-search-bar__button">Search</button>
         </div>
       </section>

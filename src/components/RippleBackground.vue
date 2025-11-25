@@ -89,7 +89,7 @@ const rippleStyle = computed(() => ({
   width: var(--ripple-size);
   aspect-ratio: 1;
   border: 2px solid var(--ripple-color);
-  animation: ripple-spread var(--ripple-duration) ease-out;
+  animation: ripple-spread var(--ripple-duration) ease-out forwards;
 }
 
 @keyframes ripple-spread {

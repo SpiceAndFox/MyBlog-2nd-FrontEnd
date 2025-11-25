@@ -1,7 +1,7 @@
 // src/api/articles.js
 
 // 公开接口
-export async function getPublishedArticles({ topTag, subTag, year, month, page = 1, limit = 5 } = {}) {
+export async function getPublishedArticles({ topTag, subTag, year, month, search, page = 1, limit = 5 } = {}) {
   const params = new URLSearchParams();
   if (topTag) params.set("topTag", topTag);
   if (subTag) params.set("subTag", subTag);
@@ -9,6 +9,7 @@ export async function getPublishedArticles({ topTag, subTag, year, month, page =
   if (month) params.set("month", month);
   if (page) params.set("page", page);
   if (limit) params.set("limit", limit);
+  if (search) params.set("search", search);
 
   const url = params.toString() ? `/api/articles?${params.toString()}` : "/api/articles";
   const res = await fetch(url);

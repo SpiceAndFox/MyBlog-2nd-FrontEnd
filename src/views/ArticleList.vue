@@ -24,6 +24,7 @@ const currentFilter = ref({
   month: -1,
   page: 1,
   limit: 6, // 一页多少篇
+  search: "",
 });
 
 // 分页功能相关
@@ -32,7 +33,7 @@ const hasPagination = computed(() => pagination.value.totalPages > 1);
 
 // 统一把当前筛选状态写回路由（避免多处拼 query）
 const syncRouteWithFilter = () => {
-  const { topTag, subTag, year, month, page, limit } = currentFilter.value;
+  const { topTag, subTag, year, month, page, limit, search } = currentFilter.value;
   const params = new URLSearchParams();
   if (topTag) params.set("topTag", topTag);
   if (subTag) params.set("subTag", subTag);
@@ -40,6 +41,7 @@ const syncRouteWithFilter = () => {
   if (month && month !== -1) params.set("month", month);
   if (page && page !== 1) params.set("page", page);
   if (limit && limit !== 9) params.set("limit", limit);
+  if (search) params.set("search", search);
   router.push({ path: "/articles", query: Object.fromEntries(params) });
 };
 
@@ -90,6 +92,7 @@ const updateFilterFromRoute = (r) => {
   currentFilter.value.month = q.month ? parseInt(q.month, 10) || -1 : -1;
   currentFilter.value.page = q.page ? parseInt(q.page, 10) || 1 : 1;
   currentFilter.value.limit = q.limit ? parseInt(q.limit, 10) || currentFilter.value.limit : currentFilter.value.limit;
+  currentFilter.value.search = q.search ? String(q.search) : "";
 };
 
 const fetchTags = async () => {
@@ -102,12 +105,13 @@ const fetchArticles = async () => {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const { topTag, subTag, year, month, page, limit } = currentFilter.value;
+    const { topTag, subTag, year, month, page, limit, search } = currentFilter.value;
     const res = await getPublishedArticles({
       topTag,
       subTag,
       year,
       month: month === -1 ? undefined : month,
+      search,
       page,
       limit,
     });
@@ -146,6 +150,9 @@ const handleFilterChange = ({ type, value }) => {
     case "month":
       filter.month = value;
       break;
+    case "search":
+      filter.search = value;
+      break;
   }
   filter.page = 1;
   syncRouteWithFilter();
@@ -181,6 +188,7 @@ const articleListSectionTitle = computed(() => {
       :selectedYear="currentFilter.year"
       :selectedMonth="currentFilter.month"
       :tags="tags"
+      :search="currentFilter.search"
       @update="handleFilterChange($event)"
     ></ArticleFilterPanel>
 
