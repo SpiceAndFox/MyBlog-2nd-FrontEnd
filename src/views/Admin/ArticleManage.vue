@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import ArticleCardAdmin from "@/components/Admin/ArticleCardAdmin.vue";
 import { getAdminArticles, deleteArticleAdmin } from "@/api/articles";
 import { useDebounceFn } from "@vueuse/core";
+import LoadingOverlay from "@/components/LoadingOverlay.vue";
 
 // 初始化路由
 const router = useRouter();
@@ -17,11 +18,9 @@ const hasFetchedOnce = ref(false);
 // 搜索 & 分页
 const searchQuery = ref("");
 const page = ref(1);
-const limit = ref(3); // 每页条数
+const limit = ref(4); // 每页条数
 const totalPages = ref(1);
 const total = ref(0);
-
-const loadingGif = "/loading-02.gif";
 
 // 判断是否请求到文章
 const hasArticles = computed(() => articles.value.length > 0);
@@ -148,13 +147,10 @@ watch(
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <!-- 加载动画 -->
-    <div v-if="loading" class="loading-overlay">
-      <img :src="loadingGif" alt="正在加载" class="loading-gif" />
-      <p>正在加载文章...</p>
-    </div>
+    <LoadingOverlay :show="loading" text="正在加载文章..." />
 
     <!-- 加载完成后内容 -->
-    <template v-else>
+    <template v-if="!loading">
       <div v-if="hasArticles" class="article-grid">
         <ArticleCardAdmin
           v-for="article in articles"
@@ -311,28 +307,6 @@ watch(
   z-index: 9999;
   backdrop-filter: blur(6px);
   animation: fade-slide-down 0.25s ease-out;
-}
-
-.loading-overlay {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 240px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 9998;
-  backdrop-filter: blur(6px);
-}
-.loading-gif {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
 }
 
 /* 小动画：淡入 + 下滑  */

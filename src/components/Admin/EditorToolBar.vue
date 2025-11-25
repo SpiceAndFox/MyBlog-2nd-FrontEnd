@@ -1,5 +1,14 @@
 <script setup>
+import { ref } from "vue";
+import { uploadArticleImage } from "@/api/articles";
 import imageIcon from "@/assets/images/icons/image.svg";
+import LoadingOverlay from "@/components/LoadingOverlay.vue";
+
+// 上传图片状态
+const uploadStatus = ref({ loading: false, error: "" });
+
+// 传给父组件的信息
+const emit = defineEmits(["uploading-content-image"]);
 
 const props = defineProps({
   editor: {
@@ -11,19 +20,23 @@ const props = defineProps({
 const addImage = () => {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "image/*"; // 只接受图片文件
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const src = e.target.result;
-        props.editor.chain().focus().setImage({ src }).run();
-      };
-      reader.readAsDataURL(file);
+  input.accept = "image/*";
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadStatus.value = { loading: true, error: "" };
+    emit("uploading-content-image", true);
+    try {
+      const { url } = await uploadArticleImage(file);
+      props.editor.chain().focus().setImage({ src: url }).run();
+    } catch (err) {
+      uploadStatus.value = { loading: false, error: err.message || "图片上传失败" };
+      emit("uploading-content-image", false);
+      return;
     }
+    uploadStatus.value = { loading: false, error: "" };
+    emit("uploading-content-image", false);
   };
-
   input.click();
 };
 </script>
@@ -83,6 +96,8 @@ const addImage = () => {
       <span>Quote</span>
     </button>
     <button @click="editor.chain().focus().setHorizontalRule().run()"><span>HR</span></button>
+
+    <LoadingOverlay :show="uploadStatus.loading" text="正在上传图片..." />
   </div>
 </template>
 
@@ -127,5 +142,14 @@ button:hover {
 button.is-active {
   background-color: #d1d5db;
   color: #111827;
+}
+
+.toolbar-status {
+  min-width: 120px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.toolbar-status .error {
+  color: #b91c1c;
 }
 </style>

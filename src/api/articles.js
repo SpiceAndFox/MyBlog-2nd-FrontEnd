@@ -94,3 +94,18 @@ export async function updateArticle(id, payload) {
   if (!res.ok) throw new Error(data.error || data.message || "更新文章失败");
   return data;
 }
+
+export async function uploadArticleImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch("/api/admin/articles/upload-image", {
+    method: "POST",
+    headers: { ...getAuthHeader() }, // 不手动设 Content-Type
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || "图片上传失败");
+  return data; // { url }
+}

@@ -42,6 +42,9 @@ const existingHeaderUrl = ref("");
 const existingThumbUrl = ref("");
 const prefillTagIds = ref([]);
 
+// 检测文章内容图是否正在上传
+const uploadingContentImage = ref(false);
+
 // 当前选中子标签列表（名称数组）
 const subTagList = computed(() => {
   const parent = rawTags.value.find((t) => t.name === selectedTopTag.value);
@@ -92,10 +95,6 @@ onBeforeUnmount(() => {
     URL.revokeObjectURL(headImgPreviewUrl.value);
   }
   headImgPreviewUrl.value = "";
-
-  // if (headImgPreviewUrl.value) {
-  //   URL.revokeObjectURL(headImgPreviewUrl.value);
-  // }
 });
 
 // 从后端获取标签
@@ -197,8 +196,23 @@ const buildTagIds = () => {
   return ids;
 };
 
+const extractTempContentImageKeys = (html) => {
+  const keys = new Set();
+  const regex = /\/uploads\/articles\/content\/tmp\/([^"'\\s)]+)/g;
+  let match;
+  while ((match = regex.exec(html))) {
+    keys.add(match[1]);
+  }
+  return Array.from(keys);
+};
+
 // 提交文章：status = 'published' | 'draft'
 const submitArticle = async (status) => {
+  if (uploadingContentImage.value) {
+    errorMsg.value = "图片上传中，请稍候再提交";
+    return;
+  }
+
   if (!editor.value) return;
 
   errorMsg.value = "";
@@ -210,6 +224,7 @@ const submitArticle = async (status) => {
   }
 
   const contentHtml = editor.value.getHTML();
+  const tempContentImageKeys = extractTempContentImageKeys(contentHtml);
   if (!contentHtml || contentHtml === "<p></p>") {
     errorMsg.value = "文章内容不能为空";
     return;
@@ -224,6 +239,7 @@ const submitArticle = async (status) => {
       formData.append("content", contentHtml);
       formData.append("status", status);
       formData.append("tag_ids", JSON.stringify(buildTagIds()));
+      formData.append("content_image_keys", JSON.stringify(tempContentImageKeys));
       if (headImgFile.value) formData.append("headerImage", headImgFile.value);
       await createArticle(formData);
       successMsg.value = status === "published" ? "文章发布成功" : "草稿保存成功";
@@ -243,11 +259,13 @@ const submitArticle = async (status) => {
       formData.append("content", contentHtml);
       formData.append("status", status);
       formData.append("tag_ids", JSON.stringify(buildTagIds()));
+      formData.append("content_image_keys", JSON.stringify(tempContentImageKeys));
       if (headImgFile.value) formData.append("headerImage", headImgFile.value);
+
       // 如果没选新图，也可附带原有 url 以防置空
       if (existingHeaderUrl.value) formData.append("header_image_url", existingHeaderUrl.value);
       if (existingThumbUrl.value) formData.append("thumbnail_url", existingThumbUrl.value);
-      await updateArticle(articleId.value, formData); // 需要让 updateArticle 支持 FormData
+      await updateArticle(articleId.value, formData);
 
       successMsg.value = status === "published" ? "文章更新成功" : "草稿更新成功";
     }
@@ -270,7 +288,7 @@ const submitArticle = async (status) => {
 
     <!-- 编辑器 -->
     <div class="article-editor__main">
-      <EditorToolBar v-if="editor" :editor="editor" />
+      <EditorToolBar v-if="editor" :editor="editor" @uploading-content-image="uploadingContentImage = $event" />
       <EditorContent :editor="editor" class="article-editor__content" />
     </div>
 
@@ -691,5 +709,33 @@ const submitArticle = async (status) => {
   max-height: 250px;
   display: block;
   margin: 1rem auto;
+}
+
+@media (max-width: 640px) {
+  .article-editor {
+    width: 100%;
+    margin: 20px auto 80px;
+    padding: 0 12px;
+    box-sizing: border-box; /* include padding in width to keep both gutters even */
+  }
+
+  .article-editor__title {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .article-editor__title .field-label {
+    margin: 0;
+    font-size: 1.1rem;
+    white-space: normal;
+  }
+
+  .title-input {
+    width: 100%;
+    font-size: 1rem;
+    padding: 10px 12px;
+  }
 }
 </style>
