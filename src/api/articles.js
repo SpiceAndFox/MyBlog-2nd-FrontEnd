@@ -19,6 +19,16 @@ export async function getPublishedArticles({ topTag, subTag, year, month, search
   return data; // { articles, pagination }
 }
 
+// 获取单篇已发布文章（公开接口）
+export async function getPublishedArticleById(id) {
+  const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+  if (!normalizedId) throw new Error("缺少文章ID");
+  const res = await fetch(`/api/articles/${normalizedId}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "文章加载失败");
+  return data; // { id, title, content, header_image_url, published_at, tags, author, ... }
+}
+
 // 获取认证信息
 export function getAuthHeader() {
   const token = localStorage.getItem("token");

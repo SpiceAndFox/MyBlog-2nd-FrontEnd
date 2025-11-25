@@ -1,4 +1,5 @@
 <script setup>
+import { computed, nextTick } from "vue";
 import { useRouter } from "vue-router";
 const props = defineProps({
   article: {
@@ -11,29 +12,15 @@ const props = defineProps({
   },
 });
 
-// ArticleCard和Aricle联动逻辑——头图放大载入页面
 const router = useRouter();
-const transitionName = `article-image-${props.article.id}`;
 function navigate() {
-  if (!document.startViewTransition) {
-    router.push(`/article/${props.article.id}`);
-    return;
-  }
-
-  document.startViewTransition(() => {
-    router.push(`/article/${props.article.id}`);
-  });
+  router.push({ name: "Article", params: { id: props.article.id } });
 }
 </script>
 
 <template>
   <article class="article-card" @click="navigate" :class="`layout--${layout}`">
-    <img
-      class="article-card__image"
-      :src="article.thumbnail"
-      alt="文章头图"
-      :style="{ viewTransitionName: transitionName }"
-    />
+    <img class="article-card__image" :src="article.thumbnail" alt="文章头图" />
     <div class="article-card__content">
       <a class="article-card__title" @click.prevent :href="`/article/${article.id}`">{{ article.title }}</a>
       <p class="article-card__summary">{{ article.summary }}</p>

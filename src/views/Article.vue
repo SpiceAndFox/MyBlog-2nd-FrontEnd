@@ -1,62 +1,104 @@
 <script setup>
-import { useRoute } from "vue-router";
-import { computed } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { getPublishedArticleById } from "@/api/articles";
+import LoadingOverlay from "@/components/LoadingOverlay.vue";
 
-// 模拟用数据
-const articleData = {
-  id: 1,
-  title: "松鼠的世界",
-  thumbnail: "",
-  headImgUrl: new URL("@/assets/images/background-07.jpg", import.meta.url).href,
-  topTag: "科技",
-  subTag: "Vue",
-  date: "2025-9-29",
-  articleContent: "",
+// 获取文章ID
+const route = useRoute();
+const router = useRouter();
+const rawArticleId = computed(() => route.params.id);
+const articleId = computed(() => {
+  const raw = rawArticleId.value;
+  return raw != null ? String(raw).trim() : "";
+});
+
+// 调试信息
+const loading = ref(false);
+const errorMessage = ref("");
+
+// 文章数据
+const articleData = ref({
+  id: "",
+  title: "",
+  headImgUrl: "",
+  topTag: "",
+  subTag: "",
+  date: "",
+  content: "",
+});
+
+const mapTags = (tags = []) => {
+  const top = tags.find((t) => t && t.parent_id === null)?.name || "未分类";
+  const sub = tags.find((t) => t && t.parent_id !== null)?.name || "";
+  return { top, sub };
 };
 
-// ArticleCard和Aricle联动逻辑——头图放大载入页面
-const route = useRoute();
-const articleId = route.params.id;
-const transitionName = `article-image-${articleId}`;
+const fetchArticle = async () => {
+  if (!articleId.value) {
+    errorMessage.value = "缺少文章ID";
+    return;
+  }
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const data = await getPublishedArticleById(articleId.value);
+    const { top, sub } = mapTags(data.tags);
+    articleData.value = {
+      id: data.id,
+      title: data.title,
+      headImgUrl: data.header_image_url || articleData.value.headImgUrl,
+      topTag: top,
+      subTag: sub,
+      date: data.published_at ? data.published_at.slice(0, 10) : articleData.value.date,
+      content: data.content || "",
+    };
+  } catch (err) {
+    errorMessage.value = err.message || "文章加载失败";
+  } finally {
+    loading.value = false;
+  }
+};
+
+watch(articleId, () => {
+  fetchArticle();
+});
+
+onMounted(() => {
+  fetchArticle();
+});
 </script>
 
 <template>
   <article class="article-container">
-    <header class="article-header">
+    <header class="article-header" :class="{ loaded: !!articleData.headImgUrl }">
       <img
+        v-if="articleData.headImgUrl"
         :src="articleData.headImgUrl"
         alt="文章头图"
         class="article-header__image"
-        :style="{ viewTransitionName: transitionName }"
         @load="$event.target.parentElement.classList.add('loaded')"
       />
-      <h1 class="article__title">{{ articleData.title }}</h1>
+      <div v-else class="article-header__placeholder"></div>
+      <h1 class="article__title">{{ articleData.title || "文章加载中..." }}</h1>
       <div class="article__meta">
-        <div class="article__tags">
-          <a class="tag tag--top">{{ articleData.topTag }}</a>
-          <span> / </span>
-          <a class="tag tag--sub">{{ articleData.subTag }}</a>
+        <div class="article__tags" v-if="articleData.topTag || articleData.subTag">
+          <a v-if="articleData.topTag" class="tag tag--top">{{ articleData.topTag }}</a>
+          <span v-if="articleData.topTag && articleData.subTag"> / </span>
+          <a v-if="articleData.subTag" class="tag tag--sub">{{ articleData.subTag }}</a>
         </div>
-        <time>{{ articleData.date }}</time>
+        <time v-if="articleData.date">{{ articleData.date }}</time>
       </div>
     </header>
+
     <div class="article__content">
-      <p>在秋日的午后，当金黄的落叶如雨般飘零，我常常驻足于公园的林荫道下，凝视着那些敏捷的身影。</p>
-      <p>
-        松鼠，属于啮齿目松鼠科，全球约有285种，已知物种遍布各大洲。 回溯历史，松鼠的祖先可追溯到约5000万年前的始新世。
-      </p>
-      <p>松鼠的生活习性，充满了智慧与策略。最著名的莫过于它们的储藏行为。</p>
-      <p>在饮食上，松鼠是杂食性动物，以坚果、种子为主，但也摄取昆虫、鸟蛋和树皮。</p>
-      <p>不同种类的松鼠，各有其独特的生活方式。譬如飞鼠，并非真正飞行，而是通过皮膜滑翔。</p>
-      <p>繁殖是松鼠生命中的重要篇章。通常每年两次，一次在春季，一次在夏季。</p>
-      <blockquote>这是一个引用的段落，可能引用了某本书或某句话。</blockquote>
-      <ul>
-        <li>列表项一</li>
-        <li>列表项二</li>
-      </ul>
-      <p>最后一个段落...</p>
+      <p v-if="errorMessage" class="article__error">{{ errorMessage }}</p>
+      <p v-else-if="!articleData.content">内容加载中...</p>
+      <div v-else v-html="articleData.content"></div>
     </div>
   </article>
+
+  <LoadingOverlay :show="loading" />
 </template>
 
 <style scoped>
@@ -76,6 +118,7 @@ const transitionName = `article-image-${articleId}`;
   width: 100%;
   aspect-ratio: 3/1;
   overflow: hidden;
+  min-height: 320px;
 }
 
 .article-header::after {
@@ -248,5 +291,31 @@ const transitionName = `article-image-${articleId}`;
 .article__content ol {
   margin-bottom: 1.5em;
   padding-left: 1.8em;
+}
+
+.article-header__placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(120deg, #ececec, #f9f9f9);
+  color: #8f8f8f;
+  font-weight: 600;
+}
+
+.article__error {
+  color: #c0392b;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.article__content :deep(img) {
+  max-width: 100%; /* 限制在容器内 */
+  height: auto; /* 按比例缩放 */
+  display: block;
+  margin: 18px auto; /* 可选：上下留白并居中 */
+  object-fit: contain;
 }
 </style>

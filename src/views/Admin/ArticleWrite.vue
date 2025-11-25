@@ -74,13 +74,7 @@ const onHeadImgChange = (event) => {
 
 // 初始化编辑器
 const editor = useEditor({
-  content: `
-    <h2>你好，Tiptap!</h2>
-    <p>这是一个基础的 Tiptap 编辑器实现，你可以开始在这里撰写你的文章了。</p>
-    <ul>
-      <li>这是一个列表项。</li>
-    </ul>
-  `,
+  content: ``,
   extensions: [StarterKit, Image],
 });
 
