@@ -51,8 +51,12 @@ const isVideoBackground = computed(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  min-height: 100dvh; /* 移动端随地址栏变化 */
   overflow: hidden; /* 避免视频溢出 */
+
+  /* ios适配 */
+  min-height: -webkit-fill-available; /* iOS Safari 动态视口 */
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #000;
 }
 
 /* 背景视频层 */
@@ -62,7 +66,11 @@ const isVideoBackground = computed(() => {
   left: 0;
   width: 100%;
   height: 100vh;
-  height: 100dvh;
+
+  /* ios适配 */
+  height: -webkit-fill-available; /* iOS Safari */
+  display: block; /* 避免内联元素留缝 */
+
   object-fit: cover;
   z-index: -1;
 }
@@ -82,5 +90,15 @@ const isVideoBackground = computed(() => {
 .app-layout.layout--admin {
   background-color: rgb(238, 238, 238);
   display: flex;
+}
+
+/* 新版 iOS 17+ */
+@supports (height: 100dvh) {
+  .app-layout {
+    min-height: 100dvh;
+  }
+  .background-video {
+    height: 100dvh;
+  }
 }
 </style>
