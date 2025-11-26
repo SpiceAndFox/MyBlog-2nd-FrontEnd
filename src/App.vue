@@ -51,7 +51,7 @@ const isVideoBackground = computed(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  overflow: hidden; /* 避免视频溢出 */
+  overflow: hidden; /*避免视频溢出 */
 }
 
 /* 背景视频层 */
