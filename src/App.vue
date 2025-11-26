@@ -50,16 +50,17 @@ const isVideoBackground = computed(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: calc(var(--vh, 1vh) * 100);
+  min-height: 100vh;
   overflow: hidden; /* 避免视频溢出 */
 }
 
 /* 背景视频层 */
 .background-video {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: calc(var(--vh, 1vh) * 100);
+  height: 100vh;
   object-fit: cover;
   z-index: -1;
 }
