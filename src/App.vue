@@ -51,6 +51,7 @@ const isVideoBackground = computed(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh; /* 移动端随地址栏变化 */
   overflow: hidden; /* 避免视频溢出 */
 }
 
@@ -60,7 +61,8 @@ const isVideoBackground = computed(() => {
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   object-fit: cover;
   z-index: -1;
 }
