@@ -56,7 +56,6 @@ const isVideoBackground = computed(() => {
   /* ios适配 */
   min-height: -webkit-fill-available; /* iOS Safari 动态视口 */
   padding-bottom: env(safe-area-inset-bottom);
-  background: #000;
 }
 
 /* 背景视频层 */
