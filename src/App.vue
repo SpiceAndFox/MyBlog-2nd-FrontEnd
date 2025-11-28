@@ -7,6 +7,7 @@ import Navigation from "@/components/Navigation.vue";
 const route = useRoute();
 
 // 页面显示样式判断
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const layoutMap = {
   home: "layout--home",
   article: "layout--article",
@@ -17,11 +18,14 @@ const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 const isVideoBackground = computed(() => {
   if (layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList") return true;
 });
+const showVideo = computed(() => {
+  return !isIOS && isVideoBackground.value;
+});
 </script>
 
 <template>
   <div class="app-layout" :class="layoutClass">
-    <video v-if="isVideoBackground" class="background-video" autoplay muted loop playsinline>
+    <video v-if="showVideo" class="background-video" autoplay muted loop playsinline>
       <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
 
