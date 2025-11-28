@@ -2,6 +2,7 @@
 import { useRoute } from "vue-router";
 import { computed } from "vue";
 import Navigation from "@/components/Navigation.vue";
+import iosBg from "@/assets/images/background-01.png";
 
 // 获取路由信息
 const route = useRoute();
@@ -19,12 +20,21 @@ const isVideoBackground = computed(() => {
   if (layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList") return true;
 });
 const showVideo = computed(() => {
-  return !isIOS && isVideoBackground.value;
+  return false;
+});
+const iosBackgroundStyle = computed(() => {
+  return isVideoBackground.value
+    ? {
+        backgroundImage: `url(${iosBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : {};
 });
 </script>
 
 <template>
-  <div class="app-layout" :class="layoutClass">
+  <div class="app-layout" :class="layoutClass" :style="iosBackgroundStyle">
     <video v-if="showVideo" class="background-video" autoplay muted loop playsinline>
       <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
