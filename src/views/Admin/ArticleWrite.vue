@@ -191,12 +191,28 @@ const buildTagIds = () => {
 };
 
 const extractTempContentImageKeys = (html) => {
+  if (!html) return [];
+
   const keys = new Set();
-  const regex = /\/uploads\/articles\/content\/tmp\/([^"'\\s)]+)/g;
-  let match;
-  while ((match = regex.exec(html))) {
-    keys.add(match[1]);
+  const extractFromSrc = (src) => {
+    if (!src) return;
+    const match = src.match(/\/uploads\/articles\/content\/tmp\/([^/?#]+)/);
+    if (match?.[1]) keys.add(match[1]);
+  };
+
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("img").forEach((img) => {
+      extractFromSrc(img.getAttribute("src"));
+      extractFromSrc(img.getAttribute("data-src"));
+    });
+  } catch {
+    // Fallback：尽量从字符串里提取（避免因为解析失败导致图片永远停留在 tmp 目录）
+    const regex = /\/uploads\/articles\/content\/tmp\/([^"'\s?#/]+)/g;
+    let match;
+    while ((match = regex.exec(html))) keys.add(match[1]);
   }
+
   return Array.from(keys);
 };
 
