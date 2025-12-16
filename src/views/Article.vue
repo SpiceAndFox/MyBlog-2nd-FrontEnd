@@ -318,4 +318,10 @@ onMounted(() => {
   margin: 18px auto; /* 可选：上下留白并居中 */
   object-fit: contain;
 }
+
+@media (max-width: 768px) {
+  .article__title {
+    font-size: 2rem;
+  }
+}
 </style>
