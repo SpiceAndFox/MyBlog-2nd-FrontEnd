@@ -131,7 +131,7 @@ onMounted(() => {
 
   background: linear-gradient(to top, rgb(255, 255, 255) 0%, rgba(255, 255, 255, 0.233) 30%, transparent 50%);
   opacity: 0;
-  transition: opacity 1s ease-in-out;
+  /* transition: opacity 1s ease-in-out; */
 }
 
 .article-header.loaded::after {
@@ -313,6 +313,7 @@ onMounted(() => {
 
 .article__content :deep(img) {
   max-width: 100%; /* 限制在容器内 */
+  max-height: 300px;
   height: auto; /* 按比例缩放 */
   display: block;
   margin: 18px auto; /* 可选：上下留白并居中 */

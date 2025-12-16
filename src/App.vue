@@ -16,19 +16,15 @@ const layoutMap = {
   admin: "layout--admin",
 };
 const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
-const isVideoBackground = computed(() => {
+const isHomeOrArticleList = computed(() => {
   if (layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList") return true;
 });
 const showVideo = computed(() => {
-  return false;
+  return isHomeOrArticleList.value && !isIOS;
 });
 const iosBackgroundStyle = computed(() => {
-  return isVideoBackground.value
-    ? {
-        backgroundImage: `url(${iosBg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
+  return isHomeOrArticleList.value && isIOS
+    ? { backgroundImage: `url(${iosBg})`, backgroundSize: "cover", backgroundPosition: "center" }
     : {};
 });
 </script>
