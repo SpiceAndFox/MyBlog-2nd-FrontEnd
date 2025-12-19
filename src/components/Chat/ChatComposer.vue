@@ -85,6 +85,7 @@ function resizeTextarea() {
   line-height: 1.5;
   background: transparent;
   color: var(--chat-text, rgba(17, 24, 39, 0.92));
+  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
 }
 
 .send-button {

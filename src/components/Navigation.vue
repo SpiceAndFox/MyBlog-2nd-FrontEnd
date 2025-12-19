@@ -177,6 +177,14 @@ function linkToggled(link) {
 .navigation.layout--chat {
   background-color: rgb(249, 250, 251);
 }
+.navigation.layout--chat .navigation-links a {
+  background-color: transparent;
+  transition: transform 0.1s ease-in-out;
+}
+.navigation.layout--chat .navigation-links a:hover {
+  transform: translateY(-1px);
+  color: #c44569;
+}
 
 .menu-toggle:active {
   background-color: pink;
