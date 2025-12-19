@@ -34,7 +34,6 @@ const emit = defineEmits([
                 />
               </svg>
             </span>
-            <span class="button-text">新对话</span>
           </button>
 
           <button class="icon-button" type="button" @click="emit('request-close')" aria-label="关闭会话列表">
@@ -79,18 +78,6 @@ const emit = defineEmits([
 
   <aside v-if="!isMobile" class="sidebar" :class="{ collapsed }" aria-label="历史会话">
     <header class="sidebar-header">
-      <button class="primary-button" :class="{ iconOnly: collapsed }" type="button" @click="emit('create-session')">
-        <span class="button-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path
-              d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
-              fill="currentColor"
-            />
-          </svg>
-        </span>
-        <span v-if="!collapsed" class="button-text">新对话</span>
-      </button>
-
       <button
         class="icon-button"
         type="button"
@@ -109,6 +96,17 @@ const emit = defineEmits([
             fill="currentColor"
           />
         </svg>
+      </button>
+
+      <button class="primary-button" :class="{ iconOnly: collapsed }" type="button" @click="emit('create-session')">
+        <span class="button-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path
+              d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
+              fill="currentColor"
+            />
+          </svg>
+        </span>
       </button>
     </header>
 
@@ -150,6 +148,7 @@ const emit = defineEmits([
   border-right: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
   color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
   box-shadow: 1px 0 0 var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
+  box-sizing: border-box;
 }
 
 .sidebar.collapsed {
@@ -158,6 +157,7 @@ const emit = defineEmits([
 
 .sidebar-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 10px;
   padding: 12px 12px 8px;
@@ -171,16 +171,16 @@ const emit = defineEmits([
 }
 
 .primary-button {
-  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
-  padding: 10px 12px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
-  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.12));
-  background: rgba(255, 255, 255, 0.65);
-  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.72));
   cursor: pointer;
   transition: background-color 0.18s ease, border-color 0.18s ease;
 }
@@ -192,16 +192,6 @@ const emit = defineEmits([
 
 .primary-button:hover {
   background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
-}
-
-.primary-button.iconOnly {
-  justify-content: center;
-  padding: 10px;
-}
-
-.button-icon {
-  display: grid;
-  place-items: center;
 }
 
 .icon-button {
@@ -229,7 +219,8 @@ const emit = defineEmits([
 .session-list {
   flex: 1;
   overflow: auto;
-  padding: 4px 10px 12px;
+  padding: 4px 10px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 6px;
