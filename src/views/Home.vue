@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import UserInfo from "@/components/UserInfo.vue";
-import RecentArticleSection from "@/components/RecentArticleSection.vue";
-import RippleBackground from "@/components/RippleBackground.vue";
+import UserInfo from "@/components/Home/UserInfo.vue";
+import RecentArticleSection from "@/components/Home/RecentArticleSection.vue";
+import RippleBackground from "@/components/Home/RippleBackground.vue";
 import { getPublishedArticles } from "@/api/articles";
 
 const articleListSectionTitle = ref("近期文章");

@@ -153,6 +153,7 @@ function linkToggled(link) {
   transition: background-color 0.3s ease;
 }
 
+/* admin页的特化 */
 .navigation.layout--admin .menu-toggle {
   border-color: rgb(176, 176, 176);
 }

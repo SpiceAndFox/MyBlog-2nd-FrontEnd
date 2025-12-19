@@ -1,5 +1,5 @@
 <script setup>
-import ArticleCard from "./ArticleCard.vue";
+import ArticleCardRecent from "@/components/Home/ArticleCardRecent.vue";
 import { vAutoAnimate } from "@formkit/auto-animate";
 
 defineProps({
@@ -14,18 +14,18 @@ defineProps({
 </script>
 
 <template>
-  <section class="article-list-section">
-    <h2 class="article-list-section__title">{{ title }}</h2>
+  <section class="recent-article-section">
+    <h2 class="recent-article-section__title">{{ title }}</h2>
     <ul class="article-list" v-auto-animate>
       <li class="article-list__item" v-for="article in articles" :key="article.id">
-        <ArticleCard :article="article" :layout="layout" />
+        <ArticleCardRecent :article="article" />
       </li>
     </ul>
   </section>
 </template>
 
 <style scoped>
-.article-list-section {
+.recent-article-section {
   max-width: 600px;
   min-width: 300px;
   min-height: 200px;
@@ -42,7 +42,7 @@ defineProps({
   z-index: 1;
 }
 
-.article-list-section__title {
+.recent-article-section__title {
   padding-left: 12px;
   margin: 0;
   margin-bottom: 10px;
@@ -54,7 +54,7 @@ defineProps({
   transition: color 0.4s ease;
 }
 
-.article-list-section__title:hover {
+.recent-article-section__title:hover {
   color: #ffffff;
 }
 
@@ -70,7 +70,7 @@ defineProps({
 
 /* 移动端适配 */
 @container article-list-section (max-width: 500px) {
-  .article-list-section {
+  .recent-article-section {
     max-width: 100%;
     padding: 15px;
     margin-bottom: 20px;

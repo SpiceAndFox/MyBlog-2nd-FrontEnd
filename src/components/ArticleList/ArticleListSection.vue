@@ -1,5 +1,5 @@
 <script setup>
-import ArticleCard from "./ArticleCard.vue";
+import ArticleCard from "@/components/ArticleList/ArticleCard.vue";
 import { vAutoAnimate } from "@formkit/auto-animate";
 import { ref, watch } from "vue";
 
@@ -10,10 +10,6 @@ const props = defineProps({
   articles: {
     type: Array,
     required: true,
-  },
-  layout: {
-    type: String,
-    default: "list",
   },
   search: {
     type: String,
@@ -37,17 +33,23 @@ const handleSearchSubmit = () => {
 </script>
 
 <template>
-  <section class="article-list-section" :class="`layout--${layout}`">
+  <section class="article-list-section">
     <div class="article-list-header">
       <h2 class="article-list__title">{{ title }}</h2>
-      <form class="article-list__search" @submit.prevent="handleSearchSubmit">
+      <form class="article-list__search" id="article-list__search" @submit.prevent="handleSearchSubmit">
         <button type="submit">Search</button>
-        <input v-model="searchInput" type="search" placeholder="搜索文章..." aria-label="搜索文章" />
+        <input
+          v-model="searchInput"
+          type="search"
+          placeholder="搜索文章..."
+          aria-label="搜索文章"
+          id="article-search-input"
+        />
       </form>
     </div>
     <ul class="article-list" v-auto-animate>
       <li class="article-list__item" v-for="article in articles" :key="article.id">
-        <ArticleCard :article="article" :layout="layout" />
+        <ArticleCard :article="article" />
       </li>
     </ul>
   </section>
@@ -55,13 +57,13 @@ const handleSearchSubmit = () => {
 
 <style scoped>
 .article-list-section {
-  max-width: 600px;
+  max-width: 9999px;
   min-width: 300px;
   min-height: 200px;
   width: 100%;
-  background-color: #9e9e9e8c;
-  padding: 10px;
-  backdrop-filter: blur(2px);
+  background-color: #ffffffb9;
+  padding: 20px 20px;
+  backdrop-filter: blur(8px);
 
   box-sizing: border-box;
   border-radius: 15px;
@@ -85,13 +87,13 @@ const handleSearchSubmit = () => {
   margin-top: 5px;
 
   font-size: 1.5rem;
-  color: #535353;
+  color: rgb(108, 108, 108);
   cursor: default;
   transition: color 0.4s ease;
 }
 
 .article-list__title:hover {
-  color: #ffffff;
+  color: #3f3f3f;
 }
 
 /* search 区域样式 */
@@ -103,7 +105,6 @@ const handleSearchSubmit = () => {
   margin: 0;
 }
 
-/* button */
 .article-list__search button {
   appearance: none;
   border: none;
@@ -160,68 +161,30 @@ const handleSearchSubmit = () => {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
-/* 针对ArticleList页的个性化 */
-.article-list-section.layout--grid {
-  width: 100%;
-  max-width: 9999px;
-  background-color: #ffffffb9;
-  backdrop-filter: blur(8px);
-  padding: 20px 20px;
-}
-.article-list-section.layout--grid .article-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 15px;
-}
-.article-list-section.layout--grid .article-list__title {
-  color: rgb(108, 108, 108);
-}
-.article-list-section.layout--grid .article-list__title:hover {
-  color: #3f3f3f;
+  width: 100%;
 }
 
 /* 移动端适配 */
 @media (max-width: 1200px) {
-  .article-list-section.layout--grid {
+  .article-list-section {
     width: 80%;
   }
 }
 
 @media (max-width: 900px) {
-  .article-list-section.layout--grid {
+  .article-list-section {
     width: 85%;
   }
-  .article-list-section.layout--grid .article-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container article-list-section (max-width: 500px) {
-  .article-list-section {
-    max-width: 100%;
-    padding: 15px;
-    margin-bottom: 20px;
-  }
-
   .article-list {
-    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 15px;
   }
 }
 
 @container article-list-section (max-width: 425px) {
   .article-list {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-
-  .article-list-section.layout--grid .article-list {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 

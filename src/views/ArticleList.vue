@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import ArticleListSection from "@/components/ArticleListSection.vue";
-import ArticleFilterPanel from "@/components/ArticleFilterPanel.vue";
+import ArticleListSection from "@/components/ArticleList/ArticleListSection.vue";
+import ArticleFilterPanel from "@/components/ArticleList/ArticleFilterPanel.vue";
 import { fetchAllTags } from "@/api/tags";
 import { getPublishedArticles } from "@/api/articles";
 import LoadingOverlay from "@/components/LoadingOverlay.vue";
@@ -183,7 +183,7 @@ const articleListSectionTitle = computed(() => {
 <template>
   <div class="page-header">
     <div class="page-header-text-wrapper">
-      <h1>花店不开了，花还在开...</h1>
+      <h1>花店不开了，花还在开 ...</h1>
       <span>香辛料的小屋</span>
     </div>
   </div>
@@ -202,7 +202,6 @@ const articleListSectionTitle = computed(() => {
       <ArticleListSection
         :title="articleListSectionTitle"
         :articles="articles"
-        layout="grid"
         :search="currentFilter.search"
         @update="handleFilterChange($event)"
       />
@@ -249,6 +248,7 @@ const articleListSectionTitle = computed(() => {
   justify-content: center;
   align-items: center;
   gap: 20px;
+  padding: 10px;
 }
 
 .page-header-text-wrapper h1 {
@@ -342,6 +342,17 @@ const articleListSectionTitle = computed(() => {
   }
   .article-list-content {
     width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-header {
+    margin-bottom: 0;
+  }
+
+  .page-header-text-wrapper h1 {
+    font-size: 30px;
+    text-align: center;
   }
 }
 

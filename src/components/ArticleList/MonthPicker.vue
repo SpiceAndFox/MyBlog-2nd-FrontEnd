@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import CustomSelect from "./CustomSelect.vue";
+import CustomSelect from "@/components/CustomSelect.vue";
 
 // 模拟数据
 const years = [2025, 2024, 2023, 2022];
