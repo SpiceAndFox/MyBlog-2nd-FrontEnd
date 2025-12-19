@@ -20,7 +20,7 @@ export const CHAT_PROVIDERS = [
   {
     id: "grok",
     name: "Grok (xAI)",
-    models: [{ id: "grok-4-latest", name: "grok-4-latest" }],
+    models: [{ id: "grok-4", name: "grok-4" }],
   },
   {
     id: "deepseek",
