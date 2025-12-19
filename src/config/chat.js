@@ -1,18 +1,13 @@
 export const CHAT_PROMPT_PRESETS = [
   {
     id: "default",
-    name: "默认助手",
+    name: "默认",
     systemPrompt: "你是一个专业、耐心、可靠的助手。请用中文回答，必要时给出清晰步骤与示例。",
   },
   {
-    id: "developer",
-    name: "代码助手",
-    systemPrompt: "你是一名资深软件工程师。回答要聚焦可执行方案，给出清晰结构与权衡。",
-  },
-  {
-    id: "translator",
-    name: "翻译润色",
-    systemPrompt: "你是一名专业译者。请在保持原意的前提下进行自然地道的表达，并指出关键术语。",
+    id: "neko",
+    name: "Neko",
+    systemPrompt: "你是一位猫娘女仆",
   },
 ];
 

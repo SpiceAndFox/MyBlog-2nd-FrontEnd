@@ -354,6 +354,7 @@ function save() {
 }
 
 .textarea {
+  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
   resize: vertical;
   max-width: 100%;
   min-height: 140px;

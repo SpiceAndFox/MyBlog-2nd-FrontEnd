@@ -1,12 +1,19 @@
 <script setup>
 import { computed, nextTick, ref } from "vue";
 
-const emit = defineEmits(["send"]);
+const props = defineProps({
+  isSending: { type: Boolean, default: false },
+  isStreaming: { type: Boolean, default: false },
+});
+
+const emit = defineEmits(["send", "stop"]);
 
 const draftText = ref("");
 const textareaRef = ref(null);
 
-const canSend = computed(() => String(draftText.value || "").trim().length > 0);
+const canSend = computed(
+  () => !props.isSending && !props.isStreaming && String(draftText.value || "").trim().length > 0
+);
 
 function send() {
   if (!canSend.value) return;
@@ -15,10 +22,20 @@ function send() {
   nextTick(resizeTextarea);
 }
 
+function stop() {
+  if (!props.isStreaming) return;
+  emit("stop");
+}
+
 function onKeydown(event) {
   if (event.key !== "Enter") return;
   if (event.shiftKey) return;
   event.preventDefault();
+  if (props.isStreaming) {
+    stop();
+    return;
+  }
+  if (props.isSending) return;
   send();
 }
 
@@ -54,7 +71,17 @@ function onCardPointerDown(event) {
         @input="resizeTextarea"
       ></textarea>
 
-      <button class="send-button" type="button" :disabled="!canSend" @click="send" aria-label="发送">
+      <button
+        v-if="isStreaming"
+        class="send-button stop-button"
+        type="button"
+        @click="stop"
+        aria-label="停止"
+        title="停止"
+      >
+        P
+      </button>
+      <button v-else class="send-button" type="button" :disabled="!canSend" @click="send" aria-label="发送">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path d="M3.4 20.6 21 12 3.4 3.4l.6 7.2L15 12 4 13.4l-.6 7.2Z" fill="currentColor" />
         </svg>
@@ -123,5 +150,15 @@ function onCardPointerDown(event) {
 .send-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.stop-button {
+  background: #ef4444;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.stop-button:hover:not(:disabled) {
+  background: #dc2626;
 }
 </style>

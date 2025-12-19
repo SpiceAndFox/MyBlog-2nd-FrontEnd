@@ -77,6 +77,17 @@ const isMobileSidebarOpen = ref(false);
 const isSettingsOpen = ref(false);
 const navHeight = ref(60);
 const isSending = ref(false);
+const isStreaming = ref(false);
+let activeStreamAbortController = null;
+
+function isAbortError(error) {
+  return error?.name === "AbortError" || /abort/i.test(String(error?.message || ""));
+}
+
+function stopStreaming() {
+  if (!isStreaming.value) return;
+  activeStreamAbortController?.abort?.();
+}
 
 function updateNavHeight() {
   const navigation = document.querySelector(".navigation");
@@ -102,6 +113,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("resize", updateNavHeight);
   navResizeObserver?.disconnect();
+  stopStreaming();
 });
 
 const promptPresets = CHAT_PROMPT_PRESETS;
@@ -354,6 +366,10 @@ async function sendMessage(text) {
     const outgoingSettings = { ...settings.value };
 
     if (outgoingSettings.stream) {
+      isStreaming.value = true;
+      const abortController = new AbortController();
+      activeStreamAbortController = abortController;
+
       const optimisticAssistantMessage = reactive({
         id: createId("tmp_msg"),
         role: "assistant",
@@ -366,6 +382,7 @@ async function sendMessage(text) {
         await streamChatMessage(sessionId, {
           content,
           settings: outgoingSettings,
+          signal: abortController.signal,
           onDelta: (delta) => {
             optimisticAssistantMessage.content += delta;
           },
@@ -377,8 +394,19 @@ async function sendMessage(text) {
           },
         });
       } catch (error) {
+        if (isAbortError(error)) {
+          if (!String(optimisticAssistantMessage.content || "").trim()) {
+            messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
+              (m) => m !== optimisticAssistantMessage
+            );
+          }
+          return;
+        }
         if (handleApiError(error, { silent: true })) return;
         optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
+      } finally {
+        if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+        isStreaming.value = false;
       }
 
       return;
@@ -447,8 +475,11 @@ watch(isMobile, (mobile) => {
       :sessionTitle="activeSession?.title || DEFAULT_SESSION_TITLE"
       :messages="activeMessages"
       :isMobile="isMobile"
+      :isSending="isSending"
+      :isStreaming="isStreaming"
       @open-sidebar="openMobileSidebar"
       @send-message="sendMessage"
+      @stop-output="stopStreaming"
     />
 
     <ChatSettingsModal

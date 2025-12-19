@@ -6,9 +6,11 @@ defineProps({
   sessionTitle: { type: String, default: "新对话" },
   messages: { type: Array, default: () => [] },
   isMobile: { type: Boolean, default: false },
+  isSending: { type: Boolean, default: false },
+  isStreaming: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["open-sidebar", "send-message"]);
+const emit = defineEmits(["open-sidebar", "send-message", "stop-output"]);
 </script>
 
 <template>
@@ -25,7 +27,12 @@ const emit = defineEmits(["open-sidebar", "send-message"]);
 
     <ChatMessageList class="message-list" :messages="messages" />
 
-    <ChatComposer @send="emit('send-message', $event)" />
+    <ChatComposer
+      :isSending="isSending"
+      :isStreaming="isStreaming"
+      @send="emit('send-message', $event)"
+      @stop="emit('stop-output')"
+    />
   </section>
 </template>
 
