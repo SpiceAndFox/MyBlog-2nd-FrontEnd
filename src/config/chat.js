@@ -39,7 +39,7 @@ export const CHAT_DEFAULT_SETTINGS = {
   modelId: "deepseek-chat",
   temperature: 0.7,
   topP: 0.9,
-  maxOutputTokens: 1024,
+  maxOutputTokens: 4096,
   presencePenalty: 0,
   frequencyPenalty: 0,
   stream: true,
