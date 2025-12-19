@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import UserInfo from "@/components/UserInfo.vue";
-import ArticleListSection from "@/components/ArticleListSection.vue";
+import RecentArticleSection from "@/components/RecentArticleSection.vue";
 import RippleBackground from "@/components/RippleBackground.vue";
 import { getPublishedArticles } from "@/api/articles";
 
@@ -48,7 +48,7 @@ onMounted(fetchArticles);
   <main class="main-content">
     <RippleBackground></RippleBackground>
     <UserInfo></UserInfo>
-    <ArticleListSection :title="articleListSectionTitle" :articles="articlesData"></ArticleListSection>
+    <RecentArticleSection :title="articleListSectionTitle" :articles="articlesData"></RecentArticleSection>
   </main>
 </template>
 

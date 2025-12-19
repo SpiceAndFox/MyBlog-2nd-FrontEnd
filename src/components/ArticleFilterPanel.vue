@@ -1,28 +1,17 @@
 <script setup>
-import { ref, watch } from "vue";
 import MonthPicker from "./MonthPicker.vue";
 
 // 定义参数
-const props = defineProps({
+defineProps({
   selectedTopTag: String,
   selectedSubTag: String,
   selectedYear: Number,
   selectedMonth: Number,
   tags: Object, // 接收动态生成的标签数据
-  search: String,
 });
 
 // 定义emit事件
 const emit = defineEmits(["update"]);
-
-// 搜索框内容
-const searchInput = ref(props.search || "");
-watch(
-  () => props.search,
-  (val) => {
-    if (val !== searchInput.value) searchInput.value = val || "";
-  }
-);
 
 // 点击处理逻辑，只发出事件
 function handleTagClick(type, value) {
@@ -32,10 +21,6 @@ function handleTagClick(type, value) {
 function handleDateChange(type, value) {
   emit("update", { type, value });
 }
-
-const handleSearchSubmit = () => {
-  emit("update", { type: "search", value: searchInput.value.trim() });
-};
 
 // 动态生成tag对应的链接
 function getTagLink(tagType, tagValue) {
@@ -66,21 +51,7 @@ function getTagLink(tagType, tagValue) {
 
 <template>
   <aside class="article-filter-panel">
-    <form @submit.prevent="handleSearchSubmit">
-      <section class="filter-section">
-        <div class="article-search-bar">
-          <label for="article-search-input" class="visually-hidden">搜索文章</label>
-          <input
-            v-model="searchInput"
-            type="search"
-            placeholder="搜索文章..."
-            id="article-search-input"
-            class="article-search-bar__input"
-          />
-          <button type="submit" class="article-search-bar__button">Search</button>
-        </div>
-      </section>
-
+    <form @submit.prevent>
       <!-- 文章主标签 -->
       <section class="filter-section">
         <div class="filter-section__header">
@@ -191,45 +162,6 @@ function getTagLink(tagType, tagValue) {
   color: var(--accent-color);
 }
 
-/* --- 搜索框 --- */
-.article-search-bar {
-  display: flex;
-  width: 100%;
-}
-
-.article-search-bar__input {
-  min-width: 0;
-  flex-grow: 1;
-  border: 1px solid var(--panel-border-color);
-  padding: 8px 12px;
-  border-radius: var(--base-radius) 0 0 var(--base-radius);
-  background-color: #fff;
-  font-size: 0.9rem;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.article-search-bar__input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-  z-index: 1;
-}
-
-.article-search-bar__button {
-  border: none;
-  background-color: var(--accent-color);
-  color: var(--accent-text-color);
-  padding: 8px 16px;
-  border-radius: 0 var(--base-radius) var(--base-radius) 0;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s ease;
-}
-
-.article-search-bar__button:hover {
-  background-color: var(--accent-color-dark);
-}
-
 /* --- 标签列表 --- */
 .tag-list {
   display: flex;
@@ -278,18 +210,6 @@ function getTagLink(tagType, tagValue) {
 .subtag-fade-enter-to {
   opacity: 1;
   transform: translateY(0);
-}
-
-/* 辅助样式 */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
 }
 
 @media (max-width: 1200px) {
