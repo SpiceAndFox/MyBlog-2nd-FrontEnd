@@ -54,6 +54,9 @@ function linkToggled(link) {
       <li>
         <a @click.prevent="linkToggled('/articles')" href="/articles" @click="isMenuOpen = false">文章</a>
       </li>
+      <li>
+        <a @click.prevent="linkToggled('/chat')" href="/chat" @click="isMenuOpen = false">Chat</a>
+      </li>
     </ul>
 
     <button class="menu-toggle" @click="toggleMenu" aria-label="Toggle navigation">
@@ -209,7 +212,7 @@ function linkToggled(link) {
   display: flex;
   flex-direction: row;
   justify-content: center;
-  gap: 30px;
+  gap: 10px;
   list-style: none;
   padding: 0;
   margin: 0;

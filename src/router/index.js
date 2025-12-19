@@ -6,7 +6,8 @@ import LogIn from "@/views/LogIn.vue";
 import ArticleWrite from "@/views/Admin/ArticleWrite.vue";
 import AdminLayout from "@/views/AdminLayout.vue";
 import ArticleManage from "@/views/Admin/ArticleManage.vue";
-import ArticleTagManage from "../views/Admin/ArticleTagManage.vue";
+import ArticleTagManage from "@/views/Admin/ArticleTagManage.vue";
+import Chat from "@/views/Chat.vue";
 
 const routes = [
   {
@@ -31,6 +32,14 @@ const routes = [
     component: ArticleList,
     meta: {
       layoutClass: "articleList",
+    },
+  },
+  {
+    path: "/chat",
+    name: "Chat",
+    component: Chat,
+    meta: {
+      layoutClass: "chat",
     },
   },
   {
