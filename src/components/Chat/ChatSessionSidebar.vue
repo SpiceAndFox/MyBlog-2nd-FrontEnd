@@ -1,7 +1,8 @@
 <script setup>
+import { computed } from "vue";
 import ChatSessionListItem from "@/components/Chat/ChatSessionListItem.vue";
 
-defineProps({
+const props = defineProps({
   sessions: { type: Array, required: true },
   activeSessionId: { type: String, default: "" },
   collapsed: { type: Boolean, default: false },
@@ -18,32 +19,79 @@ const emit = defineEmits([
   "request-delete-session",
   "open-settings",
 ]);
+
+const effectiveCollapsed = computed(() => !props.isMobile && props.collapsed);
+const shouldShow = computed(() => !props.isMobile || props.mobileOpen);
+
+function onOverlayClick() {
+  if (!props.isMobile) return;
+  emit("request-close");
+}
 </script>
 
 <template>
   <transition name="chat-overlay-fade">
-    <div v-if="isMobile && mobileOpen" class="mobile-overlay" @click.self="emit('request-close')">
-      <aside class="sidebar mobile" aria-label="历史会话">
+    <div
+      v-show="shouldShow"
+      :class="isMobile ? 'mobile-overlay' : 'desktop-wrapper'"
+      @click.self="onOverlayClick"
+    >
+      <aside class="sidebar" :class="{ collapsed: effectiveCollapsed, mobile: isMobile }" aria-label="历史会话">
         <header class="sidebar-header">
-          <button class="primary-button" type="button" @click="emit('create-session')">
-            <span class="button-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18">
+          <template v-if="isMobile">
+            <button class="primary-button" type="button" @click="emit('create-session')" aria-label="新建会话">
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+            </button>
+
+            <button class="icon-button" type="button" @click="emit('request-close')" aria-label="关闭会话列表">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <path
-                  d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
+                  d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.42L12 13.41l4.89 4.9a1 1 0 0 0 1.42-1.41L13.41 12l4.9-4.89a1 1 0 0 0-.01-1.4Z"
                   fill="currentColor"
                 />
               </svg>
-            </span>
-          </button>
+            </button>
+          </template>
 
-          <button class="icon-button" type="button" @click="emit('request-close')" aria-label="关闭会话列表">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path
-                d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.42L12 13.41l4.89 4.9a1 1 0 0 0 1.42-1.41L13.41 12l4.9-4.89a1 1 0 0 0-.01-1.4Z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
+          <template v-else>
+            <button
+              class="icon-button"
+              type="button"
+              @click="emit('toggle-collapse')"
+              :aria-label="effectiveCollapsed ? '展开会话列表' : '折叠会话列表'"
+            >
+              <svg v-if="!effectiveCollapsed" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  d="M15.4 7.4a1 1 0 0 1 0 1.4L12.2 12l3.2 3.2a1 1 0 1 1-1.4 1.4l-3.9-3.9a1 1 0 0 1 0-1.4l3.9-3.9a1 1 0 0 1 1.4 0Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  d="M8.6 16.6a1 1 0 0 1 0-1.4L11.8 12 8.6 8.8a1 1 0 1 1 1.4-1.4l3.9 3.9a1 1 0 0 1 0 1.4l-3.9 3.9a1 1 0 0 1-1.4 0Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+
+            <button class="primary-button" type="button" @click="emit('create-session')" aria-label="新建会话">
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+            </button>
+          </template>
         </header>
 
         <nav class="session-list">
@@ -52,7 +100,7 @@ const emit = defineEmits([
             :key="session.id"
             :session="session"
             :active="session.id === activeSessionId"
-            :collapsed="false"
+            :collapsed="effectiveCollapsed"
             @select="emit('select-session', session.id)"
             @rename="emit('request-rename-session', $event)"
             @delete="emit('request-delete-session', session.id)"
@@ -60,7 +108,12 @@ const emit = defineEmits([
         </nav>
 
         <footer class="sidebar-footer">
-          <button class="footer-button" type="button" @click="emit('open-settings')">
+          <button
+            class="footer-button"
+            :class="{ iconOnly: effectiveCollapsed }"
+            type="button"
+            @click="emit('open-settings')"
+          >
             <span class="button-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="18" height="18">
                 <path
@@ -69,79 +122,22 @@ const emit = defineEmits([
                 />
               </svg>
             </span>
-            <span>设置</span>
+            <span v-if="!effectiveCollapsed" class="button-text">设置</span>
           </button>
         </footer>
       </aside>
     </div>
   </transition>
-
-  <aside v-if="!isMobile" class="sidebar" :class="{ collapsed }" aria-label="历史会话">
-    <header class="sidebar-header">
-      <button
-        class="icon-button"
-        type="button"
-        @click="emit('toggle-collapse')"
-        :aria-label="collapsed ? '展开会话列表' : '折叠会话列表'"
-      >
-        <svg v-if="!collapsed" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path
-            d="M15.4 7.4a1 1 0 0 1 0 1.4L12.2 12l3.2 3.2a1 1 0 1 1-1.4 1.4l-3.9-3.9a1 1 0 0 1 0-1.4l3.9-3.9a1 1 0 0 1 1.4 0Z"
-            fill="currentColor"
-          />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path
-            d="M8.6 16.6a1 1 0 0 1 0-1.4L11.8 12 8.6 8.8a1 1 0 1 1 1.4-1.4l3.9 3.9a1 1 0 0 1 0 1.4l-3.9 3.9a1 1 0 0 1-1.4 0Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
-
-      <button class="primary-button" :class="{ iconOnly: collapsed }" type="button" @click="emit('create-session')">
-        <span class="button-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path
-              d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
-              fill="currentColor"
-            />
-          </svg>
-        </span>
-      </button>
-    </header>
-
-    <nav class="session-list">
-      <ChatSessionListItem
-        v-for="session in sessions"
-        :key="session.id"
-        :session="session"
-        :active="session.id === activeSessionId"
-        :collapsed="collapsed"
-        @select="emit('select-session', session.id)"
-        @rename="emit('request-rename-session', $event)"
-        @delete="emit('request-delete-session', session.id)"
-      />
-    </nav>
-
-    <footer class="sidebar-footer">
-      <button class="footer-button" :class="{ iconOnly: collapsed }" type="button" @click="emit('open-settings')">
-        <span class="button-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path
-              d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.28 7.28 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.24-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.24 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
-              fill="currentColor"
-            />
-          </svg>
-        </span>
-        <span v-if="!collapsed" class="button-text">设置</span>
-      </button>
-    </footer>
-  </aside>
 </template>
 
 <style scoped>
+.desktop-wrapper {
+  height: 100%;
+}
+
 .sidebar {
   width: 260px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--chat-sidebar-bg, #202123);

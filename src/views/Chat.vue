@@ -61,13 +61,14 @@ function shouldRedirectToLogin(error) {
   return /token|登录|过期|unauthorized|forbidden/i.test(msg);
 }
 
-function handleApiError(error) {
+function handleApiError(error, { silent = false } = {}) {
   console.error(error);
   if (shouldRedirectToLogin(error)) {
     router.push({ name: "LogIn" });
-    return;
+    return true;
   }
-  window.alert(error?.message || "请求失败");
+  if (!silent) window.alert(error?.message || "请求失败");
+  return false;
 }
 
 const isMobile = useMediaQuery("(max-width: 900px)");
@@ -161,19 +162,10 @@ async function ensureMessagesLoaded(sessionId) {
 async function loadSessions() {
   const rawSessions = await listChatSessions();
   sessions.value = rawSessions.map(mapSession).filter(Boolean);
-  activeSessionId.value = sessions.value[0]?.id || "";
-  if (activeSessionId.value) {
-    await ensureMessagesLoaded(activeSessionId.value);
-  }
+  await activateSession(sessions.value[0]?.id || "", { closeSidebar: false });
 }
 
 async function initializeChat() {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    router.push({ name: "LogIn" });
-    return;
-  }
-
   try {
     await loadSessions();
   } catch (error) {
@@ -194,11 +186,17 @@ function toggleSidebarCollapsed() {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 }
 
+async function activateSession(sessionId, { closeSidebar = true } = {}) {
+  const normalizedId = String(sessionId || "");
+  activeSessionId.value = normalizedId;
+  if (closeSidebar) closeMobileSidebar();
+  if (!normalizedId) return;
+  await ensureMessagesLoaded(normalizedId);
+}
+
 async function selectSession(sessionId) {
-  activeSessionId.value = sessionId;
-  closeMobileSidebar();
   try {
-    await ensureMessagesLoaded(sessionId);
+    await activateSession(sessionId);
   } catch (error) {
     handleApiError(error);
   }
@@ -212,16 +210,20 @@ function bringSessionToTop(sessionId) {
   sessions.value.unshift(session);
 }
 
+async function createSession() {
+  const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value });
+  const session = mapSession(created);
+  if (!session) throw new Error("创建会话失败");
+
+  sessions.value.unshift(session);
+  messagesBySessionId[session.id] = [];
+  return session;
+}
+
 async function createNewSession() {
   try {
-    const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value });
-    const session = mapSession(created);
-    if (!session) return;
-
-    sessions.value.unshift(session);
-    messagesBySessionId[session.id] = [];
-    activeSessionId.value = session.id;
-    closeMobileSidebar();
+    const session = await createSession();
+    await activateSession(session.id);
   } catch (error) {
     handleApiError(error);
   }
@@ -271,10 +273,7 @@ async function confirmDeleteSession() {
     delete messagesBySessionId[sessionId];
 
     if (activeSessionId.value === sessionId) {
-      activeSessionId.value = sessions.value[0]?.id || "";
-      if (activeSessionId.value) {
-        await ensureMessagesLoaded(activeSessionId.value);
-      }
+      await activateSession(sessions.value[0]?.id || "", { closeSidebar: false });
     }
   } catch (error) {
     handleApiError(error);
@@ -284,15 +283,38 @@ async function confirmDeleteSession() {
 async function ensureActiveSession() {
   if (activeSessionId.value) return activeSessionId.value;
 
-  const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value });
-  const session = mapSession(created);
-  if (!session) throw new Error("创建会话失败");
-
-  sessions.value.unshift(session);
-  messagesBySessionId[session.id] = [];
-  activeSessionId.value = session.id;
-  closeMobileSidebar();
+  const session = await createSession();
+  await activateSession(session.id);
   return session.id;
+}
+
+function applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage } = {}) {
+  if (payload?.session) {
+    upsertSession(payload.session);
+    bringSessionToTop(sessionId);
+  }
+
+  if (payload?.user_message && optimisticUserMessage) {
+    const mapped = mapMessage(payload.user_message);
+    if (mapped) {
+      optimisticUserMessage.id = mapped.id;
+      optimisticUserMessage.createdAt = mapped.createdAt;
+    }
+  }
+
+  if (payload?.assistant_message) {
+    const mapped = mapMessage(payload.assistant_message);
+    if (!mapped) return;
+
+    if (optimisticAssistantMessage) {
+      optimisticAssistantMessage.id = mapped.id;
+      optimisticAssistantMessage.createdAt = mapped.createdAt;
+      optimisticAssistantMessage.content = mapped.content || optimisticAssistantMessage.content;
+      return;
+    }
+
+    messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), mapped];
+  }
 }
 
 async function sendMessage(text) {
@@ -348,37 +370,14 @@ async function sendMessage(text) {
             optimisticAssistantMessage.content += delta;
           },
           onDone: (payload) => {
-            if (payload?.session) {
-              upsertSession(payload.session);
-              bringSessionToTop(sessionId);
-            }
-
-            if (payload?.user_message) {
-              const mapped = mapMessage(payload.user_message);
-              if (mapped) {
-                optimisticUserMessage.id = mapped.id;
-                optimisticUserMessage.createdAt = mapped.createdAt;
-              }
-            }
-
-            if (payload?.assistant_message) {
-              const mapped = mapMessage(payload.assistant_message);
-              if (mapped) {
-                optimisticAssistantMessage.id = mapped.id;
-                optimisticAssistantMessage.createdAt = mapped.createdAt;
-                optimisticAssistantMessage.content = mapped.content || optimisticAssistantMessage.content;
-              }
-            }
+            applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage });
           },
           onError: (message) => {
             optimisticAssistantMessage.content = `（请求失败）${message}`;
           },
         });
       } catch (error) {
-        if (shouldRedirectToLogin(error)) {
-          router.push({ name: "LogIn" });
-          return;
-        }
+        if (handleApiError(error, { silent: true })) return;
         optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
       }
 
@@ -386,32 +385,11 @@ async function sendMessage(text) {
     }
 
     const result = await sendChatMessage(sessionId, { content, settings: outgoingSettings });
-    if (result?.session) {
-      upsertSession(result.session);
-      bringSessionToTop(sessionId);
-    }
-
-    if (result?.user_message) {
-      const mapped = mapMessage(result.user_message);
-      if (mapped) {
-        optimisticUserMessage.id = mapped.id;
-        optimisticUserMessage.createdAt = mapped.createdAt;
-      }
-    }
-
-    if (result?.assistant_message) {
-      const mapped = mapMessage(result.assistant_message);
-      if (mapped) {
-        messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), mapped];
-      }
-    }
+    applyServerPayload(sessionId, result, { optimisticUserMessage });
   } catch (error) {
-    if (shouldRedirectToLogin(error)) {
-      router.push({ name: "LogIn" });
-      return;
-    }
+    const redirected = handleApiError(error, { silent: Boolean(sessionId) });
 
-    if (sessionId) {
+    if (!redirected && sessionId) {
       messagesBySessionId[sessionId] = [
         ...(messagesBySessionId[sessionId] || []),
         {
@@ -422,7 +400,6 @@ async function sendMessage(text) {
         },
       ];
     }
-    handleApiError(error);
   } finally {
     isSending.value = false;
   }
@@ -444,10 +421,6 @@ function saveSettings(nextSettings) {
 }
 
 watch(isMobile, (mobile) => {
-  if (mobile) {
-    isMobileSidebarOpen.value = false;
-    return;
-  }
   isMobileSidebarOpen.value = false;
 });
 </script>
@@ -471,11 +444,10 @@ watch(isMobile, (mobile) => {
 
     <ChatConversationPanel
       class="chat-conversation"
-      :sessionTitle="activeSession?.title || '新对话'"
+      :sessionTitle="activeSession?.title || DEFAULT_SESSION_TITLE"
       :messages="activeMessages"
       :isMobile="isMobile"
       @open-sidebar="openMobileSidebar"
-      @open-settings="openSettings"
       @send-message="sendMessage"
     />
 

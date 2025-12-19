@@ -8,11 +8,11 @@ defineProps({
   isMobile: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["open-sidebar", "open-settings", "send-message"]);
+const emit = defineEmits(["open-sidebar", "send-message"]);
 </script>
 
 <template>
-  <section class="conversation">
+  <section class="conversation" :aria-label="`对话：${sessionTitle}`">
     <button
       v-if="isMobile"
       class="sidebar-float-button"

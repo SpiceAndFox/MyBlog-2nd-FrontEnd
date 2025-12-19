@@ -29,11 +29,21 @@ function resizeTextarea() {
   const nextHeight = Math.min(element.scrollHeight, 160);
   element.style.height = `${Math.max(nextHeight, 44)}px`;
 }
+
+function onCardPointerDown(event) {
+  const target = event?.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.closest("button")) return;
+  if (target.closest("textarea")) return;
+
+  event.preventDefault();
+  textareaRef.value?.focus?.();
+}
 </script>
 
 <template>
   <div class="composer-shell">
-    <div class="composer-card">
+    <div class="composer-card" @pointerdown="onCardPointerDown">
       <textarea
         ref="textareaRef"
         v-model="draftText"
@@ -64,6 +74,7 @@ function resizeTextarea() {
   gap: 10px;
   padding: 10px 10px;
   border-radius: 16px;
+  cursor: text;
   width: 100%;
   max-width: 820px;
   margin: 0 auto;

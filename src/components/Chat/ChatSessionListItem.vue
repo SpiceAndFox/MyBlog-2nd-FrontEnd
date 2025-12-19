@@ -35,16 +35,25 @@ async function startEditingTitle() {
   titleInputRef.value?.select?.();
 }
 
-function cancelEditingTitle() {
+function finishEditingTitle({ commit } = {}) {
+  const normalizedNextTitle = String(draftTitle.value || "").trim();
+  const originalTitle = String(props.session?.title || "").trim();
+
   isEditingTitle.value = false;
   draftTitle.value = "";
+
+  if (!commit) return;
+  if (!normalizedNextTitle) return;
+  if (normalizedNextTitle === originalTitle) return;
+  emit("rename", { sessionId: props.session.id, title: normalizedNextTitle });
 }
 
 function confirmEditingTitle() {
-  const normalized = String(draftTitle.value || "").trim();
-  if (!normalized) return;
-  emit("rename", { sessionId: props.session.id, title: normalized });
-  isEditingTitle.value = false;
+  finishEditingTitle({ commit: true });
+}
+
+function cancelEditingTitle() {
+  finishEditingTitle({ commit: false });
 }
 
 function onTitleKeydown(event) {
@@ -97,7 +106,7 @@ function onMainKeydown(event) {
           type="text"
           maxlength="60"
           @keydown="onTitleKeydown"
-          @blur="cancelEditingTitle"
+          @blur="confirmEditingTitle"
         />
         <span v-if="!isEditingTitle" class="session-meta">{{ updatedAtLabel }}</span>
       </template>
