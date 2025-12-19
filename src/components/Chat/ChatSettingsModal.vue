@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, watch } from "vue";
+import { CHAT_DEFAULT_SETTINGS } from "@/config/chat";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -10,19 +11,7 @@ const props = defineProps({
 
 const emit = defineEmits(["close", "save"]);
 
-const draft = reactive({
-  providerId: "",
-  modelId: "",
-  temperature: 0.7,
-  topP: 0.9,
-  maxOutputTokens: 1024,
-  presencePenalty: 0,
-  frequencyPenalty: 0,
-  stream: true,
-  enableWebSearch: false,
-  systemPromptPresetId: "default",
-  systemPrompt: "",
-});
+const draft = reactive({ ...CHAT_DEFAULT_SETTINGS });
 
 function applyFromCurrentSettings() {
   const source = props.currentSettings || {};
@@ -34,15 +23,23 @@ function applyFromCurrentSettings() {
 
   draft.providerId = providerId;
   draft.modelId = modelId;
-  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : 0.7;
-  draft.topP = Number.isFinite(source.topP) ? source.topP : 0.9;
-  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens) ? source.maxOutputTokens : 1024;
-  draft.presencePenalty = Number.isFinite(source.presencePenalty) ? source.presencePenalty : 0;
-  draft.frequencyPenalty = Number.isFinite(source.frequencyPenalty) ? source.frequencyPenalty : 0;
-  draft.stream = Boolean(source.stream);
-  draft.enableWebSearch = Boolean(source.enableWebSearch);
-  draft.systemPromptPresetId = source.systemPromptPresetId || "default";
-  draft.systemPrompt = source.systemPrompt || "";
+  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : CHAT_DEFAULT_SETTINGS.temperature;
+  draft.topP = Number.isFinite(source.topP) ? source.topP : CHAT_DEFAULT_SETTINGS.topP;
+  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens)
+    ? source.maxOutputTokens
+    : CHAT_DEFAULT_SETTINGS.maxOutputTokens;
+  draft.presencePenalty = Number.isFinite(source.presencePenalty)
+    ? source.presencePenalty
+    : CHAT_DEFAULT_SETTINGS.presencePenalty;
+  draft.frequencyPenalty = Number.isFinite(source.frequencyPenalty)
+    ? source.frequencyPenalty
+    : CHAT_DEFAULT_SETTINGS.frequencyPenalty;
+  draft.stream = typeof source.stream === "boolean" ? source.stream : CHAT_DEFAULT_SETTINGS.stream;
+  draft.enableWebSearch =
+    typeof source.enableWebSearch === "boolean" ? source.enableWebSearch : CHAT_DEFAULT_SETTINGS.enableWebSearch;
+  draft.systemPromptPresetId = source.systemPromptPresetId || CHAT_DEFAULT_SETTINGS.systemPromptPresetId;
+  draft.systemPrompt =
+    typeof source.systemPrompt === "string" ? source.systemPrompt : CHAT_DEFAULT_SETTINGS.systemPrompt;
 }
 
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
@@ -104,7 +101,6 @@ function save() {
         <header class="modal-header">
           <div class="header-left">
             <h3 class="modal-title">设置</h3>
-            <p class="modal-subtitle">选择模型与参数（仅 UI 演示，后续可对接 Grok / DeepSeek API）。</p>
           </div>
 
           <button class="icon-button" type="button" @click="close" aria-label="关闭">
@@ -141,27 +137,42 @@ function save() {
             <h4 class="section-title">生成参数</h4>
             <div class="grid">
               <label class="field">
-                <span class="label">Temperature <span class="value">{{ draft.temperature.toFixed(1) }}</span></span>
+                <span class="label"
+                  >Temperature <span class="value">{{ draft.temperature.toFixed(1) }}</span></span
+                >
                 <input v-model.number="draft.temperature" class="range" type="range" min="0" max="2" step="0.1" />
               </label>
 
               <label class="field">
-                <span class="label">Top P <span class="value">{{ draft.topP.toFixed(2) }}</span></span>
+                <span class="label"
+                  >Top P <span class="value">{{ draft.topP.toFixed(2) }}</span></span
+                >
                 <input v-model.number="draft.topP" class="range" type="range" min="0" max="1" step="0.05" />
               </label>
 
               <label class="field">
                 <span class="label">Max Output Tokens</span>
-                <input v-model.number="draft.maxOutputTokens" class="control" type="number" min="128" max="8192" step="64" />
+                <input
+                  v-model.number="draft.maxOutputTokens"
+                  class="control"
+                  type="number"
+                  min="128"
+                  max="8192"
+                  step="64"
+                />
               </label>
 
               <label class="field">
-                <span class="label">Presence Penalty <span class="value">{{ draft.presencePenalty.toFixed(1) }}</span></span>
+                <span class="label"
+                  >Presence Penalty <span class="value">{{ draft.presencePenalty.toFixed(1) }}</span></span
+                >
                 <input v-model.number="draft.presencePenalty" class="range" type="range" min="-2" max="2" step="0.1" />
               </label>
 
               <label class="field">
-                <span class="label">Frequency Penalty <span class="value">{{ draft.frequencyPenalty.toFixed(1) }}</span></span>
+                <span class="label"
+                  >Frequency Penalty <span class="value">{{ draft.frequencyPenalty.toFixed(1) }}</span></span
+                >
                 <input v-model.number="draft.frequencyPenalty" class="range" type="range" min="-2" max="2" step="0.1" />
               </label>
 
@@ -192,7 +203,12 @@ function save() {
 
               <label class="field full">
                 <span class="label">System Prompt</span>
-                <textarea v-model="draft.systemPrompt" class="control textarea" rows="6" placeholder="写下你希望 AI 遵循的系统级规则"></textarea>
+                <textarea
+                  v-model="draft.systemPrompt"
+                  class="control textarea"
+                  rows="6"
+                  placeholder="写下你希望 AI 遵循的系统级规则"
+                ></textarea>
               </label>
             </div>
           </section>
@@ -250,13 +266,6 @@ function save() {
   margin: 0;
   font-size: 1.05rem;
   color: var(--chat-text, #111827);
-}
-
-.modal-subtitle {
-  margin: 6px 0 0;
-  color: var(--chat-muted, rgba(17, 24, 39, 0.62));
-  font-size: 0.88rem;
-  line-height: 1.45;
 }
 
 .icon-button {

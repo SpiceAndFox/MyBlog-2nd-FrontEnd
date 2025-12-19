@@ -1,0 +1,169 @@
+// src/api/chat.js
+
+function getAuthHeader() {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("尚未登录或登录已过期");
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function readJsonSafe(res) {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+function normalizeSessionId(sessionId) {
+  const normalized = String(sessionId ?? "").trim();
+  if (!normalized) throw new Error("缺少会话ID");
+  return normalized;
+}
+
+export async function listChatSessions() {
+  const res = await fetch("/api/chat/sessions", {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "获取会话列表失败");
+  return data.sessions || [];
+}
+
+export async function createChatSession({ title, settings } = {}) {
+  const res = await fetch("/api/chat/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ title, settings }),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "创建会话失败");
+  return data.session;
+}
+
+export async function renameChatSession(sessionId, { title }) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ title }),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "重命名会话失败");
+  return data.session;
+}
+
+export async function deleteChatSession(sessionId) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}`, {
+    method: "DELETE",
+    headers: { ...getAuthHeader() },
+  });
+  if (res.status === 204) return;
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "删除会话失败");
+}
+
+export async function listChatMessages(sessionId) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}/messages`, {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "获取消息失败");
+  return data.messages || [];
+}
+
+export async function sendChatMessage(sessionId, { content, settings } = {}) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ content, settings }),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "发送消息失败");
+  return data; // { session, user_message, assistant_message }
+}
+
+function parseSseFrames(chunkText, state) {
+  state.buffer += chunkText;
+
+  while (true) {
+    const boundary = state.buffer.indexOf("\n\n");
+    if (boundary === -1) break;
+
+    const frame = state.buffer.slice(0, boundary);
+    state.buffer = state.buffer.slice(boundary + 2);
+
+    const lines = frame.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const dataPart = trimmed.slice("data:".length).trim();
+      if (!dataPart) continue;
+      state.onData?.(dataPart);
+    }
+  }
+}
+
+export async function streamChatMessage(
+  sessionId,
+  { content, settings, onDelta, onStart, onDone, onError, signal } = {}
+) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ content, settings: { ...(settings || {}), stream: true } }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const data = await readJsonSafe(res);
+    throw new Error(data.error || "发送消息失败");
+  }
+
+  if (!res.body) throw new Error("响应流不可用");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+
+  const state = {
+    buffer: "",
+    onData: (dataPart) => {
+      let payload;
+      try {
+        payload = JSON.parse(dataPart);
+      } catch {
+        return;
+      }
+
+      if (payload?.type === "start") {
+        onStart?.(payload);
+        return;
+      }
+
+      if (payload?.type === "delta") {
+        const delta = typeof payload.delta === "string" ? payload.delta : "";
+        if (delta) onDelta?.(delta);
+        return;
+      }
+
+      if (payload?.type === "done") {
+        onDone?.(payload);
+        return;
+      }
+
+      if (payload?.type === "error") {
+        onError?.(payload.error || "未知错误");
+      }
+    },
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    parseSseFrames(decoder.decode(value, { stream: true }), state);
+  }
+}
+

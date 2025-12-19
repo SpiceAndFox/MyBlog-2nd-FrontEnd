@@ -1,22 +1,73 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
+import { useRouter } from "vue-router";
 import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
+import { CHAT_PROVIDERS, CHAT_PROMPT_PRESETS, normalizeChatSettings } from "@/config/chat";
+import {
+  createChatSession,
+  deleteChatSession,
+  listChatMessages,
+  listChatSessions,
+  renameChatSession,
+  sendChatMessage,
+  streamChatMessage,
+} from "@/api/chat";
+
+const router = useRouter();
 
 function createId(prefix = "id") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+const DEFAULT_SESSION_TITLE = "新对话";
+const SETTINGS_STORAGE_KEY = "chat_settings_v1";
+
 function formatSessionTitleFromMessage(messageText) {
   const normalized = String(messageText || "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!normalized) return "新对话";
+  if (!normalized) return DEFAULT_SESSION_TITLE;
   return normalized.length > 22 ? `${normalized.slice(0, 22)}…` : normalized;
+}
+
+function loadPersistedSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistSettings(nextSettings) {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
+  } catch {
+    // ignore
+  }
+}
+
+function shouldRedirectToLogin(error) {
+  const msg = String(error?.message || "");
+  if (!msg) return false;
+  return /token|登录|过期|unauthorized|forbidden/i.test(msg);
+}
+
+function handleApiError(error) {
+  console.error(error);
+  if (shouldRedirectToLogin(error)) {
+    router.push({ name: "LogIn" });
+    return;
+  }
+  window.alert(error?.message || "请求失败");
 }
 
 const isMobile = useMediaQuery("(max-width: 900px)");
@@ -24,6 +75,7 @@ const isSidebarCollapsed = ref(false);
 const isMobileSidebarOpen = ref(false);
 const isSettingsOpen = ref(false);
 const navHeight = ref(60);
+const isSending = ref(false);
 
 function updateNavHeight() {
   const navigation = document.querySelector(".navigation");
@@ -38,11 +90,12 @@ onMounted(() => {
   window.addEventListener("resize", updateNavHeight);
 
   const navigation = document.querySelector(".navigation");
-  if (!navigation) return;
-  if (typeof ResizeObserver === "undefined") return;
+  if (navigation && typeof ResizeObserver !== "undefined") {
+    navResizeObserver = new ResizeObserver(updateNavHeight);
+    navResizeObserver.observe(navigation);
+  }
 
-  navResizeObserver = new ResizeObserver(updateNavHeight);
-  navResizeObserver.observe(navigation);
+  void initializeChat();
 });
 
 onBeforeUnmount(() => {
@@ -50,125 +103,83 @@ onBeforeUnmount(() => {
   navResizeObserver?.disconnect();
 });
 
-const promptPresets = [
-  {
-    id: "default",
-    name: "默认助手",
-    systemPrompt: "你是一个专业、耐心、可靠的助手。请用中文回答，必要时给出清晰步骤与示例。",
-  },
-  {
-    id: "developer",
-    name: "代码助手",
-    systemPrompt: "你是一名资深软件工程师。回答要聚焦可执行方案，给出清晰结构与权衡。",
-  },
-  {
-    id: "translator",
-    name: "翻译润色",
-    systemPrompt: "你是一名专业译者。请在保持原意的前提下进行自然地道的表达，并指出关键术语。",
-  },
-];
+const promptPresets = CHAT_PROMPT_PRESETS;
+const providers = CHAT_PROVIDERS;
 
-const providers = [
-  {
-    id: "grok",
-    name: "Grok (xAI)",
-    models: [
-      { id: "grok-2-latest", name: "grok-2-latest" },
-      { id: "grok-2-vision-latest", name: "grok-2-vision-latest" },
-    ],
-  },
-  {
-    id: "deepseek",
-    name: "DeepSeek",
-    models: [
-      { id: "deepseek-chat", name: "deepseek-chat" },
-      { id: "deepseek-reasoner", name: "deepseek-reasoner" },
-    ],
-  },
-];
-
-const settings = ref({
-  providerId: "grok",
-  modelId: "grok-2-latest",
-  temperature: 0.7,
-  topP: 0.9,
-  maxOutputTokens: 1024,
-  presencePenalty: 0,
-  frequencyPenalty: 0,
-  stream: true,
-  enableWebSearch: false,
-  systemPromptPresetId: "default",
-  systemPrompt: promptPresets.find((p) => p.id === "default")?.systemPrompt || "",
-});
+const settings = ref(normalizeChatSettings(loadPersistedSettings()));
 
 const sessions = ref([]);
 const messagesBySessionId = reactive({});
 const activeSessionId = ref("");
 
-function seedMockData() {
-  const sessionAId = createId("session");
-  const sessionBId = createId("session");
-  const sessionCId = createId("session");
-
-  sessions.value = [
-    { id: sessionAId, title: "写一个博客首页的文案", updatedAt: new Date() },
-    { id: sessionBId, title: "旅行计划：日本关西 5 天游", updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-    { id: sessionCId, title: "如何设计一个聊天 UI", updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24) },
-  ];
-
-  messagesBySessionId[sessionAId] = [
-    {
-      id: createId("msg"),
-      role: "assistant",
-      content: "当然可以。你希望首页的风格更偏「技术感」还是「生活感」？我可以给你 3 套不同语气的文案。",
-      createdAt: new Date(Date.now() - 1000 * 60 * 5),
-    },
-    {
-      id: createId("msg"),
-      role: "user",
-      content: "技术感，简洁一点，带一点点幽默。",
-      createdAt: new Date(Date.now() - 1000 * 60 * 4),
-    },
-    {
-      id: createId("msg"),
-      role: "assistant",
-      content:
-        "给你 3 套备选：\n\n1) 记录思考，也记录 bug。\n2) 写点代码，写点生活。\n3) 欢迎来到我的小站：偶尔严肃，常常好奇。",
-      createdAt: new Date(Date.now() - 1000 * 60 * 3),
-    },
-  ];
-
-  messagesBySessionId[sessionBId] = [
-    {
-      id: createId("msg"),
-      role: "assistant",
-      content: "可以。你更想「城市漫步」还是「寺社+自然」？我可以按节奏给你排日程。",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    },
-  ];
-
-  messagesBySessionId[sessionCId] = [
-    {
-      id: createId("msg"),
-      role: "assistant",
-      content: "做聊天 UI 时，建议先把布局拆成：会话列表 / 对话区 / 输入区 / 设置弹窗。这样更易维护。",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    },
-    {
-      id: createId("msg"),
-      role: "user",
-      content: "希望像 ChatGPT 网页端那样，移动端要适配。",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 + 1000 * 60),
-    },
-  ];
-
-  activeSessionId.value = sessionAId;
-}
-
-seedMockData();
-
 const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value) || null);
 const activeMessages = computed(() => messagesBySessionId[activeSessionId.value] || []);
+
+function mapSession(raw) {
+  if (!raw) return null;
+  return {
+    id: String(raw.id ?? ""),
+    title: raw.title || DEFAULT_SESSION_TITLE,
+    settings: raw.settings || {},
+    createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updated_at || raw.updatedAt || new Date().toISOString(),
+  };
+}
+
+function mapMessage(raw) {
+  if (!raw) return null;
+  return {
+    id: String(raw.id ?? ""),
+    role: raw.role,
+    content: raw.content || "",
+    createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
+  };
+}
+
+function upsertSession(rawSession) {
+  const normalized = mapSession(rawSession);
+  if (!normalized?.id) return;
+  const existing = sessions.value.find((s) => s.id === normalized.id);
+  if (existing) {
+    existing.title = normalized.title;
+    existing.updatedAt = normalized.updatedAt;
+    existing.settings = normalized.settings;
+    return;
+  }
+  sessions.value.unshift(normalized);
+}
+
+async function ensureMessagesLoaded(sessionId) {
+  const normalizedId = String(sessionId || "");
+  if (!normalizedId) return;
+  if (messagesBySessionId[normalizedId] !== undefined) return;
+
+  const rawMessages = await listChatMessages(normalizedId);
+  messagesBySessionId[normalizedId] = rawMessages.map(mapMessage).filter(Boolean);
+}
+
+async function loadSessions() {
+  const rawSessions = await listChatSessions();
+  sessions.value = rawSessions.map(mapSession).filter(Boolean);
+  activeSessionId.value = sessions.value[0]?.id || "";
+  if (activeSessionId.value) {
+    await ensureMessagesLoaded(activeSessionId.value);
+  }
+}
+
+async function initializeChat() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    router.push({ name: "LogIn" });
+    return;
+  }
+
+  try {
+    await loadSessions();
+  } catch (error) {
+    handleApiError(error);
+  }
+}
 
 function openMobileSidebar() {
   if (!isMobile.value) return;
@@ -183,37 +194,50 @@ function toggleSidebarCollapsed() {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 }
 
-function selectSession(sessionId) {
+async function selectSession(sessionId) {
   activeSessionId.value = sessionId;
   closeMobileSidebar();
+  try {
+    await ensureMessagesLoaded(sessionId);
+  } catch (error) {
+    handleApiError(error);
+  }
 }
 
 function bringSessionToTop(sessionId) {
-  const index = sessions.value.findIndex((s) => s.id === sessionId);
+  const normalizedId = String(sessionId || "");
+  const index = sessions.value.findIndex((s) => s.id === normalizedId);
   if (index <= 0) return;
   const [session] = sessions.value.splice(index, 1);
   sessions.value.unshift(session);
 }
 
-function createNewSession() {
-  const newSessionId = createId("session");
-  const now = new Date();
+async function createNewSession() {
+  try {
+    const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value });
+    const session = mapSession(created);
+    if (!session) return;
 
-  sessions.value.unshift({ id: newSessionId, title: "新对话", updatedAt: now });
-  messagesBySessionId[newSessionId] = [];
-  activeSessionId.value = newSessionId;
-  closeMobileSidebar();
+    sessions.value.unshift(session);
+    messagesBySessionId[session.id] = [];
+    activeSessionId.value = session.id;
+    closeMobileSidebar();
+  } catch (error) {
+    handleApiError(error);
+  }
 }
 
-function renameSession({ sessionId, title }) {
+async function renameSession({ sessionId, title }) {
   const normalizedTitle = String(title || "").trim();
   if (!normalizedTitle) return;
 
-  const target = sessions.value.find((s) => s.id === sessionId);
-  if (!target) return;
-
-  target.title = normalizedTitle;
-  target.updatedAt = new Date();
+  try {
+    const updated = await renameChatSession(sessionId, { title: normalizedTitle });
+    upsertSession(updated);
+    bringSessionToTop(String(sessionId));
+  } catch (error) {
+    handleApiError(error);
+  }
 }
 
 const deleteDialog = ref({
@@ -235,52 +259,173 @@ function cancelDeleteSession() {
   deleteDialog.value.open = false;
 }
 
-function confirmDeleteSession() {
+async function confirmDeleteSession() {
   const sessionId = deleteDialog.value.sessionId;
   deleteDialog.value.open = false;
+  if (!sessionId) return;
 
-  sessions.value = sessions.value.filter((s) => s.id !== sessionId);
-  delete messagesBySessionId[sessionId];
+  try {
+    await deleteChatSession(sessionId);
 
-  if (activeSessionId.value === sessionId) {
-    activeSessionId.value = sessions.value[0]?.id || "";
+    sessions.value = sessions.value.filter((s) => s.id !== sessionId);
+    delete messagesBySessionId[sessionId];
+
+    if (activeSessionId.value === sessionId) {
+      activeSessionId.value = sessions.value[0]?.id || "";
+      if (activeSessionId.value) {
+        await ensureMessagesLoaded(activeSessionId.value);
+      }
+    }
+  } catch (error) {
+    handleApiError(error);
   }
+}
 
-  if (!activeSessionId.value) createNewSession();
+async function ensureActiveSession() {
+  if (activeSessionId.value) return activeSessionId.value;
+
+  const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value });
+  const session = mapSession(created);
+  if (!session) throw new Error("创建会话失败");
+
+  sessions.value.unshift(session);
+  messagesBySessionId[session.id] = [];
+  activeSessionId.value = session.id;
+  closeMobileSidebar();
+  return session.id;
 }
 
 async function sendMessage(text) {
-  const sessionId = activeSessionId.value;
-  if (!sessionId) return;
+  if (isSending.value) return;
 
   const content = String(text || "").trim();
   if (!content) return;
 
-  const now = new Date();
-  const newUserMessage = { id: createId("msg"), role: "user", content, createdAt: now };
-  messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), newUserMessage];
+  isSending.value = true;
+  const nowIso = new Date().toISOString();
 
-  const session = sessions.value.find((s) => s.id === sessionId);
-  if (session) {
-    if (session.title === "新对话" && (messagesBySessionId[sessionId] || []).length <= 1) {
-      session.title = formatSessionTitleFromMessage(content);
+  let sessionId = "";
+
+  try {
+    sessionId = await ensureActiveSession();
+    await ensureMessagesLoaded(sessionId);
+
+    const optimisticUserMessage = reactive({
+      id: createId("tmp_msg"),
+      role: "user",
+      content,
+      createdAt: nowIso,
+    });
+    messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticUserMessage];
+
+    const session = sessions.value.find((s) => s.id === sessionId);
+    if (session) {
+      if (session.title === DEFAULT_SESSION_TITLE && (messagesBySessionId[sessionId] || []).length <= 1) {
+        session.title = formatSessionTitleFromMessage(content);
+      }
+      session.updatedAt = nowIso;
+      bringSessionToTop(sessionId);
     }
-    session.updatedAt = now;
-    bringSessionToTop(sessionId);
+
+    await nextTick();
+
+    const outgoingSettings = { ...settings.value };
+
+    if (outgoingSettings.stream) {
+      const optimisticAssistantMessage = reactive({
+        id: createId("tmp_msg"),
+        role: "assistant",
+        content: "",
+        createdAt: new Date().toISOString(),
+      });
+      messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticAssistantMessage];
+
+      try {
+        await streamChatMessage(sessionId, {
+          content,
+          settings: outgoingSettings,
+          onDelta: (delta) => {
+            optimisticAssistantMessage.content += delta;
+          },
+          onDone: (payload) => {
+            if (payload?.session) {
+              upsertSession(payload.session);
+              bringSessionToTop(sessionId);
+            }
+
+            if (payload?.user_message) {
+              const mapped = mapMessage(payload.user_message);
+              if (mapped) {
+                optimisticUserMessage.id = mapped.id;
+                optimisticUserMessage.createdAt = mapped.createdAt;
+              }
+            }
+
+            if (payload?.assistant_message) {
+              const mapped = mapMessage(payload.assistant_message);
+              if (mapped) {
+                optimisticAssistantMessage.id = mapped.id;
+                optimisticAssistantMessage.createdAt = mapped.createdAt;
+                optimisticAssistantMessage.content = mapped.content || optimisticAssistantMessage.content;
+              }
+            }
+          },
+          onError: (message) => {
+            optimisticAssistantMessage.content = `（请求失败）${message}`;
+          },
+        });
+      } catch (error) {
+        if (shouldRedirectToLogin(error)) {
+          router.push({ name: "LogIn" });
+          return;
+        }
+        optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
+      }
+
+      return;
+    }
+
+    const result = await sendChatMessage(sessionId, { content, settings: outgoingSettings });
+    if (result?.session) {
+      upsertSession(result.session);
+      bringSessionToTop(sessionId);
+    }
+
+    if (result?.user_message) {
+      const mapped = mapMessage(result.user_message);
+      if (mapped) {
+        optimisticUserMessage.id = mapped.id;
+        optimisticUserMessage.createdAt = mapped.createdAt;
+      }
+    }
+
+    if (result?.assistant_message) {
+      const mapped = mapMessage(result.assistant_message);
+      if (mapped) {
+        messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), mapped];
+      }
+    }
+  } catch (error) {
+    if (shouldRedirectToLogin(error)) {
+      router.push({ name: "LogIn" });
+      return;
+    }
+
+    if (sessionId) {
+      messagesBySessionId[sessionId] = [
+        ...(messagesBySessionId[sessionId] || []),
+        {
+          id: createId("msg"),
+          role: "assistant",
+          content: `（请求失败）${error?.message || error}`,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+    }
+    handleApiError(error);
+  } finally {
+    isSending.value = false;
   }
-
-  await nextTick();
-
-  setTimeout(() => {
-    const assistantMessage = {
-      id: createId("msg"),
-      role: "assistant",
-      content:
-        "（UI 演示）我已经收到你的消息了。\n\n后续接入 API（Grok / DeepSeek）后，这里会替换成真实的模型回复。",
-      createdAt: new Date(),
-    };
-    messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), assistantMessage];
-  }, 450);
 }
 
 function openSettings() {
@@ -293,7 +438,8 @@ function closeSettings() {
 }
 
 function saveSettings(nextSettings) {
-  settings.value = { ...settings.value, ...nextSettings };
+  settings.value = normalizeChatSettings({ ...settings.value, ...nextSettings });
+  persistSettings(settings.value);
   closeSettings();
 }
 
@@ -345,7 +491,7 @@ watch(isMobile, (mobile) => {
     <ChatConfirmDialog
       :open="deleteDialog.open"
       title="删除会话"
-      :message="`确定要删除「${deleteDialog.sessionTitle}」吗？此操作仅影响本地 UI 演示数据。`"
+      :message="`确定要删除“${deleteDialog.sessionTitle}”吗？此操作会删除该会话的所有聊天记录，且不可恢复。`"
       confirmText="删除"
       cancelText="取消"
       @confirm="confirmDeleteSession"

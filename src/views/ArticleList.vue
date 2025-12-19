@@ -181,6 +181,13 @@ const articleListSectionTitle = computed(() => {
 </script>
 
 <template>
+  <div class="page-header">
+    <div class="page-header-text-wrapper">
+      <h1>花店不开了，花还在开...</h1>
+      <span>香辛料的小屋</span>
+    </div>
+  </div>
+
   <div class="article-list-container">
     <ArticleFilterPanel
       :selectedTopTag="currentFilter.topTag"
@@ -226,6 +233,38 @@ const articleListSectionTitle = computed(() => {
 </template>
 
 <style scoped>
+.page-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  margin-bottom: 60px;
+  z-index: 10;
+}
+
+.page-header-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.page-header-text-wrapper h1 {
+  color: #cfc5c5;
+  font-size: 40px;
+  margin: 0;
+  letter-spacing: 5px;
+}
+
+.page-header-text-wrapper span {
+  color: #bbbbbb;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
 .article-list-container {
   position: relative;
   display: flex;
