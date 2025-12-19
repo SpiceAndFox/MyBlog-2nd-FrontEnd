@@ -136,7 +136,7 @@ function onMainKeydown(event) {
 }
 
 .session-item.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--chat-sidebar-active, rgba(255, 255, 255, 0.1));
 }
 
 .session-main {
@@ -159,8 +159,8 @@ function onMainKeydown(event) {
 }
 
 .session-main:focus-visible {
-  border-color: rgba(59, 130, 246, 0.65);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  border-color: rgba(16, 163, 127, 0.65);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
 }
 
 .collapsed-badge {
@@ -169,8 +169,8 @@ function onMainKeydown(event) {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(236, 236, 241, 0.92);
+  background: var(--chat-sidebar-active, rgba(255, 255, 255, 0.12));
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
   font-weight: 800;
   font-size: 0.85rem;
   flex: 0 0 auto;
@@ -195,9 +195,9 @@ function onMainKeydown(event) {
 .title-input {
   width: 100%;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.12);
-  color: rgba(236, 236, 241, 0.92);
+  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.14));
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
   padding: 6px 10px;
   font-size: 0.9rem;
   outline: none;
@@ -205,8 +205,8 @@ function onMainKeydown(event) {
 }
 
 .title-input:focus {
-  border-color: rgba(59, 130, 246, 0.75);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+  border-color: rgba(16, 163, 127, 0.75);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.22);
 }
 
 .actions {
@@ -220,8 +220,8 @@ function onMainKeydown(event) {
   gap: 6px;
   padding: 2px;
   border-radius: 999px;
-  background: rgba(32, 33, 35, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--chat-sidebar-actions-bg, rgba(32, 33, 35, 0.35));
+  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
   backdrop-filter: blur(6px);
 
   opacity: 0;
@@ -229,8 +229,7 @@ function onMainKeydown(event) {
   transition: opacity 0.18s ease;
 }
 
-.session-item:hover .actions,
-.session-item:focus-within .actions {
+.session-item:hover .actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -249,13 +248,13 @@ function onMainKeydown(event) {
 }
 
 .icon-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(236, 236, 241, 0.95);
+  background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.95));
 }
 
 .icon-button.danger:hover {
   background: rgba(239, 68, 68, 0.16);
-  color: rgba(254, 226, 226, 0.95);
+  color: rgba(185, 28, 28, 0.95);
 }
 
 .collapsed .session-main {

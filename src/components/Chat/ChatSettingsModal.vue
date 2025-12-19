@@ -349,8 +349,8 @@ function save() {
 }
 
 .control:focus {
-  border-color: rgba(59, 130, 246, 0.65);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  border-color: rgba(16, 163, 127, 0.65);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
 }
 
 .textarea {

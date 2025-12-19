@@ -49,29 +49,28 @@ const timeLabel = computed(() => {
   place-items: center;
   font-weight: 800;
   font-size: 0.85rem;
-  color: #ffffff;
-  background: rgba(17, 24, 39, 0.78);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  color: var(--chat-avatar-text, #ffffff);
+  background: var(--chat-avatar-bg, rgba(17, 24, 39, 0.78));
   flex: 0 0 auto;
 }
 
 .avatar.user {
-  background: rgba(59, 130, 246, 0.95);
+  background: var(--chat-avatar-user-bg, rgba(59, 130, 246, 0.95));
+  color: var(--chat-avatar-user-text, #ffffff);
 }
 
 .bubble {
   max-width: min(820px, 100%);
   border-radius: 16px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--chat-bubble-border, rgba(17, 24, 39, 0.08));
+  background: var(--chat-bubble-bg, rgba(255, 255, 255, 0.85));
   padding: 10px 12px 11px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .bubble.user {
-  background: rgba(219, 234, 254, 0.92);
-  border-color: rgba(59, 130, 246, 0.22);
+  background: var(--chat-bubble-user-bg, rgba(219, 234, 254, 0.92));
+  border-color: var(--chat-bubble-user-border, rgba(59, 130, 246, 0.22));
 }
 
 .meta {
@@ -85,20 +84,19 @@ const timeLabel = computed(() => {
 .name {
   font-size: 0.8rem;
   font-weight: 700;
-  color: rgba(17, 24, 39, 0.75);
+  color: var(--chat-muted, rgba(17, 24, 39, 0.75));
 }
 
 .time {
   font-size: 0.75rem;
-  color: rgba(17, 24, 39, 0.45);
+  color: rgba(15, 23, 42, 0.45);
   white-space: nowrap;
 }
 
 .content {
   white-space: pre-wrap;
   line-height: 1.55;
-  color: rgba(17, 24, 39, 0.9);
+  color: var(--chat-text, rgba(17, 24, 39, 0.9));
   font-size: 0.98rem;
 }
 </style>
-

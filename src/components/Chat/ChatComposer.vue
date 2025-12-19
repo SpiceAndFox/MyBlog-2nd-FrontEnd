@@ -64,9 +64,13 @@ function resizeTextarea() {
   gap: 10px;
   padding: 10px 10px;
   border-radius: 16px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  border: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
+  background: var(--chat-bubble-bg, rgba(255, 255, 255, 0.9));
+  box-shadow: var(--chat-card-shadow, 0 12px 30px rgba(0, 0, 0, 0.06));
+  box-sizing: border-box;
 }
 
 .input {
@@ -80,7 +84,7 @@ function resizeTextarea() {
   font-size: 1rem;
   line-height: 1.5;
   background: transparent;
-  color: rgba(17, 24, 39, 0.92);
+  color: var(--chat-text, rgba(17, 24, 39, 0.92));
 }
 
 .send-button {

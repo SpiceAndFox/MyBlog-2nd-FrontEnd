@@ -25,7 +25,6 @@ watch(
     <div v-if="messages.length === 0" class="empty">
       <div class="empty-card">
         <h3 class="empty-title">开始一个新对话</h3>
-        <p class="empty-subtitle">这里是纯 UI 演示：左侧管理会话，右侧查看对话与发送消息。</p>
         <div class="suggestions" aria-label="示例提示词">
           <div class="suggestion">帮我总结一篇文章的核心观点</div>
           <div class="suggestion">写一个 Vue 3 组件的最佳实践清单</div>
@@ -49,7 +48,7 @@ watch(
   box-sizing: border-box;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(17, 24, 39, 0.22) transparent;
+  scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
 }
 
 .list::-webkit-scrollbar {
@@ -61,20 +60,23 @@ watch(
 }
 
 .list::-webkit-scrollbar-thumb {
-  background: rgba(17, 24, 39, 0.22);
+  background: rgba(15, 23, 42, 0.22);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 
 .list::-webkit-scrollbar-thumb:hover {
-  background: rgba(17, 24, 39, 0.32);
+  background: rgba(15, 23, 42, 0.32);
 }
 
 .messages {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
 }
 
 .empty {
@@ -86,17 +88,18 @@ watch(
 }
 
 .empty-card {
-  width: min(720px, 100%);
+  width: min(820px, 100%);
   border-radius: var(--chat-radius-lg, 14px);
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--chat-bubble-bg, rgba(255, 255, 255, 0.72));
   border: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
   padding: 18px 18px 16px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
+  box-shadow: var(--chat-card-shadow, 0 14px 40px rgba(0, 0, 0, 0.08));
 }
 
 .empty-title {
   margin: 0;
+  margin-left: 5px;
+  margin-bottom: 15px;
   font-size: 1.2rem;
   color: var(--chat-text, #111827);
 }
@@ -116,9 +119,9 @@ watch(
 .suggestion {
   border-radius: 14px;
   padding: 12px 12px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: rgba(255, 255, 255, 0.86);
-  color: rgba(17, 24, 39, 0.78);
+  border: 1px solid var(--chat-bubble-border, rgba(17, 24, 39, 0.08));
+  background: var(--chat-bubble-bg, rgba(255, 255, 255, 0.86));
+  color: rgba(15, 23, 42, 0.82);
   font-size: 0.9rem;
   line-height: 1.4;
 }
@@ -128,8 +131,17 @@ watch(
     padding: 14px 14px 18px;
   }
 
+  .empty {
+    margin: auto 40px;
+  }
+
   .suggestions {
     grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .empty-title {
+    text-align: center;
   }
 }
 </style>

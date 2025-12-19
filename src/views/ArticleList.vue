@@ -256,6 +256,11 @@ const articleListSectionTitle = computed(() => {
   font-size: 40px;
   margin: 0;
   letter-spacing: 5px;
+  transition: color 0.3s ease-in-out;
+}
+
+.page-header-text-wrapper h1:hover {
+  color: #8691b1;
 }
 
 .page-header-text-wrapper span {
@@ -263,6 +268,11 @@ const articleListSectionTitle = computed(() => {
   font-size: 18px;
   font-weight: 500;
   letter-spacing: 1px;
+  transition: color 0.3s ease-in-out;
+}
+
+.page-header-text-wrapper span:hover {
+  color: #c7c7c7;
 }
 
 .article-list-container {

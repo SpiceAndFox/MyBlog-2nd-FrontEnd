@@ -502,20 +502,39 @@ watch(isMobile, (mobile) => {
 
 <style scoped>
 .chat-page {
-  --chat-sidebar-bg: #202123;
-  --chat-sidebar-border: rgba(255, 255, 255, 0.08);
-  --chat-sidebar-text: rgba(236, 236, 241, 0.92);
-  --chat-sidebar-muted: rgba(236, 236, 241, 0.62);
-  --chat-sidebar-hover: rgba(255, 255, 255, 0.08);
+  /* Light / ChatGPT-like theme */
+  --chat-sidebar-bg: #f9fafb;
+  --chat-sidebar-border: rgba(15, 23, 42, 0.12);
+  --chat-sidebar-text: rgba(15, 23, 42, 0.92);
+  --chat-sidebar-muted: rgba(15, 23, 42, 0.58);
+  --chat-sidebar-hover: rgba(15, 23, 42, 0.05);
+  --chat-sidebar-active: rgba(15, 23, 42, 0.06);
+  --chat-sidebar-actions-bg: rgba(255, 255, 255, 0.82);
 
-  --chat-surface: #f7f7f8;
+  --chat-surface: #ffffff;
   --chat-surface-2: #ffffff;
-  --chat-border: rgba(17, 24, 39, 0.12);
-  --chat-text: #111827;
-  --chat-muted: rgba(17, 24, 39, 0.62);
+  --chat-border: rgba(15, 23, 42, 0.12);
+  --chat-text: #0f172a;
+  --chat-muted: rgba(15, 23, 42, 0.58);
 
-  --chat-accent: #3b82f6;
-  --chat-accent-strong: #2563eb;
+  --chat-accent: #10a37f;
+  --chat-accent-strong: #0f8a6c;
+
+  --chat-topbar-bg: rgba(255, 255, 255, 0.92);
+  --chat-topbar-hover: rgba(15, 23, 42, 0.05);
+  --chat-composer-bg: rgba(255, 255, 255, 0.92);
+
+  --chat-bubble-bg: rgba(255, 255, 255, 0.98);
+  --chat-bubble-user-bg: rgba(16, 163, 127, 0.1);
+  --chat-bubble-border: rgba(15, 23, 42, 0.1);
+  --chat-bubble-user-border: rgba(16, 163, 127, 0.22);
+
+  --chat-avatar-bg: rgba(15, 23, 42, 0.12);
+  --chat-avatar-text: rgba(15, 23, 42, 0.92);
+  --chat-avatar-user-bg: var(--chat-accent);
+  --chat-avatar-user-text: #ffffff;
+
+  --chat-card-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 
   --chat-radius-lg: 14px;
   --chat-radius-md: 10px;

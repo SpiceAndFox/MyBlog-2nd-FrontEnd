@@ -173,6 +173,11 @@ function linkToggled(link) {
   height: 3px;
 }
 
+/* chat页特化 */
+.navigation.layout--chat {
+  background-color: rgb(249, 250, 251);
+}
+
 .menu-toggle:active {
   background-color: pink;
 }

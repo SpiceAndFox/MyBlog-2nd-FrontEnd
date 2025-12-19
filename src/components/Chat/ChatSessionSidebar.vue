@@ -98,10 +98,16 @@ const emit = defineEmits([
         :aria-label="collapsed ? '展开会话列表' : '折叠会话列表'"
       >
         <svg v-if="!collapsed" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M15.4 7.4a1 1 0 0 1 0 1.4L12.2 12l3.2 3.2a1 1 0 1 1-1.4 1.4l-3.9-3.9a1 1 0 0 1 0-1.4l3.9-3.9a1 1 0 0 1 1.4 0Z" fill="currentColor" />
+          <path
+            d="M15.4 7.4a1 1 0 0 1 0 1.4L12.2 12l3.2 3.2a1 1 0 1 1-1.4 1.4l-3.9-3.9a1 1 0 0 1 0-1.4l3.9-3.9a1 1 0 0 1 1.4 0Z"
+            fill="currentColor"
+          />
         </svg>
         <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M8.6 16.6a1 1 0 0 1 0-1.4L11.8 12 8.6 8.8a1 1 0 1 1 1.4-1.4l3.9 3.9a1 1 0 0 1 0 1.4l-3.9 3.9a1 1 0 0 1-1.4 0Z" fill="currentColor" />
+          <path
+            d="M8.6 16.6a1 1 0 0 1 0-1.4L11.8 12 8.6 8.8a1 1 0 1 1 1.4-1.4l3.9 3.9a1 1 0 0 1 0 1.4l-3.9 3.9a1 1 0 0 1-1.4 0Z"
+            fill="currentColor"
+          />
         </svg>
       </button>
     </header>
@@ -137,12 +143,13 @@ const emit = defineEmits([
 
 <style scoped>
 .sidebar {
-  width: 310px;
+  width: 260px;
   display: flex;
   flex-direction: column;
   background: var(--chat-sidebar-bg, #202123);
   border-right: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
   color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
+  box-shadow: 1px 0 0 var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
 }
 
 .sidebar.collapsed {
@@ -171,9 +178,9 @@ const emit = defineEmits([
   gap: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: transparent;
-  color: rgba(236, 236, 241, 0.92);
+  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
   cursor: pointer;
   transition: background-color 0.18s ease, border-color 0.18s ease;
 }
@@ -203,7 +210,7 @@ const emit = defineEmits([
   border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
-  color: rgba(236, 236, 241, 0.72);
+  color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.72));
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -216,7 +223,7 @@ const emit = defineEmits([
 
 .icon-button:hover {
   background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
-  color: rgba(236, 236, 241, 0.95);
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.95));
 }
 
 .session-list {
@@ -228,7 +235,7 @@ const emit = defineEmits([
   gap: 6px;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
 }
 
 .session-list::-webkit-scrollbar {
@@ -240,14 +247,14 @@ const emit = defineEmits([
 }
 
 .session-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.22);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 
 .session-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(15, 23, 42, 0.32);
 }
 
 .sidebar-footer {
@@ -265,14 +272,14 @@ const emit = defineEmits([
   border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
-  color: rgba(236, 236, 241, 0.82);
+  color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.82));
   cursor: pointer;
   transition: background-color 0.18s ease, color 0.18s ease;
 }
 
 .footer-button:hover {
   background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
-  color: rgba(236, 236, 241, 0.95);
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.95));
 }
 
 .footer-button.iconOnly {

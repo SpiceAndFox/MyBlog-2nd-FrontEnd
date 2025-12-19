@@ -14,6 +14,7 @@ const layoutMap = {
   article: "layout--article",
   articleList: "layout--articleList",
   admin: "layout--admin",
+  chat: "layout--chat",
 };
 const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 const isHomeOrArticleList = computed(() => {
