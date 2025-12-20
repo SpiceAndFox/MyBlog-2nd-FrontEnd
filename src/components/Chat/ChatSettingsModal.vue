@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, watch } from "vue";
 import { CHAT_DEFAULT_SETTINGS } from "@/config/chat";
 
 const props = defineProps({
@@ -17,16 +17,22 @@ const props = defineProps({
 const emit = defineEmits(["close", "save"]);
 
 const draft = reactive({ ...CHAT_DEFAULT_SETTINGS });
-const isSavingSettings = ref(false);
 
 function isValidPresetId(value) {
   return /^[a-zA-Z0-9_-]{1,64}$/.test(String(value || "").trim());
+}
+
+function isReservedPresetId(presetId) {
+  const normalizedId = String(presetId || "").trim();
+  if (!normalizedId) return false;
+  return props.promptPresets.some((p) => p?.isBuiltin && String(p.id) === normalizedId);
 }
 
 const presetEditor = reactive({
   open: false,
   mode: "create", // create | edit
   originalId: "",
+  sourcePresetId: "",
   id: "",
   name: "",
   systemPrompt: "",
@@ -40,6 +46,7 @@ function resetPresetEditor() {
   presetEditor.open = false;
   presetEditor.mode = "create";
   presetEditor.originalId = "";
+  presetEditor.sourcePresetId = "";
   presetEditor.id = "";
   presetEditor.name = "";
   presetEditor.systemPrompt = "";
@@ -58,11 +65,13 @@ function beginCreatePreset() {
 
 function beginEditPreset(preset) {
   if (!preset) return;
+  const builtin = Boolean(preset?.isBuiltin);
   resetPresetEditor();
   presetEditor.open = true;
-  presetEditor.mode = "edit";
-  presetEditor.originalId = String(preset.id || "");
-  presetEditor.id = String(preset.id || "");
+  presetEditor.mode = builtin ? "create" : "edit";
+  presetEditor.originalId = builtin ? "" : String(preset.id || "");
+  presetEditor.sourcePresetId = builtin ? String(preset.id || "") : "";
+  presetEditor.id = builtin ? `${String(preset.id || "preset")}_custom` : String(preset.id || "");
   presetEditor.name = String(preset.name || "");
   presetEditor.systemPrompt = String(preset.systemPrompt || "");
   presetEditor.avatarUrl = String(preset.avatarUrl || "");
@@ -79,7 +88,8 @@ const presetAvatarPreviewUrl = computed(() => presetEditor.avatarObjectUrl || pr
 
 async function savePreset() {
   if (presetEditor.saving) return;
-  if (!props.createPreset || !props.updatePreset || !props.refreshPresets) return;
+  if (!props.createPreset || !props.refreshPresets) return;
+  if (presetEditor.mode === "edit" && !props.updatePreset) return;
 
   const id = String(presetEditor.id || "").trim();
   const name = String(presetEditor.name || "").trim();
@@ -87,6 +97,10 @@ async function savePreset() {
 
   if (!isValidPresetId(id)) {
     window.alert("预设ID仅支持字母/数字/下划线/短横线，长度 1-64");
+    return;
+  }
+  if (isReservedPresetId(id)) {
+    window.alert("该预设ID为内置预设保留ID，请换一个ID（例如: my_assistant）");
     return;
   }
   if (!name) {
@@ -133,6 +147,7 @@ async function savePreset() {
 
 async function removePreset(preset) {
   if (!preset?.id || !props.deletePreset || !props.refreshPresets) return;
+  if (preset?.isBuiltin) return;
   const confirmed = window.confirm(`确定要删除预设 “${preset.name || preset.id}” 吗？`);
   if (!confirmed) return;
 
@@ -237,31 +252,14 @@ function close() {
   emit("close");
 }
 
-async function save() {
-  if (isSavingSettings.value) return;
-  isSavingSettings.value = true;
-
-  try {
-    const preset = props.promptPresets.find((p) => p.id === draft.systemPromptPresetId) || null;
-    const presetSystemPrompt = String(preset?.systemPrompt || "");
-
-    if (preset && typeof props.updatePreset === "function" && String(draft.systemPrompt || "") !== presetSystemPrompt) {
-      await props.updatePreset(preset.id, { systemPrompt: String(draft.systemPrompt || "") });
-      await props.refreshPresets?.();
-    }
-
-    emit("save", { ...draft });
-  } catch (error) {
-    window.alert(error?.message || "保存失败");
-  } finally {
-    isSavingSettings.value = false;
-  }
+function save() {
+  emit("save", { ...draft });
 }
 </script>
 
 <template>
   <transition name="chat-dialog-fade">
-    <div v-if="open" class="modal-overlay" @click.self="close" role="dialog" aria-modal="true">
+    <div v-if="open" class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal">
         <header class="modal-header">
           <div class="header-left">
@@ -368,12 +366,7 @@ async function save() {
 
               <label class="field full">
                 <span class="label">System Prompt</span>
-                <textarea
-                  v-model="draft.systemPrompt"
-                  class="control textarea"
-                  rows="6"
-                  placeholder="写下你希望 AI 遵循的系统级规则"
-                ></textarea>
+                <div class="prompt-preview" aria-label="System Prompt">{{ draft.systemPrompt }}</div>
               </label>
             </div>
           </section>
@@ -401,12 +394,19 @@ async function save() {
 
                   <div class="preset-main">
                     <div class="preset-name">{{ preset.name }}</div>
-                    <div class="preset-meta">ID: {{ preset.id }}</div>
+                    <div class="preset-meta">
+                      ID: {{ preset.id }} <span v-if="preset.isBuiltin" class="preset-badge">内置</span>
+                    </div>
                   </div>
 
                   <div class="preset-actions">
-                    <button class="mini-button" type="button" @click="beginEditPreset(preset)">编辑</button>
-                    <button class="mini-button danger" type="button" @click="removePreset(preset)">删除</button>
+                    <button v-if="preset.isBuiltin" class="mini-button" type="button" @click="beginEditPreset(preset)">
+                      基于此创建
+                    </button>
+                    <template v-else>
+                      <button class="mini-button" type="button" @click="beginEditPreset(preset)">编辑</button>
+                      <button class="mini-button danger" type="button" @click="removePreset(preset)">删除</button>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -414,11 +414,12 @@ async function save() {
 
             <div v-if="presetEditor.open" class="preset-editor">
               <h5 class="preset-editor-title">{{ presetEditor.mode === "create" ? "新建预设" : "编辑预设" }}</h5>
+              <p v-if="presetEditor.sourcePresetId" class="preset-editor-hint">基于内置预设 “{{ presetEditor.sourcePresetId }}” 创建副本</p>
 
               <div class="grid">
                 <label class="field">
                   <span class="label">ID</span>
-                  <input v-model="presetEditor.id" class="control" placeholder="例如: default" />
+                  <input v-model="presetEditor.id" class="control" placeholder="例如: my_assistant" />
                 </label>
 
                 <label class="field">
@@ -469,9 +470,7 @@ async function save() {
 
         <footer class="modal-footer">
           <button class="button button-secondary" type="button" @click="close">取消</button>
-          <button class="button button-primary" type="button" :disabled="isSavingSettings" @click="save">
-            {{ isSavingSettings ? "保存中..." : "保存" }}
-          </button>
+          <button class="button button-primary" type="button" @click="save">保存</button>
         </footer>
       </div>
     </div>
@@ -614,6 +613,22 @@ async function save() {
   max-width: 100%;
   min-height: 140px;
   line-height: 1.55;
+}
+
+.prompt-preview {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: rgba(249, 250, 251, 0.9);
+  color: rgba(17, 24, 39, 0.92);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow: auto;
+  box-sizing: border-box;
+  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
 }
 
 .range {
@@ -803,6 +818,19 @@ async function save() {
   color: rgba(17, 24, 39, 0.6);
 }
 
+.preset-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  background: rgba(59, 130, 246, 0.1);
+  color: rgba(37, 99, 235, 0.95);
+}
+
 .preset-actions {
   display: inline-flex;
   align-items: center;
@@ -822,6 +850,12 @@ async function save() {
   margin: 0 0 10px;
   font-size: 0.92rem;
   color: rgba(17, 24, 39, 0.88);
+}
+
+.preset-editor-hint {
+  margin: -4px 0 10px;
+  color: rgba(17, 24, 39, 0.62);
+  font-size: 0.85rem;
 }
 
 .avatar-uploader {
