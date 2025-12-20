@@ -92,4 +92,11 @@ const iosBackgroundStyle = computed(() => {
   background-color: rgb(238, 238, 238);
   display: flex;
 }
+
+.app-layout.layout--chat {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
 </style>

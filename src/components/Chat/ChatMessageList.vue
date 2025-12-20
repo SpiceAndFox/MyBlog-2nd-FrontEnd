@@ -59,6 +59,8 @@ watch(
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 16px 18px 22px;
   box-sizing: border-box;
   scrollbar-gutter: stable;

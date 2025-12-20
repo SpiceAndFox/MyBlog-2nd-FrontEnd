@@ -310,6 +310,47 @@ const navHeight = ref(60);
 const isSending = ref(false);
 const isStreaming = ref(false);
 let activeStreamAbortController = null;
+let releaseBodyScrollLock = null;
+
+function lockBodyScroll() {
+  if (typeof window === "undefined") return null;
+  const body = document.body;
+  const docEl = document.documentElement;
+  if (!body || !docEl) return null;
+  if (body.dataset.chatScrollLocked === "1") return null;
+
+  const scrollY = window.scrollY || docEl.scrollTop || 0;
+  const previous = {
+    bodyPosition: body.style.position,
+    bodyTop: body.style.top,
+    bodyLeft: body.style.left,
+    bodyRight: body.style.right,
+    bodyWidth: body.style.width,
+    bodyOverflow: body.style.overflow,
+    docOverflow: docEl.style.overflow,
+  };
+
+  body.dataset.chatScrollLocked = "1";
+  body.style.position = "fixed";
+  body.style.top = `-${scrollY}px`;
+  body.style.left = "0";
+  body.style.right = "0";
+  body.style.width = "100%";
+  body.style.overflow = "hidden";
+  docEl.style.overflow = "hidden";
+
+  return () => {
+    delete body.dataset.chatScrollLocked;
+    body.style.position = previous.bodyPosition;
+    body.style.top = previous.bodyTop;
+    body.style.left = previous.bodyLeft;
+    body.style.right = previous.bodyRight;
+    body.style.width = previous.bodyWidth;
+    body.style.overflow = previous.bodyOverflow;
+    docEl.style.overflow = previous.docOverflow;
+    window.scrollTo(0, scrollY);
+  };
+}
 
 function isAbortError(error) {
   return error?.name === "AbortError" || /abort/i.test(String(error?.message || ""));
@@ -329,6 +370,7 @@ function updateNavHeight() {
 let navResizeObserver;
 
 onMounted(() => {
+  releaseBodyScrollLock = lockBodyScroll();
   updateNavHeight();
   window.addEventListener("resize", updateNavHeight);
 
@@ -345,6 +387,8 @@ onBeforeUnmount(() => {
   window.removeEventListener("resize", updateNavHeight);
   navResizeObserver?.disconnect();
   stopStreaming();
+  releaseBodyScrollLock?.();
+  releaseBodyScrollLock = null;
 });
 
 const providers = ref([]);
@@ -982,12 +1026,11 @@ watch(isMobile, (mobile) => {
 
   --chat-nav-height: 60px;
 
-  flex: none;
-  height: calc(100vh - var(--chat-nav-height, 60px));
-  height: calc(100dvh - var(--chat-nav-height, 60px));
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   overflow: hidden;
+  overscroll-behavior: none;
   position: relative;
 
   background: var(--chat-surface);

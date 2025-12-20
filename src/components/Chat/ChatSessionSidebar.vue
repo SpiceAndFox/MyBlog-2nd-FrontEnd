@@ -215,6 +215,8 @@ function onOverlayClick() {
 .session-list {
   flex: 1;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 4px 10px;
   box-sizing: border-box;
   display: flex;
