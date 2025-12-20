@@ -204,6 +204,7 @@ function onEditKeydown(event) {
 
 .bubble {
   max-width: min(820px, 100%);
+  min-width: 0;
   border-radius: 18px;
   border: 1px solid var(--chat-bubble-border, rgba(17, 24, 39, 0.1));
   background: var(--chat-bubble-bg, rgba(255, 255, 255, 0.9));
@@ -287,6 +288,8 @@ function onEditKeydown(event) {
 
 .content {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   line-height: 1.55;
   color: var(--chat-text, rgba(17, 24, 39, 0.9));
   font-size: 0.98rem;
