@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, watch } from "vue";
+import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -183,23 +184,18 @@ function applyFromCurrentSettings() {
   const defaultModelId = provider?.models?.[0]?.id || "";
   const fallbackDefaultModelId = String(defaults.modelId || "").trim();
   const desiredModelId = source.modelId || "";
-  const modelId =
-    provider?.models?.some((m) => m.id === desiredModelId)
-      ? desiredModelId
-      : provider?.models?.some((m) => m.id === fallbackDefaultModelId)
-        ? fallbackDefaultModelId
-        : defaultModelId;
+  const modelId = provider?.models?.some((m) => m.id === desiredModelId)
+    ? desiredModelId
+    : provider?.models?.some((m) => m.id === fallbackDefaultModelId)
+    ? fallbackDefaultModelId
+    : defaultModelId;
 
   draft.providerId = providerId;
   draft.modelId = modelId;
   draft.temperature = Number.isFinite(source.temperature) ? source.temperature : defaults.temperature;
   draft.topP = Number.isFinite(source.topP) ? source.topP : defaults.topP;
-  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens)
-    ? source.maxOutputTokens
-    : defaults.maxOutputTokens;
-  draft.presencePenalty = Number.isFinite(source.presencePenalty)
-    ? source.presencePenalty
-    : defaults.presencePenalty;
+  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens) ? source.maxOutputTokens : defaults.maxOutputTokens;
+  draft.presencePenalty = Number.isFinite(source.presencePenalty) ? source.presencePenalty : defaults.presencePenalty;
   draft.frequencyPenalty = Number.isFinite(source.frequencyPenalty)
     ? source.frequencyPenalty
     : defaults.frequencyPenalty;
@@ -391,7 +387,12 @@ function save() {
             <div class="section-header">
               <h4 class="section-title">预设管理</h4>
               <div class="section-actions">
-                <button class="mini-button" type="button" :disabled="!props.refreshPresets" @click="props.refreshPresets?.()">
+                <button
+                  class="mini-button"
+                  type="button"
+                  :disabled="!props.refreshPresets"
+                  @click="props.refreshPresets?.()"
+                >
                   刷新
                 </button>
                 <button class="mini-button primary" type="button" @click="beginCreatePreset">新建预设</button>
@@ -405,7 +406,7 @@ function save() {
                 <div v-for="preset in promptPresets" :key="preset.id" class="preset-item">
                   <div class="preset-avatar" aria-hidden="true">
                     <img v-if="preset.avatarUrl" :src="preset.avatarUrl" class="preset-avatar-image" alt="" />
-                    <div v-else class="preset-avatar-fallback">AI</div>
+                    <img v-else :src="DEFAULT_ASSISTANT_AVATAR_URL" class="preset-avatar-image" />
                   </div>
 
                   <div class="preset-main">
@@ -430,7 +431,9 @@ function save() {
 
             <div v-if="presetEditor.open" class="preset-editor">
               <h5 class="preset-editor-title">{{ presetEditor.mode === "create" ? "新建预设" : "编辑预设" }}</h5>
-              <p v-if="presetEditor.sourcePresetId" class="preset-editor-hint">基于内置预设 “{{ presetEditor.sourcePresetId }}” 创建副本</p>
+              <p v-if="presetEditor.sourcePresetId" class="preset-editor-hint">
+                基于内置预设 “{{ presetEditor.sourcePresetId }}” 创建副本
+              </p>
 
               <div class="grid">
                 <label class="field">
@@ -464,7 +467,12 @@ function save() {
                     <div class="avatar-controls">
                       <input class="file-input" type="file" accept="image/*" @change="onAvatarFileChange" />
                       <div class="preset-editor-actions">
-                        <button class="mini-button" type="button" :disabled="presetEditor.saving" @click="resetPresetEditor">
+                        <button
+                          class="mini-button"
+                          type="button"
+                          :disabled="presetEditor.saving"
+                          @click="resetPresetEditor"
+                        >
                           取消
                         </button>
                         <button
