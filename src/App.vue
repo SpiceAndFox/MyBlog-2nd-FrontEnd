@@ -17,6 +17,12 @@ const layoutMap = {
   chat: "layout--chat",
 };
 const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
+const isHome = computed(() => {
+  return layoutClass.value === "layout--home";
+});
+const isArticleList = computed(() => {
+  return layoutClass.value === "layout--articleList";
+});
 const isHomeOrArticleList = computed(() => {
   return layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList";
 });
@@ -25,17 +31,20 @@ const showVideo = computed(() => {
 });
 
 // ios背景设置
-const IOS_BG_COLOR = "rgb(93, 66, 59)";
-
+const IOS_HOME_BG_COLOR = "rgb(65, 44, 40)";
+const IOS_ARTICLELIST_BG_COLOR = "rgb(238, 238, 238)";
 const applyIOSRootBg = (enable) => {
   const html = document.documentElement;
   const body = document.body;
 
   if (!html || !body) return;
 
-  if (enable) {
-    html.style.backgroundColor = IOS_BG_COLOR;
-    body.style.backgroundColor = IOS_BG_COLOR;
+  if (isHome.value) {
+    html.style.backgroundColor = IOS_HOME_BG_COLOR;
+    body.style.backgroundColor = IOS_HOME_BG_COLOR;
+  } else if (isArticleList.value) {
+    html.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
+    body.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
   } else {
     html.style.backgroundColor = "";
     body.style.backgroundColor = "";
