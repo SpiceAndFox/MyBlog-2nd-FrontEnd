@@ -25,7 +25,12 @@ const showVideo = computed(() => {
 });
 const iosBackgroundStyle = computed(() => {
   return isHomeOrArticleList.value && isIOS
-    ? { backgroundImage: `url(${iosBg})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? {
+        backgroundImage: `url(${iosBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundColor: "rgb(93, 66, 59)",
+      }
     : {};
 });
 </script>
