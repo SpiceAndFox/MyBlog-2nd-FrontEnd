@@ -34,6 +34,7 @@ const showVideo = computed(() => {
 const IOS_HOME_BG_COLOR = "rgb(65, 44, 40)";
 const IOS_ARTICLELIST_BG_COLOR = "rgb(238, 238, 238)";
 const applyIOSRootBg = (enable) => {
+  if (!enable) return;
   const html = document.documentElement;
   const body = document.body;
 
