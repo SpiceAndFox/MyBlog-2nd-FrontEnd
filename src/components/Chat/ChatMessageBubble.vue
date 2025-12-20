@@ -74,10 +74,16 @@ function onEditKeydown(event) {
     <div class="avatar" :class="{ user: isUser }" aria-hidden="true">{{ avatarText }}</div>
     <div class="bubble" :class="{ user: isUser }">
       <div class="meta">
-        <span class="name">{{ isUser ? "你" : "Assistant" }}</span>
+        <span class="name">{{ isUser ? "User" : "Assistant" }}</span>
         <div class="meta-right">
           <span v-if="timeLabel" class="time">{{ timeLabel }}</span>
-          <button v-if="canCancelEditing" class="edit-button cancel" type="button" @click="cancelEdit" aria-label="取消修改">
+          <button
+            v-if="canCancelEditing"
+            class="edit-button cancel"
+            type="button"
+            @click="cancelEdit"
+            aria-label="取消修改"
+          >
             <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
               <path
                 d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.42L12 13.41l4.89 4.9a1 1 0 0 0 1.42-1.41L13.41 12l4.9-4.89a1 1 0 0 0-.01-1.4Z"
