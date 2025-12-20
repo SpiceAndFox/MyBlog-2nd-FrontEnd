@@ -20,6 +20,12 @@ function normalizeSessionId(sessionId) {
   return normalized;
 }
 
+function normalizeMessageId(messageId) {
+  const normalized = String(messageId ?? "").trim();
+  if (!normalized) throw new Error("缺少消息ID");
+  return normalized;
+}
+
 export async function listChatSessions() {
   const res = await fetch("/api/chat/sessions", {
     headers: { ...getAuthHeader() },
@@ -83,6 +89,19 @@ export async function sendChatMessage(sessionId, { content, settings } = {}) {
   const data = await readJsonSafe(res);
   if (!res.ok) throw new Error(data.error || "发送消息失败");
   return data; // { session, user_message, assistant_message }
+}
+
+export async function editChatMessage(sessionId, messageId, { content, settings, truncate = false, regenerate = false } = {}) {
+  const normalizedSessionId = normalizeSessionId(sessionId);
+  const normalizedMessageId = normalizeMessageId(messageId);
+  const res = await fetch(`/api/chat/sessions/${normalizedSessionId}/messages/${normalizedMessageId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ content, settings, truncate, regenerate }),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "修改对话失败");
+  return data; // { session, user_message, assistant_message? }
 }
 
 function parseSseFrames(chunkText, state) {
@@ -167,3 +186,65 @@ export async function streamChatMessage(
   }
 }
 
+export async function streamEditChatMessage(
+  sessionId,
+  messageId,
+  { content, settings, truncate = true, onDelta, onStart, onDone, onError, signal } = {}
+) {
+  const normalizedSessionId = normalizeSessionId(sessionId);
+  const normalizedMessageId = normalizeMessageId(messageId);
+  const res = await fetch(`/api/chat/sessions/${normalizedSessionId}/messages/${normalizedMessageId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ content, truncate, regenerate: true, settings: { ...(settings || {}), stream: true } }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const data = await readJsonSafe(res);
+    throw new Error(data.error || "修改对话失败");
+  }
+
+  if (!res.body) throw new Error("响应流不可用");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+
+  const state = {
+    buffer: "",
+    onData: (dataPart) => {
+      let payload;
+      try {
+        payload = JSON.parse(dataPart);
+      } catch {
+        return;
+      }
+
+      if (payload?.type === "start") {
+        onStart?.(payload);
+        return;
+      }
+
+      if (payload?.type === "delta") {
+        const delta = typeof payload.delta === "string" ? payload.delta : "";
+        if (delta) onDelta?.(delta);
+        return;
+      }
+
+      if (payload?.type === "done") {
+        onDone?.(payload);
+        return;
+      }
+
+      if (payload?.type === "error") {
+        onError?.(payload.error || "未知错误");
+      }
+    },
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    parseSseFrames(decoder.decode(value, { stream: true }), state);
+  }
+}

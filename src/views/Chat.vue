@@ -10,10 +10,12 @@ import { CHAT_PROVIDERS, CHAT_PROMPT_PRESETS, normalizeChatSettings } from "@/co
 import {
   createChatSession,
   deleteChatSession,
+  editChatMessage,
   listChatMessages,
   listChatSessions,
   renameChatSession,
   sendChatMessage,
+  streamEditChatMessage,
   streamChatMessage,
 } from "@/api/chat";
 
@@ -128,6 +130,20 @@ const activeSessionId = ref("");
 const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value) || null);
 const activeMessages = computed(() => messagesBySessionId[activeSessionId.value] || []);
 
+const editingMessageId = ref("");
+const editingSessionId = ref("");
+const editingOriginalContent = ref("");
+const editingDraft = ref("");
+const isEditingActive = computed(() => Boolean(editingMessageId.value));
+const isEditingMessage = ref(false);
+
+function resetEditingState() {
+  editingMessageId.value = "";
+  editingSessionId.value = "";
+  editingOriginalContent.value = "";
+  editingDraft.value = "";
+}
+
 function mapSession(raw) {
   if (!raw) return null;
   return {
@@ -202,6 +218,7 @@ async function activateSession(sessionId, { closeSidebar = true } = {}) {
   const normalizedId = String(sessionId || "");
   activeSessionId.value = normalizedId;
   if (closeSidebar) closeMobileSidebar();
+  resetEditingState();
   if (!normalizedId) return;
   await ensureMessagesLoaded(normalizedId);
 }
@@ -289,6 +306,149 @@ async function confirmDeleteSession() {
     }
   } catch (error) {
     handleApiError(error);
+  }
+}
+
+function requestEditMessage(message) {
+  if (isSending.value || isStreaming.value || isEditingMessage.value) return;
+  const sessionId = activeSessionId.value;
+  if (!sessionId) return;
+  if (!message || message.role !== "user") return;
+
+  editingSessionId.value = sessionId;
+  editingMessageId.value = String(message.id || "");
+  editingOriginalContent.value = String(message.content || "");
+  editingDraft.value = editingOriginalContent.value;
+}
+
+function updateEditDraft(nextDraft) {
+  if (!isEditingActive.value) return;
+  editingDraft.value = String(nextDraft ?? "");
+}
+
+function cancelEditMessage() {
+  if (isEditingMessage.value) return;
+  resetEditingState();
+}
+
+async function commitEditMessage(messageId) {
+  if (!isEditingActive.value) return;
+  if (isEditingMessage.value || isSending.value || isStreaming.value) return;
+
+  const sessionId = String(editingSessionId.value || "");
+  const targetMessageId = String(messageId || editingMessageId.value || "");
+  if (!sessionId || !targetMessageId) return;
+
+  if (sessionId !== activeSessionId.value) {
+    resetEditingState();
+    return;
+  }
+
+  const normalizedContent = String(editingDraft.value || "").trim();
+  if (!normalizedContent) {
+    window.alert("内容不能为空");
+    return;
+  }
+
+  const originalTrimmed = String(editingOriginalContent.value || "").trim();
+  resetEditingState();
+
+  if (normalizedContent === originalTrimmed) return;
+
+  isEditingMessage.value = true;
+  isSending.value = true;
+  const nowIso = new Date().toISOString();
+
+  const snapshot = (messagesBySessionId[sessionId] || []).map((m) => ({ ...m }));
+
+  try {
+    await ensureMessagesLoaded(sessionId);
+
+    const list = messagesBySessionId[sessionId] || [];
+    const messageIndex = list.findIndex((m) => String(m.id) === targetMessageId);
+    if (messageIndex === -1) throw new Error("未找到要修改的消息");
+
+    const targetMessage = list[messageIndex];
+    targetMessage.content = normalizedContent;
+    messagesBySessionId[sessionId] = list.slice(0, messageIndex + 1);
+
+    const session = sessions.value.find((s) => s.id === sessionId);
+    if (session) {
+      if (session.title === DEFAULT_SESSION_TITLE && messageIndex === 0) {
+        session.title = formatSessionTitleFromMessage(normalizedContent);
+      }
+      session.updatedAt = nowIso;
+      bringSessionToTop(sessionId);
+    }
+
+    await nextTick();
+
+    const outgoingSettings = { ...settings.value };
+
+    if (outgoingSettings.stream) {
+      isStreaming.value = true;
+      const abortController = new AbortController();
+      activeStreamAbortController = abortController;
+
+      const optimisticAssistantMessage = reactive({
+        id: createId("tmp_msg"),
+        role: "assistant",
+        content: "",
+        createdAt: new Date().toISOString(),
+      });
+      messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticAssistantMessage];
+
+      try {
+        await streamEditChatMessage(sessionId, targetMessageId, {
+          content: normalizedContent,
+          truncate: true,
+          settings: outgoingSettings,
+          signal: abortController.signal,
+          onDelta: (delta) => {
+            optimisticAssistantMessage.content += delta;
+          },
+          onDone: (payload) => {
+            applyServerPayload(sessionId, payload, {
+              optimisticUserMessage: targetMessage,
+              optimisticAssistantMessage,
+            });
+          },
+          onError: (message) => {
+            optimisticAssistantMessage.content = `（请求失败）${message}`;
+          },
+        });
+      } catch (error) {
+        if (isAbortError(error)) {
+          if (!String(optimisticAssistantMessage.content || "").trim()) {
+            messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
+              (m) => m !== optimisticAssistantMessage
+            );
+          }
+        } else if (!handleApiError(error, { silent: true })) {
+          optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
+        }
+      } finally {
+        if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+        isStreaming.value = false;
+      }
+
+      return;
+    }
+
+    const result = await editChatMessage(sessionId, targetMessageId, {
+      content: normalizedContent,
+      truncate: true,
+      regenerate: true,
+      settings: outgoingSettings,
+    });
+
+    applyServerPayload(sessionId, result, { optimisticUserMessage: targetMessage });
+  } catch (error) {
+    messagesBySessionId[sessionId] = snapshot;
+    handleApiError(error);
+  } finally {
+    isSending.value = false;
+    isEditingMessage.value = false;
   }
 }
 
@@ -477,9 +637,17 @@ watch(isMobile, (mobile) => {
       :isMobile="isMobile"
       :isSending="isSending"
       :isStreaming="isStreaming"
+      :isEditingActive="isEditingActive"
+      :editingMessageId="editingMessageId"
+      :editingDraft="editingDraft"
+      :editingProcessing="isEditingMessage"
       @open-sidebar="openMobileSidebar"
       @send-message="sendMessage"
       @stop-output="stopStreaming"
+      @request-edit-message="requestEditMessage"
+      @update-edit-draft="updateEditDraft"
+      @commit-edit-message="commitEditMessage"
+      @cancel-edit-message="cancelEditMessage"
     />
 
     <ChatSettingsModal

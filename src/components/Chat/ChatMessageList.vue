@@ -4,7 +4,13 @@ import ChatMessageBubble from "@/components/Chat/ChatMessageBubble.vue";
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
+  editingMessageId: { type: String, default: "" },
+  editingDraft: { type: String, default: "" },
+  editingProcessing: { type: Boolean, default: false },
+  actionsDisabled: { type: Boolean, default: false },
 });
+
+const emit = defineEmits(["request-edit", "update-edit-draft", "commit-edit", "cancel-edit"]);
 
 const listRef = ref(null);
 
@@ -26,9 +32,21 @@ watch(
       <h3 class="empty-title">开始一轮新对话</h3>
     </div>
 
-    <div v-else class="messages">
-      <ChatMessageBubble v-for="message in messages" :key="message.id" :message="message" />
-    </div>
+    <transition-group v-else name="chat-message" tag="div" class="messages">
+      <ChatMessageBubble
+        v-for="message in messages"
+        :key="message.id"
+        :message="message"
+        :isEditing="String(message.id) === String(editingMessageId)"
+        :editDraft="String(message.id) === String(editingMessageId) ? editingDraft : ''"
+        :processing="editingProcessing && String(message.id) === String(editingMessageId)"
+        :actionsDisabled="actionsDisabled && String(message.id) !== String(editingMessageId)"
+        @request-edit="emit('request-edit', $event)"
+        @update:editDraft="emit('update-edit-draft', $event)"
+        @commit-edit="emit('commit-edit', $event)"
+        @cancel-edit="emit('cancel-edit', $event)"
+      />
+    </transition-group>
   </div>
 </template>
 
@@ -64,12 +82,61 @@ watch(
 }
 
 .messages {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
   width: 100%;
   max-width: 820px;
   margin: 0 auto;
+}
+
+.chat-message-enter-active {
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.chat-message-enter-from {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+.chat-message-enter-from.user {
+  transform: translateY(12px) translateX(14px) scale(0.98);
+}
+
+.chat-message-enter-from:not(.user) {
+  transform: translateY(12px) translateX(-14px) scale(0.98);
+}
+
+.chat-message-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  position: absolute;
+  width: 100%;
+}
+
+.chat-message-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+}
+
+.chat-message-leave-to.user {
+  transform: translateY(-8px) translateX(10px) scale(0.98);
+}
+
+.chat-message-leave-to:not(.user) {
+  transform: translateY(-8px) translateX(-10px) scale(0.98);
+}
+
+.chat-message-move {
+  transition: transform 0.18s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-message-enter-active,
+  .chat-message-leave-active,
+  .chat-message-move {
+    transition: none;
+  }
 }
 
 .empty {

@@ -8,9 +8,21 @@ defineProps({
   isMobile: { type: Boolean, default: false },
   isSending: { type: Boolean, default: false },
   isStreaming: { type: Boolean, default: false },
+  isEditingActive: { type: Boolean, default: false },
+  editingMessageId: { type: String, default: "" },
+  editingDraft: { type: String, default: "" },
+  editingProcessing: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["open-sidebar", "send-message", "stop-output"]);
+const emit = defineEmits([
+  "open-sidebar",
+  "send-message",
+  "stop-output",
+  "request-edit-message",
+  "update-edit-draft",
+  "commit-edit-message",
+  "cancel-edit-message",
+]);
 </script>
 
 <template>
@@ -25,10 +37,21 @@ const emit = defineEmits(["open-sidebar", "send-message", "stop-output"]);
       &gt;
     </button>
 
-    <ChatMessageList class="message-list" :messages="messages" />
+    <ChatMessageList
+      class="message-list"
+      :messages="messages"
+      :editingMessageId="editingMessageId"
+      :editingDraft="editingDraft"
+      :editingProcessing="editingProcessing"
+      :actionsDisabled="isSending || isStreaming || isEditingActive || editingProcessing"
+      @request-edit="emit('request-edit-message', $event)"
+      @update-edit-draft="emit('update-edit-draft', $event)"
+      @commit-edit="emit('commit-edit-message', $event)"
+      @cancel-edit="emit('cancel-edit-message', $event)"
+    />
 
     <ChatComposer
-      :isSending="isSending"
+      :isSending="isSending || isEditingActive"
       :isStreaming="isStreaming"
       @send="emit('send-message', $event)"
       @stop="emit('stop-output')"
