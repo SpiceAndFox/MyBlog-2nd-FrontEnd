@@ -44,6 +44,15 @@ export async function listChatPresets() {
   return data.presets || [];
 }
 
+export async function getChatMeta() {
+  const res = await fetch("/api/chat/meta", {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "获取聊天配置失败");
+  return data; // { providers, defaults }
+}
+
 export async function createChatPreset({ id, name, systemPrompt } = {}) {
   const res = await fetch("/api/chat/presets", {
     method: "POST",

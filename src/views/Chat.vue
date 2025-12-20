@@ -6,7 +6,7 @@ import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
-import { CHAT_PROVIDERS, CHAT_PROMPT_PRESETS, normalizeChatSettings } from "@/config/chat";
+import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
 import { getMeApi } from "@/api/auth";
 import {
   createChatSession,
@@ -14,6 +14,7 @@ import {
   deleteChatSession,
   deleteChatPreset,
   editChatMessage,
+  getChatMeta,
   listChatMessages,
   listChatPresets,
   listChatSessions,
@@ -35,6 +36,10 @@ function createId(prefix = "id") {
 const DEFAULT_SESSION_TITLE = "新对话";
 const SETTINGS_STORAGE_KEY = "chat_settings_v1";
 
+function isPlainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
+}
+
 function formatSessionTitleFromMessage(messageText) {
   const normalized = String(messageText || "")
     .replace(/\s+/g, " ")
@@ -48,7 +53,7 @@ function loadPersistedSettings() {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
+    if (!isPlainObject(parsed)) return null;
     return parsed;
   } catch {
     return null;
@@ -85,26 +90,146 @@ function mapPreset(raw) {
     id: String(raw.id ?? ""),
     name: String(raw.name ?? ""),
     systemPrompt: typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
-    avatarUrl: typeof raw.avatarUrl === "string" ? raw.avatarUrl : "",
+    avatarUrl: typeof raw.avatarUrl === "string" ? raw.avatarUrl.trim() : "",
     isBuiltin: Boolean(raw.isBuiltin ?? raw.is_builtin),
   };
 }
 
-function reconcileSettingsWithPresets({ forceSystemPrompt = false } = {}) {
-  const currentPresetId = String(settings.value?.systemPromptPresetId || "");
-  const fallbackPreset =
-    promptPresets.value.find((p) => p.id === currentPresetId) ||
-    promptPresets.value.find((p) => p.id === "default") ||
-    promptPresets.value[0] ||
+function mapModel(raw) {
+  if (!raw) return null;
+  const id = String(raw.id ?? "").trim();
+  if (!id) return null;
+  const name = String(raw.name ?? id).trim() || id;
+  return { id, name };
+}
+
+function mapProvider(raw) {
+  if (!raw) return null;
+  const id = String(raw.id ?? "").trim();
+  if (!id) return null;
+  const name = String(raw.name ?? id).trim() || id;
+  const models = (Array.isArray(raw.models) ? raw.models : []).map(mapModel).filter(Boolean);
+  if (!models.length) return null;
+  return { id, name, models };
+}
+
+function mapMetaDefaults(rawDefaults) {
+  const defaults = isPlainObject(rawDefaults) ? rawDefaults : {};
+
+  const mapped = {};
+
+  if (typeof defaults.providerId === "string") mapped.providerId = defaults.providerId.trim();
+  if (typeof defaults.modelId === "string") mapped.modelId = defaults.modelId.trim();
+  if (typeof defaults.systemPromptPresetId === "string") mapped.systemPromptPresetId = defaults.systemPromptPresetId.trim();
+
+  const temperature = Number(defaults.temperature);
+  if (Number.isFinite(temperature)) mapped.temperature = temperature;
+
+  const topP = Number(defaults.topP);
+  if (Number.isFinite(topP)) mapped.topP = topP;
+
+  const maxOutputTokens = Number(defaults.maxOutputTokens);
+  if (Number.isFinite(maxOutputTokens)) mapped.maxOutputTokens = maxOutputTokens;
+
+  const presencePenalty = Number(defaults.presencePenalty);
+  if (Number.isFinite(presencePenalty)) mapped.presencePenalty = presencePenalty;
+
+  const frequencyPenalty = Number(defaults.frequencyPenalty);
+  if (Number.isFinite(frequencyPenalty)) mapped.frequencyPenalty = frequencyPenalty;
+
+  if (typeof defaults.stream === "boolean") mapped.stream = defaults.stream;
+  if (typeof defaults.enableWebSearch === "boolean") mapped.enableWebSearch = defaults.enableWebSearch;
+
+  return mapped;
+}
+
+function normalizeSettings({ forceSystemPrompt = false } = {}) {
+  const base = isPlainObject(settings.value) ? settings.value : {};
+  const defaults = isPlainObject(chatDefaults.value) ? chatDefaults.value : {};
+
+  const normalized = { ...defaults, ...base };
+
+  const providerList = Array.isArray(providers.value) ? providers.value : [];
+  const desiredProviderId = String(normalized.providerId || "").trim();
+  const defaultProviderId = String(defaults.providerId || "").trim();
+
+  const provider =
+    providerList.find((p) => p.id === desiredProviderId) ||
+    providerList.find((p) => p.id === defaultProviderId) ||
+    providerList[0] ||
     null;
 
-  if (!fallbackPreset) return;
+  if (provider?.id) normalized.providerId = provider.id;
 
-  const shouldUpdatePreset = currentPresetId !== fallbackPreset.id;
-  if (shouldUpdatePreset) settings.value.systemPromptPresetId = fallbackPreset.id;
+  const models = provider?.models || [];
+  const desiredModelId = String(normalized.modelId || "").trim();
+  const defaultModelId = String(defaults.modelId || "").trim();
 
-  if (forceSystemPrompt || shouldUpdatePreset) {
-    settings.value.systemPrompt = fallbackPreset.systemPrompt || "";
+  const model =
+    models.find((m) => m.id === desiredModelId) ||
+    (provider?.id && provider.id === defaultProviderId ? models.find((m) => m.id === defaultModelId) : null) ||
+    models[0] ||
+    null;
+
+  if (model?.id) normalized.modelId = model.id;
+
+  const temperature = Number(normalized.temperature);
+  normalized.temperature = Number.isFinite(temperature) ? temperature : defaults.temperature;
+
+  const topP = Number(normalized.topP);
+  normalized.topP = Number.isFinite(topP) ? topP : defaults.topP;
+
+  const maxOutputTokens = Number(normalized.maxOutputTokens);
+  normalized.maxOutputTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : defaults.maxOutputTokens;
+
+  const presencePenalty = Number(normalized.presencePenalty);
+  normalized.presencePenalty = Number.isFinite(presencePenalty) ? presencePenalty : defaults.presencePenalty;
+
+  const frequencyPenalty = Number(normalized.frequencyPenalty);
+  normalized.frequencyPenalty = Number.isFinite(frequencyPenalty) ? frequencyPenalty : defaults.frequencyPenalty;
+
+  normalized.stream = typeof normalized.stream === "boolean" ? normalized.stream : defaults.stream;
+  normalized.enableWebSearch =
+    typeof normalized.enableWebSearch === "boolean" ? normalized.enableWebSearch : defaults.enableWebSearch;
+
+  const presetList = Array.isArray(promptPresets.value) ? promptPresets.value : [];
+  const desiredPresetId = String(normalized.systemPromptPresetId || "").trim();
+  const defaultPresetId = String(defaults.systemPromptPresetId || "").trim();
+
+  const preset =
+    presetList.find((p) => p.id === desiredPresetId) ||
+    presetList.find((p) => p.id === defaultPresetId) ||
+    presetList.find((p) => p.id === "default") ||
+    presetList[0] ||
+    null;
+
+  if (preset?.id) normalized.systemPromptPresetId = preset.id;
+
+  const hasBaseSystemPrompt =
+    Object.prototype.hasOwnProperty.call(base, "systemPrompt") && typeof base.systemPrompt === "string";
+
+  if (forceSystemPrompt || !hasBaseSystemPrompt || typeof normalized.systemPrompt !== "string") {
+    normalized.systemPrompt = preset?.systemPrompt || "";
+  }
+
+  settings.value = normalized;
+}
+
+async function refreshChatMeta({ silent = false } = {}) {
+  try {
+    const meta = await getChatMeta();
+
+    const mappedProviders = (meta?.providers || []).map(mapProvider).filter(Boolean);
+    providers.value = mappedProviders;
+    chatDefaults.value = mapMetaDefaults(meta?.defaults);
+
+    normalizeSettings();
+    persistSettings(settings.value);
+
+    return meta;
+  } catch (error) {
+    handleApiError(error, { silent });
+    return null;
   }
 }
 
@@ -112,9 +237,9 @@ async function refreshPromptPresets({ silent = false, forceSystemPrompt = false 
   try {
     const rawPresets = await listChatPresets();
     const mapped = rawPresets.map(mapPreset).filter((p) => p && p.id);
-    promptPresets.value = mapped.length ? mapped : [...CHAT_PROMPT_PRESETS];
+    promptPresets.value = mapped;
 
-    reconcileSettingsWithPresets({ forceSystemPrompt });
+    normalizeSettings({ forceSystemPrompt });
     persistSettings(settings.value);
 
     return promptPresets.value;
@@ -222,13 +347,13 @@ onBeforeUnmount(() => {
   stopStreaming();
 });
 
-const providers = CHAT_PROVIDERS;
-
-const promptPresets = ref([...CHAT_PROMPT_PRESETS]);
+const providers = ref([]);
+const promptPresets = ref([]);
+const chatDefaults = ref({});
 const currentUser = ref(null);
 
 const initialSettingsRaw = loadPersistedSettings();
-const settings = ref(normalizeChatSettings(initialSettingsRaw, { promptPresets: promptPresets.value }));
+const settings = ref(isPlainObject(initialSettingsRaw) ? initialSettingsRaw : {});
 
 const sessions = ref([]);
 const messagesBySessionId = reactive({});
@@ -257,7 +382,7 @@ const assistantPreset = computed(
 
 const assistantProfile = computed(() => ({
   name: assistantPreset.value?.name || "Assistant",
-  avatarUrl: assistantPreset.value?.avatarUrl || "",
+  avatarUrl: assistantPreset.value?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL,
 }));
 
 const editingMessageId = ref("");
@@ -326,6 +451,7 @@ async function loadSessions() {
 async function initializeChat() {
   try {
     await loadCurrentUser({ silent: true });
+    await refreshChatMeta({ silent: true });
     await refreshPromptPresets({ silent: true, forceSystemPrompt: true });
     await loadSessions();
   } catch (error) {
@@ -735,10 +861,10 @@ function closeSettings() {
 }
 
 function saveSettings(nextSettings) {
-  settings.value = normalizeChatSettings(
-    { ...settings.value, ...nextSettings },
-    { promptPresets: promptPresets.value }
-  );
+  const base = isPlainObject(settings.value) ? settings.value : {};
+  const override = isPlainObject(nextSettings) ? nextSettings : {};
+  settings.value = { ...base, ...override };
+  normalizeSettings();
   persistSettings(settings.value);
   closeSettings();
 }
@@ -792,6 +918,7 @@ watch(isMobile, (mobile) => {
       :providers="providers"
       :promptPresets="promptPresets"
       :currentSettings="settings"
+      :defaultSettings="chatDefaults"
       :refreshPresets="() => refreshPromptPresets({ silent: false, forceSystemPrompt: true })"
       :createPreset="createPromptPreset"
       :updatePreset="updatePromptPreset"

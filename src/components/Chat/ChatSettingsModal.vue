@@ -1,12 +1,12 @@
 <script setup>
 import { computed, reactive, watch } from "vue";
-import { CHAT_DEFAULT_SETTINGS } from "@/config/chat";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
   providers: { type: Array, default: () => [] },
   promptPresets: { type: Array, default: () => [] },
   currentSettings: { type: Object, required: true },
+  defaultSettings: { type: Object, default: () => ({}) },
   refreshPresets: { type: Function, default: null },
   createPreset: { type: Function, default: null },
   updatePreset: { type: Function, default: null },
@@ -16,7 +16,13 @@ const props = defineProps({
 
 const emit = defineEmits(["close", "save"]);
 
-const draft = reactive({ ...CHAT_DEFAULT_SETTINGS });
+const draft = reactive({});
+
+function readDefaults() {
+  const value = props.defaultSettings;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value;
+}
 
 function isValidPresetId(value) {
   return /^[a-zA-Z0-9_-]{1,64}$/.test(String(value || "").trim());
@@ -157,8 +163,9 @@ async function removePreset(preset) {
 
     if (draft.systemPromptPresetId === preset.id) {
       const fallback = nextPresets?.find?.((p) => p.id) || null;
-      draft.systemPromptPresetId = fallback?.id || CHAT_DEFAULT_SETTINGS.systemPromptPresetId;
-      draft.systemPrompt = fallback?.systemPrompt || CHAT_DEFAULT_SETTINGS.systemPrompt;
+      const defaults = readDefaults();
+      draft.systemPromptPresetId = fallback?.id || defaults.systemPromptPresetId || "";
+      draft.systemPrompt = fallback?.systemPrompt || defaults.systemPrompt || "";
     }
   } catch (error) {
     window.alert(error?.message || "删除预设失败");
@@ -167,31 +174,40 @@ async function removePreset(preset) {
 
 function applyFromCurrentSettings() {
   const source = props.currentSettings || {};
-  const defaultProviderId = props.providers[0]?.id || "";
-  const providerId = source.providerId || defaultProviderId;
-  const provider = props.providers.find((p) => p.id === providerId) || props.providers[0];
+  const defaults = readDefaults();
+  const fallbackDefaultProviderId = String(defaults.providerId || "").trim();
+  const defaultProvider = props.providers.find((p) => p.id === fallbackDefaultProviderId) || props.providers[0] || null;
+  const desiredProviderId = String(source.providerId || "").trim();
+  const provider = props.providers.find((p) => p.id === desiredProviderId) || defaultProvider;
+  const providerId = provider?.id || "";
   const defaultModelId = provider?.models?.[0]?.id || "";
-  const modelId = source.modelId || defaultModelId;
+  const fallbackDefaultModelId = String(defaults.modelId || "").trim();
+  const desiredModelId = source.modelId || "";
+  const modelId =
+    provider?.models?.some((m) => m.id === desiredModelId)
+      ? desiredModelId
+      : provider?.models?.some((m) => m.id === fallbackDefaultModelId)
+        ? fallbackDefaultModelId
+        : defaultModelId;
 
   draft.providerId = providerId;
   draft.modelId = modelId;
-  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : CHAT_DEFAULT_SETTINGS.temperature;
-  draft.topP = Number.isFinite(source.topP) ? source.topP : CHAT_DEFAULT_SETTINGS.topP;
+  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : defaults.temperature;
+  draft.topP = Number.isFinite(source.topP) ? source.topP : defaults.topP;
   draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens)
     ? source.maxOutputTokens
-    : CHAT_DEFAULT_SETTINGS.maxOutputTokens;
+    : defaults.maxOutputTokens;
   draft.presencePenalty = Number.isFinite(source.presencePenalty)
     ? source.presencePenalty
-    : CHAT_DEFAULT_SETTINGS.presencePenalty;
+    : defaults.presencePenalty;
   draft.frequencyPenalty = Number.isFinite(source.frequencyPenalty)
     ? source.frequencyPenalty
-    : CHAT_DEFAULT_SETTINGS.frequencyPenalty;
-  draft.stream = typeof source.stream === "boolean" ? source.stream : CHAT_DEFAULT_SETTINGS.stream;
+    : defaults.frequencyPenalty;
+  draft.stream = typeof source.stream === "boolean" ? source.stream : defaults.stream;
   draft.enableWebSearch =
-    typeof source.enableWebSearch === "boolean" ? source.enableWebSearch : CHAT_DEFAULT_SETTINGS.enableWebSearch;
-  draft.systemPromptPresetId = source.systemPromptPresetId || CHAT_DEFAULT_SETTINGS.systemPromptPresetId;
-  draft.systemPrompt =
-    typeof source.systemPrompt === "string" ? source.systemPrompt : CHAT_DEFAULT_SETTINGS.systemPrompt;
+    typeof source.enableWebSearch === "boolean" ? source.enableWebSearch : defaults.enableWebSearch;
+  draft.systemPromptPresetId = source.systemPromptPresetId || defaults.systemPromptPresetId || "";
+  draft.systemPrompt = typeof source.systemPrompt === "string" ? source.systemPrompt : defaults.systemPrompt || "";
 }
 
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
