@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute } from "vue-router";
-import { computed } from "vue";
+import { computed, watchEffect, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
 import iosBg from "@/assets/images/background-mobile-01.webp";
 
@@ -18,11 +18,38 @@ const layoutMap = {
 };
 const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
 const isHomeOrArticleList = computed(() => {
-  if (layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList") return true;
+  return layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList";
 });
 const showVideo = computed(() => {
   return isHomeOrArticleList.value && !isIOS;
 });
+
+// ios背景设置
+const IOS_BG_COLOR = "rgb(93, 66, 59)";
+
+const applyIOSRootBg = (enable) => {
+  const html = document.documentElement;
+  const body = document.body;
+
+  if (!html || !body) return;
+
+  if (enable) {
+    html.style.backgroundColor = IOS_BG_COLOR;
+    body.style.backgroundColor = IOS_BG_COLOR;
+  } else {
+    html.style.backgroundColor = "";
+    body.style.backgroundColor = "";
+  }
+};
+
+watchEffect(() => {
+  applyIOSRootBg(isIOS && isHomeOrArticleList.value);
+});
+
+onBeforeUnmount(() => {
+  applyIOSRootBg(false);
+});
+
 const iosBackgroundStyle = computed(() => {
   return isHomeOrArticleList.value && isIOS
     ? {
