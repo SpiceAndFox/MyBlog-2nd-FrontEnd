@@ -2,7 +2,7 @@
 import { useRoute } from "vue-router";
 import { computed } from "vue";
 import Navigation from "@/components/Navigation.vue";
-import iosBg from "@/assets/images/background-01.png";
+import iosBg from "@/assets/images/background-mobile-01.jpg";
 
 // 获取路由信息
 const route = useRoute();
