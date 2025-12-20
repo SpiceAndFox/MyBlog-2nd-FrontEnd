@@ -17,62 +17,16 @@ const layoutMap = {
   chat: "layout--chat",
 };
 const layoutClass = computed(() => layoutMap[route.meta.layoutClass] || null);
-const isHome = computed(() => {
-  return layoutClass.value === "layout--home";
-});
-const isArticleList = computed(() => {
-  return layoutClass.value === "layout--articleList";
-});
 const isHomeOrArticleList = computed(() => {
   return layoutClass.value === "layout--home" || layoutClass.value === "layout--articleList";
 });
 const showVideo = computed(() => {
   return isHomeOrArticleList.value && !isIOS;
 });
-
-// ios背景设置
-const IOS_HOME_BG_COLOR = "rgb(65, 44, 40)";
-const IOS_ARTICLELIST_BG_COLOR = "rgb(238, 238, 238)";
-const applyIOSRootBg = (enable) => {
-  const html = document.documentElement;
-  const body = document.body;
-
-  if (!html || !body) return;
-
-  if (isHome.value) {
-    html.style.backgroundColor = IOS_HOME_BG_COLOR;
-    body.style.backgroundColor = IOS_HOME_BG_COLOR;
-  } else if (isArticleList.value) {
-    html.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
-    body.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
-  } else {
-    html.style.backgroundColor = "";
-    body.style.backgroundColor = "";
-  }
-};
-
-watchEffect(() => {
-  applyIOSRootBg(isIOS && isHomeOrArticleList.value);
-});
-
-onBeforeUnmount(() => {
-  applyIOSRootBg(false);
-});
-
-const iosBackgroundStyle = computed(() => {
-  return isHomeOrArticleList.value && isIOS
-    ? {
-        backgroundImage: `url(${iosBg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundColor: "rgb(93, 66, 59)",
-      }
-    : {};
-});
 </script>
 
 <template>
-  <div class="app-layout" :class="layoutClass" :style="iosBackgroundStyle">
+  <div class="app-layout" :class="[layoutClass, { 'ios-bg': isIOS && isHomeOrArticleList }]">
     <video v-if="showVideo" class="background-video" autoplay muted loop playsinline>
       <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
@@ -94,6 +48,18 @@ const iosBackgroundStyle = computed(() => {
   --base-radius: 8px;
   --tag-bg: #f3f4f6;
   --tag-hover-bg: #e5e7eb;
+}
+
+.app-layout.ios-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2; /* 比内容低 */
+  background-image: url("@/assets/images/background-mobile-01.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgb(93, 66, 59); /* 兜底色 */
 }
 </style>
 
