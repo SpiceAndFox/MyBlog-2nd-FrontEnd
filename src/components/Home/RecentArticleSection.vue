@@ -38,7 +38,7 @@ defineProps({
   border-radius: 15px;
 
   container-type: inline-size;
-  container-name: article-list-section;
+  container-name: recent-article-section;
   z-index: 1;
 }
 
