@@ -3,6 +3,8 @@ import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps({
   message: { type: Object, required: true },
+  userProfile: { type: Object, default: null },
+  assistantProfile: { type: Object, default: null },
   isEditing: { type: Boolean, default: false },
   editDraft: { type: String, default: "" },
   processing: { type: Boolean, default: false },
@@ -13,7 +15,33 @@ const emit = defineEmits(["request-edit", "cancel-edit", "commit-edit", "update:
 
 const isUser = computed(() => props.message?.role === "user");
 
-const avatarText = computed(() => (isUser.value ? "你" : "AI"));
+const displayName = computed(() => {
+  if (isUser.value) return String(props.userProfile?.username || props.userProfile?.name || "User");
+  return String(props.assistantProfile?.name || "Assistant");
+});
+
+const avatarUrl = computed(() => {
+  const candidate = isUser.value
+    ? props.userProfile?.avatarUrl || props.userProfile?.avatar_url
+    : props.assistantProfile?.avatarUrl || props.assistantProfile?.avatar_url;
+  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : "";
+});
+
+const avatarFailed = ref(false);
+
+watch(avatarUrl, () => {
+  avatarFailed.value = false;
+});
+
+const avatarFallbackText = computed(() => {
+  const name = String(displayName.value || "").trim();
+  if (!name) return isUser.value ? "你" : "AI";
+  return name.slice(0, 1).toUpperCase();
+});
+
+function markAvatarFailed() {
+  avatarFailed.value = true;
+}
 
 const timeLabel = computed(() => {
   const value = props.message?.createdAt;
@@ -71,10 +99,19 @@ function onEditKeydown(event) {
 
 <template>
   <div class="row" :class="{ user: isUser, editing: isEditing }">
-    <div class="avatar" :class="{ user: isUser }" aria-hidden="true">{{ avatarText }}</div>
+    <div class="avatar" :class="{ user: isUser }" aria-hidden="true">
+      <img
+        v-if="avatarUrl && !avatarFailed"
+        class="avatar-image"
+        :src="avatarUrl"
+        alt=""
+        @error="markAvatarFailed"
+      />
+      <span v-else>{{ avatarFallbackText }}</span>
+    </div>
     <div class="bubble" :class="{ user: isUser }">
       <div class="meta">
-        <span class="name">{{ isUser ? "User" : "Assistant" }}</span>
+        <span class="name">{{ displayName }}</span>
         <div class="meta-right">
           <span v-if="timeLabel" class="time">{{ timeLabel }}</span>
           <button
@@ -150,11 +187,19 @@ function onEditKeydown(event) {
   color: var(--chat-avatar-text, #ffffff);
   background: var(--chat-avatar-bg, rgba(17, 24, 39, 0.78));
   flex: 0 0 auto;
+  overflow: hidden;
 }
 
 .avatar.user {
   background: var(--chat-avatar-user-bg, rgba(59, 130, 246, 0.95));
   color: var(--chat-avatar-user-text, #ffffff);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .bubble {

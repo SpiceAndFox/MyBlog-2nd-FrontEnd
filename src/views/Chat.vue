@@ -7,16 +7,22 @@ import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
 import { CHAT_PROVIDERS, CHAT_PROMPT_PRESETS, normalizeChatSettings } from "@/config/chat";
+import { getMeApi } from "@/api/auth";
 import {
   createChatSession,
+  createChatPreset,
   deleteChatSession,
+  deleteChatPreset,
   editChatMessage,
   listChatMessages,
+  listChatPresets,
   listChatSessions,
   renameChatSession,
   sendChatMessage,
   streamEditChatMessage,
   streamChatMessage,
+  updateChatPreset,
+  uploadChatPresetAvatar,
 } from "@/api/chat";
 
 const router = useRouter();
@@ -73,6 +79,103 @@ function handleApiError(error, { silent = false } = {}) {
   return false;
 }
 
+function mapPreset(raw) {
+  if (!raw) return null;
+  return {
+    id: String(raw.id ?? ""),
+    name: String(raw.name ?? ""),
+    systemPrompt: typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
+    avatarUrl: typeof raw.avatarUrl === "string" ? raw.avatarUrl : "",
+  };
+}
+
+function reconcileSettingsWithPresets({ forceSystemPrompt = false } = {}) {
+  const currentPresetId = String(settings.value?.systemPromptPresetId || "");
+  const fallbackPreset =
+    promptPresets.value.find((p) => p.id === currentPresetId) ||
+    promptPresets.value.find((p) => p.id === "default") ||
+    promptPresets.value[0] ||
+    null;
+
+  if (!fallbackPreset) return;
+
+  const shouldUpdatePreset = currentPresetId !== fallbackPreset.id;
+  if (shouldUpdatePreset) settings.value.systemPromptPresetId = fallbackPreset.id;
+
+  if (forceSystemPrompt || shouldUpdatePreset) {
+    settings.value.systemPrompt = fallbackPreset.systemPrompt || "";
+  }
+}
+
+async function refreshPromptPresets({ silent = false, forceSystemPrompt = false } = {}) {
+  try {
+    const rawPresets = await listChatPresets();
+    const mapped = rawPresets.map(mapPreset).filter((p) => p && p.id);
+    promptPresets.value = mapped.length ? mapped : [...CHAT_PROMPT_PRESETS];
+
+    reconcileSettingsWithPresets({ forceSystemPrompt });
+    persistSettings(settings.value);
+
+    return promptPresets.value;
+  } catch (error) {
+    handleApiError(error, { silent });
+    return promptPresets.value;
+  }
+}
+
+async function loadCurrentUser({ silent = false } = {}) {
+  try {
+    currentUser.value = await getMeApi();
+    return currentUser.value;
+  } catch (error) {
+    handleApiError(error, { silent });
+    return null;
+  }
+}
+
+async function createPromptPreset(payload) {
+  try {
+    const preset = await createChatPreset(payload);
+    await refreshPromptPresets({ silent: true, forceSystemPrompt: true });
+    return preset;
+  } catch (error) {
+    handleApiError(error, { silent: true });
+    throw error;
+  }
+}
+
+async function updatePromptPreset(presetId, payload) {
+  try {
+    const preset = await updateChatPreset(presetId, payload);
+    await refreshPromptPresets({ silent: true, forceSystemPrompt: true });
+    return preset;
+  } catch (error) {
+    handleApiError(error, { silent: true });
+    throw error;
+  }
+}
+
+async function deletePromptPreset(presetId) {
+  try {
+    await deleteChatPreset(presetId);
+    await refreshPromptPresets({ silent: true, forceSystemPrompt: true });
+  } catch (error) {
+    handleApiError(error, { silent: true });
+    throw error;
+  }
+}
+
+async function uploadPromptPresetAvatar(presetId, file) {
+  try {
+    const preset = await uploadChatPresetAvatar(presetId, file);
+    await refreshPromptPresets({ silent: true, forceSystemPrompt: true });
+    return preset;
+  } catch (error) {
+    handleApiError(error, { silent: true });
+    throw error;
+  }
+}
+
 const isMobile = useMediaQuery("(max-width: 900px)");
 const isSidebarCollapsed = ref(false);
 const isMobileSidebarOpen = ref(false);
@@ -118,10 +221,13 @@ onBeforeUnmount(() => {
   stopStreaming();
 });
 
-const promptPresets = CHAT_PROMPT_PRESETS;
 const providers = CHAT_PROVIDERS;
 
-const settings = ref(normalizeChatSettings(loadPersistedSettings()));
+const promptPresets = ref([...CHAT_PROMPT_PRESETS]);
+const currentUser = ref(null);
+
+const initialSettingsRaw = loadPersistedSettings();
+const settings = ref(normalizeChatSettings(initialSettingsRaw, { promptPresets: promptPresets.value }));
 
 const sessions = ref([]);
 const messagesBySessionId = reactive({});
@@ -129,6 +235,29 @@ const activeSessionId = ref("");
 
 const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value) || null);
 const activeMessages = computed(() => messagesBySessionId[activeSessionId.value] || []);
+
+const userProfile = computed(() => ({
+  username: currentUser.value?.username || "User",
+  avatarUrl: currentUser.value?.avatar_url || currentUser.value?.avatarUrl || "",
+}));
+
+const assistantPresetId = computed(() => {
+  const fromSession = activeSession.value?.settings?.systemPromptPresetId;
+  return String(fromSession || settings.value?.systemPromptPresetId || "default");
+});
+
+const assistantPreset = computed(
+  () =>
+    promptPresets.value.find((preset) => preset.id === assistantPresetId.value) ||
+    promptPresets.value.find((preset) => preset.id === "default") ||
+    promptPresets.value[0] ||
+    null
+);
+
+const assistantProfile = computed(() => ({
+  name: assistantPreset.value?.name || "Assistant",
+  avatarUrl: assistantPreset.value?.avatarUrl || "",
+}));
 
 const editingMessageId = ref("");
 const editingSessionId = ref("");
@@ -195,6 +324,8 @@ async function loadSessions() {
 
 async function initializeChat() {
   try {
+    await loadCurrentUser({ silent: true });
+    await refreshPromptPresets({ silent: true, forceSystemPrompt: true });
     await loadSessions();
   } catch (error) {
     handleApiError(error);
@@ -603,7 +734,10 @@ function closeSettings() {
 }
 
 function saveSettings(nextSettings) {
-  settings.value = normalizeChatSettings({ ...settings.value, ...nextSettings });
+  settings.value = normalizeChatSettings(
+    { ...settings.value, ...nextSettings },
+    { promptPresets: promptPresets.value }
+  );
   persistSettings(settings.value);
   closeSettings();
 }
@@ -634,6 +768,8 @@ watch(isMobile, (mobile) => {
       class="chat-conversation"
       :sessionTitle="activeSession?.title || DEFAULT_SESSION_TITLE"
       :messages="activeMessages"
+      :userProfile="userProfile"
+      :assistantProfile="assistantProfile"
       :isMobile="isMobile"
       :isSending="isSending"
       :isStreaming="isStreaming"
@@ -655,6 +791,11 @@ watch(isMobile, (mobile) => {
       :providers="providers"
       :promptPresets="promptPresets"
       :currentSettings="settings"
+      :refreshPresets="() => refreshPromptPresets({ silent: false, forceSystemPrompt: true })"
+      :createPreset="createPromptPreset"
+      :updatePreset="updatePromptPreset"
+      :deletePreset="deletePromptPreset"
+      :uploadPresetAvatar="uploadPromptPresetAvatar"
       @close="closeSettings"
       @save="saveSettings"
     />

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { CHAT_DEFAULT_SETTINGS } from "@/config/chat";
 
 const props = defineProps({
@@ -7,11 +7,148 @@ const props = defineProps({
   providers: { type: Array, default: () => [] },
   promptPresets: { type: Array, default: () => [] },
   currentSettings: { type: Object, required: true },
+  refreshPresets: { type: Function, default: null },
+  createPreset: { type: Function, default: null },
+  updatePreset: { type: Function, default: null },
+  deletePreset: { type: Function, default: null },
+  uploadPresetAvatar: { type: Function, default: null },
 });
 
 const emit = defineEmits(["close", "save"]);
 
 const draft = reactive({ ...CHAT_DEFAULT_SETTINGS });
+const isSavingSettings = ref(false);
+
+function isValidPresetId(value) {
+  return /^[a-zA-Z0-9_-]{1,64}$/.test(String(value || "").trim());
+}
+
+const presetEditor = reactive({
+  open: false,
+  mode: "create", // create | edit
+  originalId: "",
+  id: "",
+  name: "",
+  systemPrompt: "",
+  avatarUrl: "",
+  avatarFile: null,
+  avatarObjectUrl: "",
+  saving: false,
+});
+
+function resetPresetEditor() {
+  presetEditor.open = false;
+  presetEditor.mode = "create";
+  presetEditor.originalId = "";
+  presetEditor.id = "";
+  presetEditor.name = "";
+  presetEditor.systemPrompt = "";
+  presetEditor.avatarUrl = "";
+  presetEditor.avatarFile = null;
+  if (presetEditor.avatarObjectUrl) URL.revokeObjectURL(presetEditor.avatarObjectUrl);
+  presetEditor.avatarObjectUrl = "";
+  presetEditor.saving = false;
+}
+
+function beginCreatePreset() {
+  resetPresetEditor();
+  presetEditor.open = true;
+  presetEditor.mode = "create";
+}
+
+function beginEditPreset(preset) {
+  if (!preset) return;
+  resetPresetEditor();
+  presetEditor.open = true;
+  presetEditor.mode = "edit";
+  presetEditor.originalId = String(preset.id || "");
+  presetEditor.id = String(preset.id || "");
+  presetEditor.name = String(preset.name || "");
+  presetEditor.systemPrompt = String(preset.systemPrompt || "");
+  presetEditor.avatarUrl = String(preset.avatarUrl || "");
+}
+
+function onAvatarFileChange(event) {
+  const file = event?.target?.files?.[0] || null;
+  presetEditor.avatarFile = file;
+  if (presetEditor.avatarObjectUrl) URL.revokeObjectURL(presetEditor.avatarObjectUrl);
+  presetEditor.avatarObjectUrl = file ? URL.createObjectURL(file) : "";
+}
+
+const presetAvatarPreviewUrl = computed(() => presetEditor.avatarObjectUrl || presetEditor.avatarUrl || "");
+
+async function savePreset() {
+  if (presetEditor.saving) return;
+  if (!props.createPreset || !props.updatePreset || !props.refreshPresets) return;
+
+  const id = String(presetEditor.id || "").trim();
+  const name = String(presetEditor.name || "").trim();
+  const systemPrompt = String(presetEditor.systemPrompt || "");
+
+  if (!isValidPresetId(id)) {
+    window.alert("预设ID仅支持字母/数字/下划线/短横线，长度 1-64");
+    return;
+  }
+  if (!name) {
+    window.alert("预设名称不能为空");
+    return;
+  }
+
+  presetEditor.saving = true;
+
+  try {
+    let savedPreset;
+    if (presetEditor.mode === "create") {
+      savedPreset = await props.createPreset({ id, name, systemPrompt });
+      if (savedPreset?.id) {
+        draft.systemPromptPresetId = savedPreset.id;
+        draft.systemPrompt = savedPreset.systemPrompt || "";
+      }
+    } else {
+      const originalId = String(presetEditor.originalId || "").trim();
+      if (!originalId) throw new Error("缺少原始预设ID");
+      savedPreset = await props.updatePreset(originalId, { id, name, systemPrompt });
+
+      if (draft.systemPromptPresetId === originalId && savedPreset?.id) {
+        draft.systemPromptPresetId = savedPreset.id;
+      }
+      if (draft.systemPromptPresetId === savedPreset?.id) {
+        draft.systemPrompt = savedPreset.systemPrompt || "";
+      }
+    }
+
+    if (savedPreset?.id && presetEditor.avatarFile && props.uploadPresetAvatar) {
+      const avatarPresetId = String(savedPreset.id || "").trim();
+      await props.uploadPresetAvatar(avatarPresetId, presetEditor.avatarFile);
+    }
+
+    await props.refreshPresets();
+    resetPresetEditor();
+  } catch (error) {
+    window.alert(error?.message || "保存预设失败");
+  } finally {
+    presetEditor.saving = false;
+  }
+}
+
+async function removePreset(preset) {
+  if (!preset?.id || !props.deletePreset || !props.refreshPresets) return;
+  const confirmed = window.confirm(`确定要删除预设 “${preset.name || preset.id}” 吗？`);
+  if (!confirmed) return;
+
+  try {
+    await props.deletePreset(String(preset.id));
+    const nextPresets = await props.refreshPresets();
+
+    if (draft.systemPromptPresetId === preset.id) {
+      const fallback = nextPresets?.find?.((p) => p.id) || null;
+      draft.systemPromptPresetId = fallback?.id || CHAT_DEFAULT_SETTINGS.systemPromptPresetId;
+      draft.systemPrompt = fallback?.systemPrompt || CHAT_DEFAULT_SETTINGS.systemPrompt;
+    }
+  } catch (error) {
+    window.alert(error?.message || "删除预设失败");
+  }
+}
 
 function applyFromCurrentSettings() {
   const source = props.currentSettings || {};
@@ -73,6 +210,16 @@ watch(
 );
 
 watch(
+  () => props.promptPresets,
+  (presets) => {
+    if (!props.open) return;
+    const preset = (presets || []).find((p) => p.id === draft.systemPromptPresetId);
+    if (!preset) return;
+    draft.systemPrompt = preset.systemPrompt || "";
+  }
+);
+
+watch(
   () => props.open,
   (open, _previous, onCleanup) => {
     if (!open) return;
@@ -86,11 +233,29 @@ watch(
 );
 
 function close() {
+  resetPresetEditor();
   emit("close");
 }
 
-function save() {
-  emit("save", { ...draft });
+async function save() {
+  if (isSavingSettings.value) return;
+  isSavingSettings.value = true;
+
+  try {
+    const preset = props.promptPresets.find((p) => p.id === draft.systemPromptPresetId) || null;
+    const presetSystemPrompt = String(preset?.systemPrompt || "");
+
+    if (preset && typeof props.updatePreset === "function" && String(draft.systemPrompt || "") !== presetSystemPrompt) {
+      await props.updatePreset(preset.id, { systemPrompt: String(draft.systemPrompt || "") });
+      await props.refreshPresets?.();
+    }
+
+    emit("save", { ...draft });
+  } catch (error) {
+    window.alert(error?.message || "保存失败");
+  } finally {
+    isSavingSettings.value = false;
+  }
 }
 </script>
 
@@ -212,11 +377,101 @@ function save() {
               </label>
             </div>
           </section>
+
+          <section class="section">
+            <div class="section-header">
+              <h4 class="section-title">预设管理</h4>
+              <div class="section-actions">
+                <button class="mini-button" type="button" :disabled="!props.refreshPresets" @click="props.refreshPresets?.()">
+                  刷新
+                </button>
+                <button class="mini-button primary" type="button" @click="beginCreatePreset">新建预设</button>
+              </div>
+            </div>
+
+            <div class="preset-list">
+              <div v-if="promptPresets.length === 0" class="preset-empty">暂无预设</div>
+
+              <div v-else class="preset-items">
+                <div v-for="preset in promptPresets" :key="preset.id" class="preset-item">
+                  <div class="preset-avatar" aria-hidden="true">
+                    <img v-if="preset.avatarUrl" :src="preset.avatarUrl" class="preset-avatar-image" alt="" />
+                    <div v-else class="preset-avatar-fallback">AI</div>
+                  </div>
+
+                  <div class="preset-main">
+                    <div class="preset-name">{{ preset.name }}</div>
+                    <div class="preset-meta">ID: {{ preset.id }}</div>
+                  </div>
+
+                  <div class="preset-actions">
+                    <button class="mini-button" type="button" @click="beginEditPreset(preset)">编辑</button>
+                    <button class="mini-button danger" type="button" @click="removePreset(preset)">删除</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="presetEditor.open" class="preset-editor">
+              <h5 class="preset-editor-title">{{ presetEditor.mode === "create" ? "新建预设" : "编辑预设" }}</h5>
+
+              <div class="grid">
+                <label class="field">
+                  <span class="label">ID</span>
+                  <input v-model="presetEditor.id" class="control" placeholder="例如: default" />
+                </label>
+
+                <label class="field">
+                  <span class="label">Name</span>
+                  <input v-model="presetEditor.name" class="control" placeholder="例如: Assistant" />
+                </label>
+
+                <label class="field full">
+                  <span class="label">System Prompt</span>
+                  <textarea
+                    v-model="presetEditor.systemPrompt"
+                    class="control textarea"
+                    rows="6"
+                    placeholder="写下该预设的系统提示词"
+                  ></textarea>
+                </label>
+
+                <label class="field full">
+                  <span class="label">Avatar</span>
+                  <div class="avatar-uploader">
+                    <div class="avatar-preview" aria-hidden="true">
+                      <img v-if="presetAvatarPreviewUrl" :src="presetAvatarPreviewUrl" class="avatar-image" alt="" />
+                      <div v-else class="avatar-preview-fallback">AI</div>
+                    </div>
+
+                    <div class="avatar-controls">
+                      <input class="file-input" type="file" accept="image/*" @change="onAvatarFileChange" />
+                      <div class="preset-editor-actions">
+                        <button class="mini-button" type="button" :disabled="presetEditor.saving" @click="resetPresetEditor">
+                          取消
+                        </button>
+                        <button
+                          class="mini-button primary"
+                          type="button"
+                          :disabled="presetEditor.saving"
+                          @click="savePreset"
+                        >
+                          {{ presetEditor.saving ? "保存中..." : "保存预设" }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
         </div>
 
         <footer class="modal-footer">
           <button class="button button-secondary" type="button" @click="close">取消</button>
-          <button class="button button-primary" type="button" @click="save">保存</button>
+          <button class="button button-primary" type="button" :disabled="isSavingSettings" @click="save">
+            {{ isSavingSettings ? "保存中..." : "保存" }}
+          </button>
         </footer>
       </div>
     </div>
@@ -429,6 +684,194 @@ function save() {
 
 .button-primary:hover {
   background: var(--chat-accent-strong, #2563eb);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mini-button {
+  border: 1px solid rgba(17, 24, 39, 0.16);
+  background: rgba(249, 250, 251, 0.9);
+  color: rgba(17, 24, 39, 0.82);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.mini-button:hover:not(:disabled) {
+  background: rgba(17, 24, 39, 0.05);
+}
+
+.mini-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mini-button.primary {
+  border-color: rgba(16, 163, 127, 0.35);
+  background: rgba(16, 163, 127, 0.1);
+  color: rgba(16, 163, 127, 0.95);
+}
+
+.mini-button.danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(220, 38, 38, 0.95);
+}
+
+.preset-list {
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 14px;
+  background: rgba(249, 250, 251, 0.8);
+  overflow: hidden;
+}
+
+.preset-empty {
+  padding: 14px 12px;
+  color: rgba(17, 24, 39, 0.62);
+  font-size: 0.9rem;
+}
+
+.preset-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.preset-item:first-child {
+  border-top: none;
+}
+
+.preset-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.preset-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preset-avatar-fallback {
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.8);
+  font-size: 0.85rem;
+}
+
+.preset-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.preset-name {
+  font-weight: 700;
+  color: rgba(17, 24, 39, 0.92);
+}
+
+.preset-meta {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: rgba(17, 24, 39, 0.6);
+}
+
+.preset-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.preset-editor {
+  margin-top: 12px;
+  padding: 12px 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.preset-editor-title {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  color: rgba(17, 24, 39, 0.88);
+}
+
+.avatar-uploader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.avatar-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-preview-fallback {
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.8);
+  font-size: 0.9rem;
+}
+
+.avatar-controls {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.preset-editor-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .chat-dialog-fade-enter-active,

@@ -5,6 +5,8 @@ import ChatComposer from "@/components/Chat/ChatComposer.vue";
 defineProps({
   sessionTitle: { type: String, default: "新对话" },
   messages: { type: Array, default: () => [] },
+  userProfile: { type: Object, default: null },
+  assistantProfile: { type: Object, default: null },
   isMobile: { type: Boolean, default: false },
   isSending: { type: Boolean, default: false },
   isStreaming: { type: Boolean, default: false },
@@ -40,6 +42,8 @@ const emit = defineEmits([
     <ChatMessageList
       class="message-list"
       :messages="messages"
+      :userProfile="userProfile"
+      :assistantProfile="assistantProfile"
       :editingMessageId="editingMessageId"
       :editingDraft="editingDraft"
       :editingProcessing="editingProcessing"

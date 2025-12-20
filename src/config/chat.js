@@ -44,7 +44,7 @@ export const CHAT_DEFAULT_SETTINGS = {
   presencePenalty: 0,
   frequencyPenalty: 0,
   stream: true,
-  enableWebSearch: false,
+  enableWebSearch: true,
   systemPromptPresetId: "default",
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
 };
@@ -64,9 +64,10 @@ function pickModel(provider, modelId) {
   return models.find((model) => model.id === normalizedId) || models[0] || null;
 }
 
-function pickPreset(presetId) {
+function pickPreset(presets, presetId) {
   const normalizedId = String(presetId || "").trim();
-  return CHAT_PROMPT_PRESETS.find((preset) => preset.id === normalizedId) || null;
+  const list = Array.isArray(presets) ? presets : [];
+  return list.find((preset) => preset.id === normalizedId) || null;
 }
 
 function toNumberOrFallback(value, fallbackValue) {
@@ -74,7 +75,7 @@ function toNumberOrFallback(value, fallbackValue) {
   return Number.isFinite(numeric) ? numeric : fallbackValue;
 }
 
-export function normalizeChatSettings(rawSettings) {
+export function normalizeChatSettings(rawSettings, { promptPresets = CHAT_PROMPT_PRESETS } = {}) {
   const base = isPlainObject(rawSettings) ? rawSettings : {};
   const normalized = { ...CHAT_DEFAULT_SETTINGS, ...base };
 
@@ -96,7 +97,9 @@ export function normalizeChatSettings(rawSettings) {
       ? normalized.enableWebSearch
       : CHAT_DEFAULT_SETTINGS.enableWebSearch;
 
-  const preset = pickPreset(normalized.systemPromptPresetId) || pickPreset(CHAT_DEFAULT_SETTINGS.systemPromptPresetId);
+  const preset =
+    pickPreset(promptPresets, normalized.systemPromptPresetId) ||
+    pickPreset(promptPresets, CHAT_DEFAULT_SETTINGS.systemPromptPresetId);
   normalized.systemPromptPresetId = preset?.id || CHAT_DEFAULT_SETTINGS.systemPromptPresetId;
 
   if (!Object.prototype.hasOwnProperty.call(base, "systemPrompt") || typeof normalized.systemPrompt !== "string") {

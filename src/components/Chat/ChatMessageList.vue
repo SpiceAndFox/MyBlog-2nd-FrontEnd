@@ -4,6 +4,8 @@ import ChatMessageBubble from "@/components/Chat/ChatMessageBubble.vue";
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
+  userProfile: { type: Object, default: null },
+  assistantProfile: { type: Object, default: null },
   editingMessageId: { type: String, default: "" },
   editingDraft: { type: String, default: "" },
   editingProcessing: { type: Boolean, default: false },
@@ -37,6 +39,8 @@ watch(
         v-for="message in messages"
         :key="message.id"
         :message="message"
+        :userProfile="userProfile"
+        :assistantProfile="assistantProfile"
         :isEditing="String(message.id) === String(editingMessageId)"
         :editDraft="String(message.id) === String(editingMessageId) ? editingDraft : ''"
         :processing="editingProcessing && String(message.id) === String(editingMessageId)"

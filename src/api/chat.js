@@ -35,6 +35,69 @@ export async function listChatSessions() {
   return data.sessions || [];
 }
 
+export async function listChatPresets() {
+  const res = await fetch("/api/chat/presets", {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "获取预设失败");
+  return data.presets || [];
+}
+
+export async function createChatPreset({ id, name, systemPrompt } = {}) {
+  const res = await fetch("/api/chat/presets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ id, name, systemPrompt }),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "创建预设失败");
+  return data.preset;
+}
+
+export async function updateChatPreset(presetId, { id, name, systemPrompt } = {}) {
+  const normalizedId = String(presetId ?? "").trim();
+  if (!normalizedId) throw new Error("缺少预设ID");
+  const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ id, name, systemPrompt }),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "更新预设失败");
+  return data.preset;
+}
+
+export async function deleteChatPreset(presetId) {
+  const normalizedId = String(presetId ?? "").trim();
+  if (!normalizedId) throw new Error("缺少预设ID");
+  const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}`, {
+    method: "DELETE",
+    headers: { ...getAuthHeader() },
+  });
+  if (res.status === 204) return;
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "删除预设失败");
+}
+
+export async function uploadChatPresetAvatar(presetId, file) {
+  const normalizedId = String(presetId ?? "").trim();
+  if (!normalizedId) throw new Error("缺少预设ID");
+  if (!(file instanceof File)) throw new Error("缺少头像文件");
+
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}/avatar`, {
+    method: "POST",
+    headers: { ...getAuthHeader() },
+    body: formData,
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "上传头像失败");
+  return data.preset;
+}
+
 export async function createChatSession({ title, settings } = {}) {
   const res = await fetch("/api/chat/sessions", {
     method: "POST",
