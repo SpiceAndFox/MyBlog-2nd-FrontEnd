@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
 const iosBackgroundStyle = computed(() => {
   return isHomeOrArticleList.value && isIOS
     ? {
-        backgroundImage: `url(${iosBg})`,
+        backgroundImage: `url()`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
