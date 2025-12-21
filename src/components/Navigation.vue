@@ -87,6 +87,15 @@ function linkToggled(link) {
   z-index: 1001;
 }
 
+.navigation.layout--home {
+  background: linear-gradient(
+    to bottom,
+    rgb(238, 238, 238) 0%,
+    rgba(238, 238, 238, 0.9) 20%,
+    rgba(238, 238, 238, 0) 50%,
+    rgba(238, 238, 238, 0) 100%
+  );
+}
 .navigation.layout--article {
   position: absolute;
   top: 0;
@@ -94,7 +103,6 @@ function linkToggled(link) {
   right: 0;
   z-index: 1001;
 }
-
 .navigation.layout--articleList {
   background-color: rgb(238, 238, 238, 0);
 }

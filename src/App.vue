@@ -39,6 +39,10 @@ const applyIOSRootBg = (enable) => {
 
   if (!html || !body) return;
 
+  if (isHome.value) {
+    html.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
+    body.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
+  }
   if (isArticleList.value) {
     html.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
     body.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
