@@ -110,7 +110,7 @@ const iosBackgroundStyle = computed(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100svh;
+  min-height: 100vh;
   overflow: hidden; /*避免视频溢出 */
 }
 
