@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute } from "vue-router";
-import { computed, watchEffect, onBeforeUnmount } from "vue";
+import { watch, computed, watchEffect, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
 import iosBg from "@/assets/images/background-mobile-01.webp";
 
@@ -51,13 +51,26 @@ const applyIOSRootBg = (enable) => {
     body.style.backgroundColor = "";
   }
 };
+const clearIOSRootBg = () => {
+  const html = document.documentElement;
+  const body = document.body;
+  if (!html || !body) return;
+  html.style.backgroundColor = "";
+  body.style.backgroundColor = "";
+};
 
-watchEffect(() => {
-  applyIOSRootBg(isIOS && isHomeOrArticleList.value);
-});
+watch(
+  () => route.fullPath,
+  () => {
+    // 每次跳路由先清理，再按需设置
+    clearIOSRootBg();
+    applyIOSRootBg(isIOS && isHomeOrArticleList.value);
+  },
+  { immediate: true }
+);
 
 onBeforeUnmount(() => {
-  applyIOSRootBg(false);
+  clearIOSRootBg();
 });
 
 const iosBackgroundStyle = computed(() => {
