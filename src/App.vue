@@ -2,7 +2,7 @@
 import { useRoute } from "vue-router";
 import { watch, computed, watchEffect, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
-import iosBg from "@/assets/images/background-mobile-01.webp";
+import iosBg from "@/assets/images/background-mobile-02.webp";
 
 // 获取路由信息
 const route = useRoute();
@@ -31,7 +31,6 @@ const showVideo = computed(() => {
 });
 
 // ios背景设置
-const IOS_HOME_BG_COLOR = "rgb(65, 44, 40)";
 const IOS_ARTICLELIST_BG_COLOR = "rgb(238, 238, 238)";
 const applyIOSRootBg = (enable) => {
   if (!enable) return;
@@ -40,10 +39,7 @@ const applyIOSRootBg = (enable) => {
 
   if (!html || !body) return;
 
-  if (isHome.value) {
-    html.style.backgroundColor = IOS_HOME_BG_COLOR;
-    body.style.backgroundColor = IOS_HOME_BG_COLOR;
-  } else if (isArticleList.value) {
+  if (isArticleList.value) {
     html.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
     body.style.backgroundColor = IOS_ARTICLELIST_BG_COLOR;
   } else {
@@ -62,7 +58,6 @@ const clearIOSRootBg = () => {
 watch(
   () => route.fullPath,
   () => {
-    // 每次跳路由先清理，再按需设置
     clearIOSRootBg();
     applyIOSRootBg(isIOS && isHomeOrArticleList.value);
   },
