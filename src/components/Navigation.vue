@@ -1,6 +1,6 @@
 <script setup>
 import myLogo from "@/assets/images/icons/logo.jpg";
-import { ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
@@ -20,13 +20,19 @@ const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 // 菜单按钮
 const isMenuOpen = ref(false);
+const navEl = ref(null);
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
+}
+
+function closeMenu() {
+  isMenuOpen.value = false;
 }
 
 // 路由跳转
 const router = useRouter();
 function linkToggled(link) {
+  closeMenu();
   if (!document.startViewTransition) {
     router.push(link);
     return;
@@ -35,10 +41,32 @@ function linkToggled(link) {
     router.push(link);
   });
 }
+
+function onDocumentPointerDown(event) {
+  if (!isMenuOpen.value) return;
+  const target = event.target;
+  if (!navEl.value || !(target instanceof Node)) return;
+  if (!navEl.value.contains(target)) closeMenu();
+}
+
+function onDocumentKeyDown(event) {
+  if (!isMenuOpen.value) return;
+  if (event.key === "Escape") closeMenu();
+}
+
+onMounted(() => {
+  document.addEventListener("pointerdown", onDocumentPointerDown);
+  document.addEventListener("keydown", onDocumentKeyDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", onDocumentPointerDown);
+  document.removeEventListener("keydown", onDocumentKeyDown);
+});
 </script>
 
 <template>
-  <nav class="navigation" :class="[layoutClass, isIOS ? 'isIOS' : '']">
+  <nav ref="navEl" class="navigation" :class="[layoutClass, isIOS ? 'isIOS' : '']">
     <a @click.prevent="linkToggled('/')" href="/" class="logo-container">
       <img
         :src="myLogo"
@@ -53,16 +81,22 @@ function linkToggled(link) {
       </div>
     </a>
 
-    <ul class="navigation-links" :class="{ 'is-open': isMenuOpen }">
+    <ul id="mobile-nav-links" class="navigation-links" :class="{ 'is-open': isMenuOpen }">
       <li>
-        <a @click.prevent="linkToggled('/articles')" href="/articles" @click="isMenuOpen = false">文章</a>
+        <a @click.prevent="linkToggled('/articles')" href="/articles">文章</a>
       </li>
       <li>
-        <a @click.prevent="linkToggled('/chat')" href="/chat" @click="isMenuOpen = false">Chat</a>
+        <a @click.prevent="linkToggled('/chat')" href="/chat">Chat</a>
       </li>
     </ul>
 
-    <button class="menu-toggle" @click="toggleMenu" aria-label="Toggle navigation">
+    <button
+      class="menu-toggle"
+      @click="toggleMenu"
+      aria-label="Toggle navigation"
+      aria-controls="mobile-nav-links"
+      :aria-expanded="isMenuOpen"
+    >
       <span class="hamburger"></span>
     </button>
   </nav>
@@ -288,33 +322,44 @@ function linkToggled(link) {
 
   /* 隐藏桌面端的链接排布方式 */
   .navigation-links {
-    /* 变为一个从顶部滑下的全屏菜单 */
-    position: fixed;
+    /* 变为一个右上角的下拉菜单 */
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 10px;
     margin: 0;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100dvh;
-    background-color: transparent;
 
-    /* 默认隐藏在视口之外 */
-    clip-path: inset(0 0 100% 0);
-    transition: clip-path 0.4s ease-in-out, background-color 0.4s ease-in-out;
+    width: min(150px, calc(100vw - 30px));
+    padding: 10px;
+    border-radius: 16px;
 
-    /* 内部链接垂直排列并居中 */
+    background-color: rgba(255, 255, 255, 0.582);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+
+    transform-origin: top right;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-6px) scale(0.98);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+
+    /* 内部链接垂直排列 */
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 40px;
-    padding-top: 50px; /* 留出导航栏高度 */
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 6px;
 
-    z-index: 1000;
+    z-index: 1002;
   }
 
   /* 当菜单打开时，滑入视口 */
   .navigation-links.is-open {
-    clip-path: inset(0 0 0% 0);
-    background-color: rgba(20, 20, 20, 0.95);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
   }
 
   .navigation-links li {
@@ -324,14 +369,23 @@ function linkToggled(link) {
   /* 移动端菜单里的链接样式 */
   .navigation-links a {
     width: 100%;
-    height: 60px;
-    line-height: 60px;
+    height: 44px;
+    line-height: 44px;
 
-    border-radius: 0;
-    color: #eeeded;
-    font-size: 2rem;
+    border-radius: 12px;
+    color: #111827;
+    font-size: 16px;
     background-color: transparent;
     border-color: transparent;
+  }
+
+  .navigation-links a:hover {
+    background-color: rgba(17, 24, 39, 0.06);
+    color: #111827;
+  }
+
+  .navigation-links a:active {
+    background-color: rgba(17, 24, 39, 0.1);
   }
 }
 </style>
