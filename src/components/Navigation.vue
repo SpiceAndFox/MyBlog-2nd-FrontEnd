@@ -42,6 +42,7 @@ function linkToggled(link) {
   });
 }
 
+// 监听鼠标、键盘操作，用于关闭菜单
 function onDocumentPointerDown(event) {
   if (!isMenuOpen.value) return;
   const target = event.target;

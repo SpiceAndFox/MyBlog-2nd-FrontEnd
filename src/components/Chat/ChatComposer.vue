@@ -56,6 +56,18 @@ function onCardPointerDown(event) {
   event.preventDefault();
   textareaRef.value?.focus?.();
 }
+
+function focus() {
+  nextTick(() => {
+    const element = textareaRef.value;
+    if (!element) return;
+    element.focus();
+    const end = element.value?.length ?? 0;
+    element.setSelectionRange(end, end);
+  });
+}
+
+defineExpose({ focus });
 </script>
 
 <template>

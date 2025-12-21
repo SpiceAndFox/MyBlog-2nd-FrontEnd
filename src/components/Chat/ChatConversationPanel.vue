@@ -1,6 +1,7 @@
 <script setup>
 import ChatMessageList from "@/components/Chat/ChatMessageList.vue";
 import ChatComposer from "@/components/Chat/ChatComposer.vue";
+import { ref } from "vue";
 
 defineProps({
   sessionTitle: { type: String, default: "新对话" },
@@ -25,6 +26,13 @@ const emit = defineEmits([
   "commit-edit-message",
   "cancel-edit-message",
 ]);
+
+const composerRef = ref(null);
+function focusComposer() {
+  composerRef.value?.focus?.();
+}
+
+defineExpose({ focusComposer });
 </script>
 
 <template>
@@ -55,6 +63,7 @@ const emit = defineEmits([
     />
 
     <ChatComposer
+      ref="composerRef"
       :isSending="isSending || isEditingActive"
       :isStreaming="isStreaming"
       @send="emit('send-message', $event)"

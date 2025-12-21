@@ -1,10 +1,12 @@
 <script setup>
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
 import { DEFAULT_SESSION_TITLE } from "./chat/constants";
+import { useChatComposerSlashFocus } from "./chat/useChatComposerSlashFocus";
 import { useChatPage } from "./chat/useChatPage";
 
 const router = useRouter();
@@ -56,6 +58,14 @@ const {
   closeSettings,
   saveSettings,
 } = useChatPage({ router });
+
+const conversationPanelRef = ref(null);
+
+useChatComposerSlashFocus({
+  isSettingsOpen,
+  deleteDialog,
+  focusComposer: () => conversationPanelRef.value?.focusComposer?.(),
+});
 </script>
 
 <template>
@@ -76,6 +86,7 @@ const {
     />
 
     <ChatConversationPanel
+      ref="conversationPanelRef"
       class="chat-conversation"
       :sessionTitle="activeSession?.title || DEFAULT_SESSION_TITLE"
       :messages="activeMessages"
