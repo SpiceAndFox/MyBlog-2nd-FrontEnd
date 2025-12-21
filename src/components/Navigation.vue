@@ -15,6 +15,9 @@ defineProps({
 const blogName = "SPICE-NEST";
 const blogNameChars = blogName.split("");
 
+// 是否是在ios环境
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 // 菜单按钮
 const isMenuOpen = ref(false);
 function toggleMenu() {
@@ -35,7 +38,7 @@ function linkToggled(link) {
 </script>
 
 <template>
-  <nav class="navigation" :class="layoutClass">
+  <nav class="navigation" :class="[layoutClass, isIOS ? 'isIOS' : '']">
     <a @click.prevent="linkToggled('/')" href="/" class="logo-container">
       <img
         :src="myLogo"
@@ -87,7 +90,16 @@ function linkToggled(link) {
   z-index: 1001;
 }
 
-.navigation.layout--home {
+.navigation.layout--home.isIOS {
+  background: linear-gradient(
+    to bottom,
+    rgb(238, 238, 238) 0%,
+    rgba(238, 238, 238, 0.9) 20%,
+    rgba(238, 238, 238, 0) 50%,
+    rgba(238, 238, 238, 0) 100%
+  );
+}
+.navigation.layout--articleList.isIOS {
   background: linear-gradient(
     to bottom,
     rgb(238, 238, 238) 0%,
@@ -102,9 +114,6 @@ function linkToggled(link) {
   left: 0;
   right: 0;
   z-index: 1001;
-}
-.navigation.layout--articleList {
-  background-color: rgb(238, 238, 238, 0);
 }
 
 .logo-container {
