@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ChatMessageBubble from "@/components/Chat/ChatMessageBubble.vue";
 
 const props = defineProps({
@@ -16,16 +16,74 @@ const emit = defineEmits(["request-edit", "update-edit-draft", "commit-edit", "c
 
 const listRef = ref(null);
 
+const AUTO_SCROLL_THRESHOLD_PX = 80;
+const shouldAutoScroll = ref(true);
+let pendingScrollFrame = 0;
+
+function isNearBottom(element) {
+  const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+  return distance <= AUTO_SCROLL_THRESHOLD_PX;
+}
+
+function scrollToBottom() {
+  const element = listRef.value;
+  if (!element) return;
+  element.scrollTop = element.scrollHeight;
+  shouldAutoScroll.value = true;
+}
+
+async function scheduleScrollToBottom() {
+  if (pendingScrollFrame) return;
+  pendingScrollFrame = window.requestAnimationFrame(async () => {
+    pendingScrollFrame = 0;
+    await nextTick();
+    scrollToBottom();
+  });
+}
+
+function handleScroll() {
+  const element = listRef.value;
+  if (!element) return;
+  shouldAutoScroll.value = isNearBottom(element);
+}
+
+onMounted(() => {
+  const element = listRef.value;
+  if (!element) return;
+  element.addEventListener("scroll", handleScroll, { passive: true });
+  shouldAutoScroll.value = isNearBottom(element);
+});
+
+onBeforeUnmount(() => {
+  const element = listRef.value;
+  if (element) element.removeEventListener("scroll", handleScroll);
+  if (pendingScrollFrame) window.cancelAnimationFrame(pendingScrollFrame);
+  pendingScrollFrame = 0;
+});
+
 watch(
   () => props.messages.length,
   async () => {
+    const allowAutoScroll = shouldAutoScroll.value;
     await nextTick();
-    const element = listRef.value;
-    if (!element) return;
-    element.scrollTop = element.scrollHeight;
+    if (!allowAutoScroll) return;
+    scrollToBottom();
   },
   { immediate: true }
 );
+
+const lastMessageContent = computed(() => props.messages[props.messages.length - 1]?.content || "");
+const lastMessageId = computed(() => props.messages[props.messages.length - 1]?.id || "");
+
+watch(lastMessageContent, async () => {
+  if (!shouldAutoScroll.value) return;
+  await scheduleScrollToBottom();
+});
+
+watch(lastMessageId, async () => {
+  if (!shouldAutoScroll.value) return;
+  await scheduleScrollToBottom();
+});
 </script>
 
 <template>
@@ -36,8 +94,8 @@ watch(
 
     <transition-group v-else name="chat-message" tag="div" class="messages">
       <ChatMessageBubble
-        v-for="message in messages"
-        :key="message.id"
+        v-for="(message, index) in messages"
+        :key="message.clientId || message.id || `${message.role || 'message'}_${index}`"
         :message="message"
         :userProfile="userProfile"
         :assistantProfile="assistantProfile"

@@ -150,8 +150,10 @@ export function useChatMessaging({
         const abortController = new AbortController();
         activeStreamAbortController = abortController;
 
+        const optimisticAssistantMessageId = createId("tmp_msg");
         const optimisticAssistantMessage = reactive({
-          id: createId("tmp_msg"),
+          id: optimisticAssistantMessageId,
+          clientId: optimisticAssistantMessageId,
           role: "assistant",
           content: "",
           createdAt: new Date().toISOString(),
@@ -227,8 +229,10 @@ export function useChatMessaging({
       sessionId = await ensureActiveSession();
       await ensureMessagesLoaded(sessionId);
 
+      const optimisticUserMessageId = createId("tmp_msg");
       const optimisticUserMessage = reactive({
-        id: createId("tmp_msg"),
+        id: optimisticUserMessageId,
+        clientId: optimisticUserMessageId,
         role: "user",
         content,
         createdAt: nowIso,
@@ -253,8 +257,10 @@ export function useChatMessaging({
         const abortController = new AbortController();
         activeStreamAbortController = abortController;
 
+        const optimisticAssistantMessageId = createId("tmp_msg");
         const optimisticAssistantMessage = reactive({
-          id: createId("tmp_msg"),
+          id: optimisticAssistantMessageId,
+          clientId: optimisticAssistantMessageId,
           role: "assistant",
           content: "",
           createdAt: new Date().toISOString(),

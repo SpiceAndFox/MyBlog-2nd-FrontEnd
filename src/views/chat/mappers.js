@@ -1,5 +1,5 @@
 import { DEFAULT_SESSION_TITLE } from "./constants";
-import { isPlainObject } from "./helpers";
+import { createId, isPlainObject } from "./helpers";
 
 export function mapPreset(raw) {
   if (!raw) return null;
@@ -73,8 +73,10 @@ export function mapSession(raw) {
 
 export function mapMessage(raw) {
   if (!raw) return null;
+  const id = String(raw.id ?? "");
   return {
-    id: String(raw.id ?? ""),
+    id,
+    clientId: id || createId("msg"),
     role: raw.role,
     content: raw.content || "",
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
