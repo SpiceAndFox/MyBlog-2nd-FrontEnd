@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
+import { renderChatMarkdown } from "@/views/chat/markdown";
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -14,6 +15,7 @@ const props = defineProps({
 const emit = defineEmits(["request-edit", "cancel-edit", "commit-edit", "update:editDraft"]);
 
 const isUser = computed(() => props.message?.role === "user");
+const renderedAssistantHtml = computed(() => renderChatMarkdown(props.message?.content ?? ""));
 
 const displayName = computed(() => {
   if (isUser.value) return String(props.userProfile?.username || props.userProfile?.name || "User");
@@ -100,13 +102,7 @@ function onEditKeydown(event) {
 <template>
   <div class="row" :class="{ user: isUser, editing: isEditing }">
     <div class="avatar" :class="{ user: isUser }" aria-hidden="true">
-      <img
-        v-if="avatarUrl && !avatarFailed"
-        class="avatar-image"
-        :src="avatarUrl"
-        alt=""
-        @error="markAvatarFailed"
-      />
+      <img v-if="avatarUrl && !avatarFailed" class="avatar-image" :src="avatarUrl" alt="" @error="markAvatarFailed" />
       <span v-else>{{ avatarFallbackText }}</span>
     </div>
     <div class="bubble" :class="{ user: isUser }">
@@ -160,7 +156,10 @@ function onEditKeydown(event) {
           <span v-else>Enter 保存，Shift+Enter 换行，Esc 取消</span>
         </div>
       </div>
-      <div v-else class="content" @dblclick="requestEdit">{{ message.content }}</div>
+      <div v-else class="content" @dblclick="requestEdit">
+        <div v-if="isUser" class="plain">{{ message.content }}</div>
+        <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -287,12 +286,86 @@ function onEditKeydown(event) {
 }
 
 .content {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.55;
   color: var(--chat-text, rgba(17, 24, 39, 0.9));
   font-size: 0.98rem;
+}
+
+.plain {
+  white-space: pre-wrap;
+}
+
+.markdown {
+  white-space: normal;
+}
+
+.markdown :deep(p) {
+  margin: 0.55em 0;
+}
+
+.markdown :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.markdown :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown :deep(pre) {
+  margin: 0.65em 0;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.markdown :deep(pre code) {
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9em;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.markdown :deep(code) {
+  padding: 0.12em 0.35em;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.92em;
+}
+
+.markdown :deep(pre code),
+.markdown :deep(pre code code) {
+  border: none;
+}
+
+.markdown :deep(a) {
+  color: var(--chat-accent, #10a37f);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown :deep(ul),
+.markdown :deep(ol) {
+  margin: 0.55em 0;
+  padding-left: 1.25em;
+}
+
+.markdown :deep(blockquote) {
+  margin: 0.65em 0;
+  padding: 0.2em 0.9em;
+  border-left: 4px solid rgba(15, 23, 42, 0.18);
+  color: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 10px;
 }
 
 .edit-shell {
