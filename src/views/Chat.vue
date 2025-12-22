@@ -160,9 +160,9 @@ useChatComposerSlashFocus({
   --chat-composer-bg: rgba(255, 255, 255, 0.92);
 
   --chat-bubble-bg: rgba(255, 255, 255, 0.98);
-  --chat-bubble-user-bg: rgba(16, 163, 127, 0.1);
+  --chat-bubble-user-bg: rgba(15, 23, 42, 0.04);
   --chat-bubble-border: rgba(15, 23, 42, 0.1);
-  --chat-bubble-user-border: rgba(16, 163, 127, 0.22);
+  --chat-bubble-user-border: rgba(132, 188, 240, 0.22);
 
   --chat-avatar-bg: rgba(15, 23, 42, 0.12);
   --chat-avatar-text: rgba(15, 23, 42, 0.92);
