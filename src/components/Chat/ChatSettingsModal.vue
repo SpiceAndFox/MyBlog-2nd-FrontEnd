@@ -205,8 +205,12 @@ function applyFromCurrentSettings() {
     ? source.frequencyPenalty
     : providerDefaults.frequencyPenalty;
   draft.stream = typeof source.stream === "boolean" ? source.stream : providerDefaults.stream;
-  draft.enableWebSearch =
-    typeof source.enableWebSearch === "boolean" ? source.enableWebSearch : providerDefaults.enableWebSearch;
+  const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
+  draft.enableWebSearch = providerSupportsWebSearch
+    ? typeof source.enableWebSearch === "boolean"
+      ? source.enableWebSearch
+      : providerDefaults.enableWebSearch
+    : false;
   draft.systemPromptPresetId = source.systemPromptPresetId || providerDefaults.systemPromptPresetId || defaults.systemPromptPresetId || "";
   draft.systemPrompt = typeof source.systemPrompt === "string" ? source.systemPrompt : providerDefaults.systemPrompt || defaults.systemPrompt || "";
 }
@@ -238,6 +242,7 @@ watch(
       provider && provider.defaults && typeof provider.defaults === "object" && !Array.isArray(provider.defaults)
         ? provider.defaults
         : defaults;
+    const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
 
     if (!previousProviderId) {
       if (!models.some((m) => m.id === draft.modelId)) {
@@ -277,7 +282,12 @@ watch(
     if (typeof previousDefaults.stream === "boolean" && draft.stream === previousDefaults.stream) {
       draft.stream = providerDefaults.stream;
     }
-    if (typeof previousDefaults.enableWebSearch === "boolean" && draft.enableWebSearch === previousDefaults.enableWebSearch) {
+    if (!providerSupportsWebSearch) {
+      draft.enableWebSearch = false;
+    } else if (
+      typeof previousDefaults.enableWebSearch === "boolean" &&
+      draft.enableWebSearch === previousDefaults.enableWebSearch
+    ) {
       draft.enableWebSearch = providerDefaults.enableWebSearch;
     }
   }
