@@ -24,6 +24,7 @@ const {
   promptPresets,
   chatDefaults,
   settings,
+  isPresetLocked,
   sessions,
   activeSessionId,
   activeSession,
@@ -115,6 +116,7 @@ useChatComposerSlashFocus({
       :promptPresets="promptPresets"
       :currentSettings="settings"
       :defaultSettings="chatDefaults"
+      :presetLocked="isPresetLocked"
       :refreshPresets="() => refreshPromptPresets({ silent: false, forceSystemPrompt: true })"
       :createPreset="createPromptPreset"
       :updatePreset="updatePromptPreset"

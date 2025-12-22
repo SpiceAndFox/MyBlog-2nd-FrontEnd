@@ -8,6 +8,7 @@ const props = defineProps({
   promptPresets: { type: Array, default: () => [] },
   currentSettings: { type: Object, required: true },
   defaultSettings: { type: Object, default: () => ({}) },
+  presetLocked: { type: Boolean, default: false },
   refreshPresets: { type: Function, default: null },
   createPreset: { type: Function, default: null },
   updatePreset: { type: Function, default: null },
@@ -174,6 +175,9 @@ const presetEditor = reactive({
   saving: false,
 });
 
+const allowPresetIdEdit = false;
+const showPresetIdInput = computed(() => presetEditor.mode === "create" || allowPresetIdEdit);
+
 function resetPresetEditor() {
   presetEditor.open = false;
   presetEditor.mode = "create";
@@ -246,7 +250,7 @@ async function savePreset() {
     let savedPreset;
     if (presetEditor.mode === "create") {
       savedPreset = await props.createPreset({ id, name, systemPrompt });
-      if (savedPreset?.id) {
+      if (savedPreset?.id && !props.presetLocked) {
         draft.systemPromptPresetId = savedPreset.id;
         draft.systemPrompt = savedPreset.systemPrompt || "";
       }
@@ -255,10 +259,10 @@ async function savePreset() {
       if (!originalId) throw new Error("缺少原始预设ID");
       savedPreset = await props.updatePreset(originalId, { id, name, systemPrompt });
 
-      if (draft.systemPromptPresetId === originalId && savedPreset?.id) {
+      if (!props.presetLocked && draft.systemPromptPresetId === originalId && savedPreset?.id) {
         draft.systemPromptPresetId = savedPreset.id;
       }
-      if (draft.systemPromptPresetId === savedPreset?.id) {
+      if (!props.presetLocked && draft.systemPromptPresetId === savedPreset?.id) {
         draft.systemPrompt = savedPreset.systemPrompt || "";
       }
     }
@@ -287,7 +291,7 @@ async function removePreset(preset) {
     await props.deletePreset(String(preset.id));
     const nextPresets = await props.refreshPresets();
 
-    if (draft.systemPromptPresetId === preset.id) {
+    if (!props.presetLocked && draft.systemPromptPresetId === preset.id) {
       const fallback = nextPresets?.find?.((p) => p.id) || null;
       const defaults = readDefaults();
       draft.systemPromptPresetId = fallback?.id || defaults.systemPromptPresetId || "";
@@ -600,11 +604,12 @@ function save() {
             <div class="grid">
               <label class="field">
                 <span class="label">Preset</span>
-                <select v-model="draft.systemPromptPresetId" class="control">
+                <select v-model="draft.systemPromptPresetId" class="control" :disabled="presetLocked">
                   <option v-for="preset in promptPresets" :key="preset.id" :value="preset.id">
                     {{ preset.name }}
                   </option>
                 </select>
+                <span v-if="presetLocked" class="preset-lock-hint">当前会话已开始，不能更改预设。</span>
               </label>
 
               <label class="field full">
@@ -669,7 +674,13 @@ function save() {
               <div class="grid">
                 <label class="field">
                   <span class="label">ID</span>
-                  <input v-model="presetEditor.id" class="control" placeholder="例如: my_assistant" />
+                  <input
+                    v-if="showPresetIdInput"
+                    v-model="presetEditor.id"
+                    class="control"
+                    placeholder="例如: my_assistant"
+                  />
+                  <div v-else class="control preset-id-label">{{ presetEditor.id }}</div>
                 </label>
 
                 <label class="field">
@@ -855,6 +866,19 @@ function save() {
   outline: none;
   background: rgba(249, 250, 251, 0.9);
   color: rgba(17, 24, 39, 0.92);
+}
+
+.preset-id-label {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  background: rgba(249, 250, 251, 0.6);
+  color: rgba(17, 24, 39, 0.7);
+}
+
+.preset-lock-hint {
+  font-size: 0.78rem;
+  color: rgba(17, 24, 39, 0.6);
 }
 
 .control:focus {

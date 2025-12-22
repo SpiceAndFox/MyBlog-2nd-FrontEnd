@@ -113,6 +113,8 @@ export function useChatPage({ router }) {
     avatarUrl: assistantPreset.value?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL,
   }));
 
+  const isPresetLocked = computed(() => Boolean(chatSessions.activeSessionId.value));
+
   function syncSettingsToSessionPreset(session, presets) {
     if (!session) return;
     const rawPresetId = session?.presetId || session?.preset_id || session?.settings?.systemPromptPresetId;
@@ -224,6 +226,7 @@ export function useChatPage({ router }) {
     promptPresets: chatSettings.promptPresets,
     chatDefaults: chatSettings.chatDefaults,
     settings: chatSettings.settings,
+    isPresetLocked,
 
     sessions: chatSessions.sessions,
     activeSessionId: chatSessions.activeSessionId,

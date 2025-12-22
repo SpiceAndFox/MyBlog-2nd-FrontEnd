@@ -13,6 +13,7 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
   const sessions = ref([]);
   const messagesBySessionId = reactive({});
   const activeSessionId = ref("");
+  const isDraftSession = ref(false);
 
   const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value) || null);
   const activeMessages = computed(() => messagesBySessionId[activeSessionId.value] || []);
@@ -46,6 +47,7 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     if (closeSidebar) closeMobileSidebar?.();
     resetEditingState?.();
     if (!normalizedId) return;
+    isDraftSession.value = false;
     await ensureMessagesLoaded(normalizedId);
   }
 
@@ -57,9 +59,13 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
       if (!sessionIds.has(key)) delete messagesBySessionId[key];
     }
 
-    const preferredSessionId = preserveActive ? activeSessionId.value : "";
-    const nextSessionId =
-      sessions.value.find((session) => session.id === preferredSessionId)?.id || sessions.value[0]?.id || "";
+    const shouldStayDraft = preserveActive && isDraftSession.value;
+    const preferredSessionId = preserveActive && !shouldStayDraft ? activeSessionId.value : "";
+    const nextSessionId = shouldStayDraft
+      ? ""
+      : preferredSessionId
+      ? sessions.value.find((session) => session.id === preferredSessionId)?.id || sessions.value[0]?.id || ""
+      : sessions.value[0]?.id || "";
     await activateSession(nextSessionId, { closeSidebar: false });
   }
 
@@ -90,13 +96,11 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     return session;
   }
 
-  async function createNewSession() {
-    try {
-      const session = await createSession();
-      await activateSession(session.id);
-    } catch (error) {
-      handleApiError(error);
-    }
+  function createNewSession() {
+    isDraftSession.value = true;
+    activeSessionId.value = "";
+    resetEditingState?.();
+    closeMobileSidebar?.();
   }
 
   async function renameSession({ sessionId, title }) {
