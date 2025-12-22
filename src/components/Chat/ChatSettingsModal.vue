@@ -181,8 +181,13 @@ function applyFromCurrentSettings() {
   const desiredProviderId = String(source.providerId || "").trim();
   const provider = props.providers.find((p) => p.id === desiredProviderId) || defaultProvider;
   const providerId = provider?.id || "";
+  const providerDefaults =
+    provider && provider.defaults && typeof provider.defaults === "object" && !Array.isArray(provider.defaults)
+      ? provider.defaults
+      : defaults;
+
   const defaultModelId = provider?.models?.[0]?.id || "";
-  const fallbackDefaultModelId = String(defaults.modelId || "").trim();
+  const fallbackDefaultModelId = String(providerDefaults.modelId || defaults.modelId || "").trim();
   const desiredModelId = source.modelId || "";
   const modelId = provider?.models?.some((m) => m.id === desiredModelId)
     ? desiredModelId
@@ -192,18 +197,18 @@ function applyFromCurrentSettings() {
 
   draft.providerId = providerId;
   draft.modelId = modelId;
-  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : defaults.temperature;
-  draft.topP = Number.isFinite(source.topP) ? source.topP : defaults.topP;
-  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens) ? source.maxOutputTokens : defaults.maxOutputTokens;
-  draft.presencePenalty = Number.isFinite(source.presencePenalty) ? source.presencePenalty : defaults.presencePenalty;
+  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : providerDefaults.temperature;
+  draft.topP = Number.isFinite(source.topP) ? source.topP : providerDefaults.topP;
+  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens) ? source.maxOutputTokens : providerDefaults.maxOutputTokens;
+  draft.presencePenalty = Number.isFinite(source.presencePenalty) ? source.presencePenalty : providerDefaults.presencePenalty;
   draft.frequencyPenalty = Number.isFinite(source.frequencyPenalty)
     ? source.frequencyPenalty
-    : defaults.frequencyPenalty;
-  draft.stream = typeof source.stream === "boolean" ? source.stream : defaults.stream;
+    : providerDefaults.frequencyPenalty;
+  draft.stream = typeof source.stream === "boolean" ? source.stream : providerDefaults.stream;
   draft.enableWebSearch =
-    typeof source.enableWebSearch === "boolean" ? source.enableWebSearch : defaults.enableWebSearch;
-  draft.systemPromptPresetId = source.systemPromptPresetId || defaults.systemPromptPresetId || "";
-  draft.systemPrompt = typeof source.systemPrompt === "string" ? source.systemPrompt : defaults.systemPrompt || "";
+    typeof source.enableWebSearch === "boolean" ? source.enableWebSearch : providerDefaults.enableWebSearch;
+  draft.systemPromptPresetId = source.systemPromptPresetId || providerDefaults.systemPromptPresetId || defaults.systemPromptPresetId || "";
+  draft.systemPrompt = typeof source.systemPrompt === "string" ? source.systemPrompt : providerDefaults.systemPrompt || defaults.systemPrompt || "";
 }
 
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
@@ -223,10 +228,57 @@ watch(
 
 watch(
   () => draft.providerId,
-  () => {
+  (providerId, previousProviderId) => {
     const models = modelsForSelectedProvider.value;
+    if (!providerId || !models.length) return;
+
+    const defaults = readDefaults();
+    const provider = props.providers.find((p) => p.id === providerId) || null;
+    const providerDefaults =
+      provider && provider.defaults && typeof provider.defaults === "object" && !Array.isArray(provider.defaults)
+        ? provider.defaults
+        : defaults;
+
+    if (!previousProviderId) {
+      if (!models.some((m) => m.id === draft.modelId)) {
+        const desiredModelId = String(providerDefaults.modelId || "").trim();
+        draft.modelId = models.some((m) => m.id === desiredModelId) ? desiredModelId : models[0]?.id || "";
+      }
+      return;
+    }
+
     if (!models.some((m) => m.id === draft.modelId)) {
-      draft.modelId = models[0]?.id || "";
+      const desiredModelId = String(providerDefaults.modelId || "").trim();
+      draft.modelId = models.some((m) => m.id === desiredModelId) ? desiredModelId : models[0]?.id || "";
+    }
+
+    const previousProvider = props.providers.find((p) => p.id === previousProviderId) || null;
+    const previousDefaults =
+      previousProvider && previousProvider.defaults && typeof previousProvider.defaults === "object" && !Array.isArray(previousProvider.defaults)
+        ? previousProvider.defaults
+        : defaults;
+
+    if (Number.isFinite(previousDefaults.temperature) && draft.temperature === previousDefaults.temperature) {
+      draft.temperature = providerDefaults.temperature;
+    }
+    if (Number.isFinite(previousDefaults.topP) && draft.topP === previousDefaults.topP) {
+      draft.topP = providerDefaults.topP;
+    }
+    if (Number.isFinite(previousDefaults.maxOutputTokens) && draft.maxOutputTokens === previousDefaults.maxOutputTokens) {
+      draft.maxOutputTokens = providerDefaults.maxOutputTokens;
+    }
+    if (Number.isFinite(previousDefaults.presencePenalty) && draft.presencePenalty === previousDefaults.presencePenalty) {
+      draft.presencePenalty = providerDefaults.presencePenalty;
+    }
+    if (Number.isFinite(previousDefaults.frequencyPenalty) && draft.frequencyPenalty === previousDefaults.frequencyPenalty) {
+      draft.frequencyPenalty = providerDefaults.frequencyPenalty;
+    }
+
+    if (typeof previousDefaults.stream === "boolean" && draft.stream === previousDefaults.stream) {
+      draft.stream = providerDefaults.stream;
+    }
+    if (typeof previousDefaults.enableWebSearch === "boolean" && draft.enableWebSearch === previousDefaults.enableWebSearch) {
+      draft.enableWebSearch = providerDefaults.enableWebSearch;
     }
   }
 );
