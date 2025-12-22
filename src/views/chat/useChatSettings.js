@@ -23,14 +23,96 @@ export function useChatSettings({ handleApiError }) {
     persistSettings(settings.value);
   }
 
+  function splitPath(path) {
+    return String(path || "")
+      .split(".")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  function getValueByPath(target, path) {
+    const parts = splitPath(path);
+    if (!parts.length) return undefined;
+    let current = target;
+    for (const part of parts) {
+      if (!isPlainObject(current) && typeof current !== "object") return undefined;
+      current = current?.[part];
+      if (current === undefined) return undefined;
+    }
+    return current;
+  }
+
+  function setValueByPath(target, path, value) {
+    const parts = splitPath(path);
+    if (!parts.length) return;
+    let current = target;
+    for (let index = 0; index < parts.length - 1; index += 1) {
+      const part = parts[index];
+      if (!isPlainObject(current[part])) current[part] = {};
+      current = current[part];
+    }
+    current[parts[parts.length - 1]] = value;
+  }
+
+  function clampNumber(value, { min, max } = {}) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return undefined;
+    const normalizedMin = Number(min);
+    const normalizedMax = Number(max);
+    if (!Number.isFinite(normalizedMin) || !Number.isFinite(normalizedMax)) return number;
+    return Math.min(normalizedMax, Math.max(normalizedMin, number));
+  }
+
+  function coerceControlValue(control, rawValue) {
+    if (!control) return undefined;
+    const type = String(control.type || "").trim();
+
+    if (type === "toggle") {
+      if (typeof rawValue === "boolean") return rawValue;
+      return undefined;
+    }
+
+    if (type === "range" || type === "number") {
+      return clampNumber(rawValue, control);
+    }
+
+    if (type === "select") {
+      const options = Array.isArray(control.options) ? control.options : [];
+      const allowed = new Set(options.map((option) => String(option?.value ?? "")));
+      const normalized = rawValue === undefined || rawValue === null ? "" : String(rawValue);
+      if (normalized && allowed.has(normalized)) return normalized;
+
+      const fallbackDefault = control.default === undefined || control.default === null ? "" : String(control.default);
+      if (fallbackDefault && allowed.has(fallbackDefault)) return fallbackDefault;
+
+      const first = options[0]?.value;
+      return first === undefined || first === null ? "" : String(first);
+    }
+
+    return undefined;
+  }
+
+  function isControlSupportedByProvider(control, provider) {
+    if (!control) return false;
+    const capability = String(control.capability || "").trim();
+    if (capability && provider?.capabilities?.[capability] === false) return false;
+    return true;
+  }
+
+  function isControlAllowedForModel(control, modelId) {
+    const blocklist = Array.isArray(control.modelBlocklist) ? control.modelBlocklist : [];
+    if (blocklist.length && blocklist.includes(String(modelId || ""))) return false;
+    return true;
+  }
+
   function normalizeSettings({ forceSystemPrompt = false } = {}) {
     const base = isPlainObject(settings.value) ? settings.value : {};
     const defaults = isPlainObject(chatDefaults.value) ? chatDefaults.value : {};
 
-    const normalized = { ...defaults, ...base };
+    const merged = { ...defaults, ...base };
 
     const providerList = Array.isArray(providers.value) ? providers.value : [];
-    const desiredProviderId = String(normalized.providerId || "").trim();
+    const desiredProviderId = String(merged.providerId || "").trim();
     const defaultProviderId = String(defaults.providerId || "").trim();
 
     const provider =
@@ -39,41 +121,65 @@ export function useChatSettings({ handleApiError }) {
       providerList[0] ||
       null;
 
-    if (provider?.id) normalized.providerId = provider.id;
+    const providerId = provider?.id ? provider.id : defaultProviderId;
+    const providerDefaults = isPlainObject(provider?.defaults) ? provider.defaults : defaults;
 
     const models = provider?.models || [];
-    const desiredModelId = String(normalized.modelId || "").trim();
-    const defaultModelId = String(defaults.modelId || "").trim();
+    const desiredModelId = String(merged.modelId || "").trim();
+    const fallbackModelId = String(providerDefaults.modelId || defaults.modelId || "").trim();
 
     const model =
       models.find((m) => m.id === desiredModelId) ||
-      (provider?.id && provider.id === defaultProviderId ? models.find((m) => m.id === defaultModelId) : null) ||
+      models.find((m) => m.id === fallbackModelId) ||
       models[0] ||
       null;
 
-    if (model?.id) normalized.modelId = model.id;
+    const modelId = model?.id ? model.id : "";
 
-    const temperature = Number(normalized.temperature);
-    normalized.temperature = Number.isFinite(temperature) ? temperature : defaults.temperature;
+    const normalized = {
+      providerId: providerId || "",
+      modelId,
+    };
 
-    const topP = Number(normalized.topP);
-    normalized.topP = Number.isFinite(topP) ? topP : defaults.topP;
+    const schema = Array.isArray(provider?.settingsSchema) ? provider.settingsSchema : [];
+    for (const control of schema) {
+      if (!control?.key) continue;
+      if (!isControlSupportedByProvider(control, provider)) continue;
+      const isAllowedForModel = isControlAllowedForModel(control, modelId);
 
-    const maxOutputTokens = Number(normalized.maxOutputTokens);
-    normalized.maxOutputTokens = Number.isFinite(maxOutputTokens) ? maxOutputTokens : defaults.maxOutputTokens;
+      let nextValue = coerceControlValue(control, getValueByPath(base, control.key));
+      if (nextValue === undefined && isAllowedForModel)
+        nextValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
+      if (nextValue === undefined && isAllowedForModel)
+        nextValue = coerceControlValue(control, getValueByPath(defaults, control.key));
+      if (nextValue === undefined && isAllowedForModel && control.default !== undefined)
+        nextValue = coerceControlValue(control, control.default);
 
-    const presencePenalty = Number(normalized.presencePenalty);
-    normalized.presencePenalty = Number.isFinite(presencePenalty) ? presencePenalty : defaults.presencePenalty;
+      if (nextValue !== undefined) setValueByPath(normalized, control.key, nextValue);
+    }
 
-    const frequencyPenalty = Number(normalized.frequencyPenalty);
-    normalized.frequencyPenalty = Number.isFinite(frequencyPenalty) ? frequencyPenalty : defaults.frequencyPenalty;
+    const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
+    if (!providerSupportsWebSearch) {
+      normalized.enableWebSearch = false;
+    } else if (typeof base.enableWebSearch === "boolean") {
+      normalized.enableWebSearch = base.enableWebSearch;
+    } else if (typeof providerDefaults.enableWebSearch === "boolean") {
+      normalized.enableWebSearch = providerDefaults.enableWebSearch;
+    } else if (typeof defaults.enableWebSearch === "boolean") {
+      normalized.enableWebSearch = defaults.enableWebSearch;
+    }
 
-    normalized.stream = typeof normalized.stream === "boolean" ? normalized.stream : defaults.stream;
-    normalized.enableWebSearch =
-      typeof normalized.enableWebSearch === "boolean" ? normalized.enableWebSearch : defaults.enableWebSearch;
+    normalized.stream =
+      typeof normalized.stream === "boolean"
+        ? normalized.stream
+        : typeof base.stream === "boolean"
+        ? base.stream
+        : typeof providerDefaults.stream === "boolean"
+        ? providerDefaults.stream
+        : defaults.stream;
 
     const presetList = Array.isArray(promptPresets.value) ? promptPresets.value : [];
-    const desiredPresetId = String(normalized.systemPromptPresetId || "").trim();
+    const desiredPresetId = String(merged.systemPromptPresetId || "").trim();
     const defaultPresetId = String(defaults.systemPromptPresetId || "").trim();
 
     const preset =
@@ -88,8 +194,10 @@ export function useChatSettings({ handleApiError }) {
     const hasBaseSystemPrompt =
       Object.prototype.hasOwnProperty.call(base, "systemPrompt") && typeof base.systemPrompt === "string";
 
-    if (forceSystemPrompt || !hasBaseSystemPrompt || typeof normalized.systemPrompt !== "string") {
+    if (forceSystemPrompt || !hasBaseSystemPrompt || typeof merged.systemPrompt !== "string") {
       normalized.systemPrompt = preset?.systemPrompt || "";
+    } else {
+      normalized.systemPrompt = merged.systemPrompt;
     }
 
     settings.value = normalized;

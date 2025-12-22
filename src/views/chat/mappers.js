@@ -107,14 +107,6 @@ export function mapMetaDefaults(rawDefaults) {
   if (typeof defaults.stream === "boolean") mapped.stream = defaults.stream;
   if (typeof defaults.enableWebSearch === "boolean") mapped.enableWebSearch = defaults.enableWebSearch;
 
-  const thinking = defaults.thinking;
-  if (isPlainObject(thinking)) {
-    const type = String(thinking.type ?? "").trim();
-    if (type === "enabled" || type === "disabled") {
-      mapped.thinking = { type };
-    }
-  }
-
   return mapped;
 }
 
