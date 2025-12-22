@@ -209,6 +209,10 @@ function applyFromCurrentSettings() {
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
 const modelsForSelectedProvider = computed(() => selectedProvider.value?.models || []);
 
+const supportsPresencePenalty = computed(() => selectedProvider.value?.capabilities?.presencePenalty !== false);
+const supportsFrequencyPenalty = computed(() => selectedProvider.value?.capabilities?.frequencyPenalty !== false);
+const supportsWebSearch = computed(() => selectedProvider.value?.capabilities?.webSearch !== false);
+
 watch(
   () => props.open,
   (open) => {
@@ -341,14 +345,30 @@ function save() {
                 <span class="label"
                   >Presence Penalty <span class="value">{{ draft.presencePenalty.toFixed(1) }}</span></span
                 >
-                <input v-model.number="draft.presencePenalty" class="range" type="range" min="-2" max="2" step="0.1" />
+                <input
+                  v-model.number="draft.presencePenalty"
+                  class="range"
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.1"
+                  :disabled="!supportsPresencePenalty"
+                />
               </label>
 
               <label class="field">
                 <span class="label"
                   >Frequency Penalty <span class="value">{{ draft.frequencyPenalty.toFixed(1) }}</span></span
                 >
-                <input v-model.number="draft.frequencyPenalty" class="range" type="range" min="-2" max="2" step="0.1" />
+                <input
+                  v-model.number="draft.frequencyPenalty"
+                  class="range"
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.1"
+                  :disabled="!supportsFrequencyPenalty"
+                />
               </label>
 
               <div class="field toggles">
@@ -357,7 +377,7 @@ function save() {
                   <span>Streaming</span>
                 </label>
                 <label class="toggle">
-                  <input v-model="draft.enableWebSearch" type="checkbox" />
+                  <input v-model="draft.enableWebSearch" type="checkbox" :disabled="!supportsWebSearch" />
                   <span>Web Search（部分提供方）</span>
                 </label>
               </div>

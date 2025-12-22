@@ -27,7 +27,10 @@ export function mapProvider(raw) {
   const name = String(raw.name ?? id).trim() || id;
   const models = (Array.isArray(raw.models) ? raw.models : []).map(mapModel).filter(Boolean);
   if (!models.length) return null;
-  return { id, name, models };
+  const capabilities = isPlainObject(raw.capabilities) ? raw.capabilities : {};
+  const defaults = isPlainObject(raw.defaults) ? raw.defaults : {};
+  const adapter = typeof raw.adapter === "string" ? raw.adapter : "";
+  return { id, name, models, capabilities, defaults, adapter };
 }
 
 export function mapMetaDefaults(rawDefaults) {
