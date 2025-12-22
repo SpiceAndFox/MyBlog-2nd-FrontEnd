@@ -20,6 +20,50 @@ function mapModel(raw) {
   return { id, name };
 }
 
+function mapSettingOption(raw) {
+  if (!raw) return null;
+  const value = String(raw.value ?? "").trim();
+  if (!value) return null;
+  const label = String(raw.label ?? value).trim() || value;
+  return { value, label };
+}
+
+function mapSettingsSchemaControl(raw) {
+  if (!isPlainObject(raw)) return null;
+  const key = String(raw.key ?? "").trim();
+  if (!key) return null;
+  const label = String(raw.label ?? key).trim() || key;
+  const type = String(raw.type ?? "").trim();
+  if (!type) return null;
+
+  const capability = typeof raw.capability === "string" ? raw.capability.trim() : "";
+  const min = Number(raw.min);
+  const max = Number(raw.max);
+  const step = Number(raw.step);
+  const decimals = Number(raw.decimals);
+
+  const modelBlocklist = (Array.isArray(raw.modelBlocklist) ? raw.modelBlocklist : [])
+    .map((entry) => String(entry ?? "").trim())
+    .filter(Boolean);
+
+  const options = (Array.isArray(raw.options) ? raw.options : []).map(mapSettingOption).filter(Boolean);
+  const defaultValue = raw.default;
+
+  return {
+    key,
+    label,
+    type,
+    capability,
+    min: Number.isFinite(min) ? min : undefined,
+    max: Number.isFinite(max) ? max : undefined,
+    step: Number.isFinite(step) ? step : undefined,
+    decimals: Number.isFinite(decimals) ? decimals : undefined,
+    modelBlocklist,
+    options,
+    default: defaultValue,
+  };
+}
+
 export function mapProvider(raw) {
   if (!raw) return null;
   const id = String(raw.id ?? "").trim();
@@ -30,7 +74,10 @@ export function mapProvider(raw) {
   const capabilities = isPlainObject(raw.capabilities) ? raw.capabilities : {};
   const defaults = isPlainObject(raw.defaults) ? raw.defaults : {};
   const adapter = typeof raw.adapter === "string" ? raw.adapter : "";
-  return { id, name, models, capabilities, defaults, adapter };
+  const settingsSchema = (Array.isArray(raw.settingsSchema) ? raw.settingsSchema : [])
+    .map(mapSettingsSchemaControl)
+    .filter(Boolean);
+  return { id, name, models, capabilities, defaults, adapter, settingsSchema };
 }
 
 export function mapMetaDefaults(rawDefaults) {
@@ -59,6 +106,14 @@ export function mapMetaDefaults(rawDefaults) {
 
   if (typeof defaults.stream === "boolean") mapped.stream = defaults.stream;
   if (typeof defaults.enableWebSearch === "boolean") mapped.enableWebSearch = defaults.enableWebSearch;
+
+  const thinking = defaults.thinking;
+  if (isPlainObject(thinking)) {
+    const type = String(thinking.type ?? "").trim();
+    if (type === "enabled" || type === "disabled") {
+      mapped.thinking = { type };
+    }
+  }
 
   return mapped;
 }

@@ -25,6 +25,131 @@ function readDefaults() {
   return value;
 }
 
+function isPlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function splitPath(path) {
+  return String(path || "")
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function getValueByPath(target, path) {
+  const parts = splitPath(path);
+  if (!parts.length) return undefined;
+  let current = target;
+  for (const part of parts) {
+    if (!isPlainObject(current) && typeof current !== "object") return undefined;
+    current = current?.[part];
+    if (current === undefined) return undefined;
+  }
+  return current;
+}
+
+function setValueByPath(target, path, value) {
+  const parts = splitPath(path);
+  if (!parts.length) return;
+  let current = target;
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const part = parts[index];
+    if (!isPlainObject(current[part])) current[part] = {};
+    current = current[part];
+  }
+  current[parts[parts.length - 1]] = value;
+}
+
+function getProviderDefaults(provider, defaults) {
+  const base = isPlainObject(defaults) ? defaults : {};
+  if (isPlainObject(provider?.defaults)) return provider.defaults;
+  return base;
+}
+
+function getProviderSettingsSchema(provider) {
+  return Array.isArray(provider?.settingsSchema) ? provider.settingsSchema : [];
+}
+
+function coerceControlValue(control, rawValue) {
+  if (!control) return undefined;
+  const type = String(control.type || "").trim();
+
+  if (type === "toggle") {
+    if (typeof rawValue === "boolean") return rawValue;
+    return undefined;
+  }
+
+  if (type === "range" || type === "number") {
+    const number = Number(rawValue);
+    return Number.isFinite(number) ? number : undefined;
+  }
+
+  if (type === "select") {
+    const options = Array.isArray(control.options) ? control.options : [];
+    const allowed = new Set(options.map((option) => String(option?.value ?? "")));
+    const normalized = rawValue === undefined || rawValue === null ? "" : String(rawValue);
+    if (normalized && allowed.has(normalized)) return normalized;
+
+    const fallbackDefault = control.default === undefined || control.default === null ? "" : String(control.default);
+    if (fallbackDefault && allowed.has(fallbackDefault)) return fallbackDefault;
+
+    const first = options[0]?.value;
+    return first === undefined || first === null ? "" : String(first);
+  }
+
+  return undefined;
+}
+
+function isControlVisible(control, provider, modelId) {
+  if (!control) return false;
+  const capability = String(control.capability || "").trim();
+  if (capability && provider?.capabilities?.[capability] === false) return false;
+
+  const blocklist = Array.isArray(control.modelBlocklist) ? control.modelBlocklist : [];
+  if (blocklist.length && blocklist.includes(String(modelId || ""))) return false;
+
+  return true;
+}
+
+function getDraftValue(path) {
+  return getValueByPath(draft, path);
+}
+
+function setDraftValue(path, value) {
+  setValueByPath(draft, path, value);
+}
+
+function formatControlValue(control, rawValue) {
+  const decimals = Number(control?.decimals);
+  const number = Number(rawValue);
+  if (!Number.isFinite(number)) return "";
+  if (Number.isFinite(decimals)) return number.toFixed(decimals);
+  return String(number);
+}
+
+function onRangeInput(control, event) {
+  const raw = event?.target?.value;
+  const number = Number(raw);
+  if (!Number.isFinite(number)) return;
+  setDraftValue(control.key, number);
+}
+
+function onNumberInput(control, event) {
+  const raw = event?.target?.value;
+  if (raw === "" || raw === undefined || raw === null) return;
+  const number = Number(raw);
+  if (!Number.isFinite(number)) return;
+  setDraftValue(control.key, number);
+}
+
+function onToggleChange(control, event) {
+  setDraftValue(control.key, Boolean(event?.target?.checked));
+}
+
+function onSelectChange(control, event) {
+  setDraftValue(control.key, String(event?.target?.value ?? ""));
+}
+
 function isValidPresetId(value) {
   return /^[a-zA-Z0-9_-]{1,64}$/.test(String(value || "").trim());
 }
@@ -197,20 +322,35 @@ function applyFromCurrentSettings() {
 
   draft.providerId = providerId;
   draft.modelId = modelId;
-  draft.temperature = Number.isFinite(source.temperature) ? source.temperature : providerDefaults.temperature;
-  draft.topP = Number.isFinite(source.topP) ? source.topP : providerDefaults.topP;
-  draft.maxOutputTokens = Number.isFinite(source.maxOutputTokens) ? source.maxOutputTokens : providerDefaults.maxOutputTokens;
-  draft.presencePenalty = Number.isFinite(source.presencePenalty) ? source.presencePenalty : providerDefaults.presencePenalty;
-  draft.frequencyPenalty = Number.isFinite(source.frequencyPenalty)
-    ? source.frequencyPenalty
-    : providerDefaults.frequencyPenalty;
-  draft.stream = typeof source.stream === "boolean" ? source.stream : providerDefaults.stream;
+
   const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
-  draft.enableWebSearch = providerSupportsWebSearch
-    ? typeof source.enableWebSearch === "boolean"
-      ? source.enableWebSearch
-      : providerDefaults.enableWebSearch
-    : false;
+
+  const controls = getProviderSettingsSchema(provider);
+  for (const control of controls) {
+    if (!control?.key) continue;
+
+    let nextValue = coerceControlValue(control, getValueByPath(source, control.key));
+    if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
+    if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(defaults, control.key));
+    if (nextValue === undefined && control.default !== undefined) nextValue = coerceControlValue(control, control.default);
+
+    if (control.key === "enableWebSearch" && !providerSupportsWebSearch) {
+      nextValue = false;
+    }
+
+    if (nextValue !== undefined) setDraftValue(control.key, nextValue);
+  }
+
+  if (!providerSupportsWebSearch) {
+    draft.enableWebSearch = false;
+  } else if (typeof source.enableWebSearch === "boolean") {
+    draft.enableWebSearch = source.enableWebSearch;
+  } else if (typeof providerDefaults.enableWebSearch === "boolean") {
+    draft.enableWebSearch = providerDefaults.enableWebSearch;
+  } else if (typeof defaults.enableWebSearch === "boolean") {
+    draft.enableWebSearch = defaults.enableWebSearch;
+  }
+
   draft.systemPromptPresetId = source.systemPromptPresetId || providerDefaults.systemPromptPresetId || defaults.systemPromptPresetId || "";
   draft.systemPrompt = typeof source.systemPrompt === "string" ? source.systemPrompt : providerDefaults.systemPrompt || defaults.systemPrompt || "";
 }
@@ -218,9 +358,15 @@ function applyFromCurrentSettings() {
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
 const modelsForSelectedProvider = computed(() => selectedProvider.value?.models || []);
 
-const supportsPresencePenalty = computed(() => selectedProvider.value?.capabilities?.presencePenalty !== false);
-const supportsFrequencyPenalty = computed(() => selectedProvider.value?.capabilities?.frequencyPenalty !== false);
-const supportsWebSearch = computed(() => selectedProvider.value?.capabilities?.webSearch !== false);
+const visibleSettingsSchema = computed(() => {
+  const provider = selectedProvider.value;
+  const schema = getProviderSettingsSchema(provider);
+  const modelId = draft.modelId;
+  return schema.filter((control) => isControlVisible(control, provider, modelId));
+});
+
+const fieldControls = computed(() => visibleSettingsSchema.value.filter((control) => control.type !== "toggle"));
+const toggleControls = computed(() => visibleSettingsSchema.value.filter((control) => control.type === "toggle"));
 
 watch(
   () => props.open,
@@ -263,25 +409,6 @@ watch(
         ? previousProvider.defaults
         : defaults;
 
-    if (Number.isFinite(previousDefaults.temperature) && draft.temperature === previousDefaults.temperature) {
-      draft.temperature = providerDefaults.temperature;
-    }
-    if (Number.isFinite(previousDefaults.topP) && draft.topP === previousDefaults.topP) {
-      draft.topP = providerDefaults.topP;
-    }
-    if (Number.isFinite(previousDefaults.maxOutputTokens) && draft.maxOutputTokens === previousDefaults.maxOutputTokens) {
-      draft.maxOutputTokens = providerDefaults.maxOutputTokens;
-    }
-    if (Number.isFinite(previousDefaults.presencePenalty) && draft.presencePenalty === previousDefaults.presencePenalty) {
-      draft.presencePenalty = providerDefaults.presencePenalty;
-    }
-    if (Number.isFinite(previousDefaults.frequencyPenalty) && draft.frequencyPenalty === previousDefaults.frequencyPenalty) {
-      draft.frequencyPenalty = providerDefaults.frequencyPenalty;
-    }
-
-    if (typeof previousDefaults.stream === "boolean" && draft.stream === previousDefaults.stream) {
-      draft.stream = providerDefaults.stream;
-    }
     if (!providerSupportsWebSearch) {
       draft.enableWebSearch = false;
     } else if (
@@ -289,6 +416,40 @@ watch(
       draft.enableWebSearch === previousDefaults.enableWebSearch
     ) {
       draft.enableWebSearch = providerDefaults.enableWebSearch;
+    }
+
+    const controls = getProviderSettingsSchema(provider);
+    for (const control of controls) {
+      if (!control?.key) continue;
+      if (control.type === "toggle" && control.key === "enableWebSearch") continue;
+
+      const previousDefaultValue = coerceControlValue(control, getValueByPath(previousDefaults, control.key));
+      const currentValue = coerceControlValue(control, getDraftValue(control.key));
+
+      if (currentValue === undefined) {
+        let nextDefaultValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
+        if (nextDefaultValue === undefined) nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
+        if (nextDefaultValue === undefined && control.default !== undefined) nextDefaultValue = coerceControlValue(control, control.default);
+        if (nextDefaultValue !== undefined) setDraftValue(control.key, nextDefaultValue);
+        continue;
+      }
+
+      if (previousDefaultValue !== undefined && currentValue === previousDefaultValue) {
+        let nextDefaultValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
+        if (nextDefaultValue === undefined) nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
+        if (nextDefaultValue === undefined && control.default !== undefined) nextDefaultValue = coerceControlValue(control, control.default);
+        if (nextDefaultValue !== undefined) setDraftValue(control.key, nextDefaultValue);
+        continue;
+      }
+
+      if (control.type === "select") {
+        const normalized = String(getDraftValue(control.key) ?? "");
+        const options = Array.isArray(control.options) ? control.options : [];
+        const allowed = new Set(options.map((option) => String(option?.value ?? "")));
+        if (normalized && !allowed.has(normalized)) {
+          setDraftValue(control.key, coerceControlValue(control, normalized));
+        }
+      }
     }
   }
 );
@@ -377,70 +538,58 @@ function save() {
           <section class="section">
             <h4 class="section-title">生成参数</h4>
             <div class="grid">
-              <label class="field">
-                <span class="label"
-                  >Temperature <span class="value">{{ draft.temperature.toFixed(1) }}</span></span
-                >
-                <input v-model.number="draft.temperature" class="range" type="range" min="0" max="2" step="0.1" />
-              </label>
-
-              <label class="field">
-                <span class="label"
-                  >Top P <span class="value">{{ draft.topP.toFixed(2) }}</span></span
-                >
-                <input v-model.number="draft.topP" class="range" type="range" min="0" max="1" step="0.05" />
-              </label>
-
-              <label class="field">
-                <span class="label">Max Output Tokens</span>
-                <input
-                  v-model.number="draft.maxOutputTokens"
-                  class="control"
-                  type="number"
-                  min="128"
-                  max="8192"
-                  step="64"
-                />
-              </label>
-
-              <label class="field">
-                <span class="label"
-                  >Presence Penalty <span class="value">{{ draft.presencePenalty.toFixed(1) }}</span></span
-                >
-                <input
-                  v-model.number="draft.presencePenalty"
-                  class="range"
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  :disabled="!supportsPresencePenalty"
-                />
-              </label>
-
-              <label class="field">
-                <span class="label"
-                  >Frequency Penalty <span class="value">{{ draft.frequencyPenalty.toFixed(1) }}</span></span
-                >
-                <input
-                  v-model.number="draft.frequencyPenalty"
-                  class="range"
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  :disabled="!supportsFrequencyPenalty"
-                />
-              </label>
-
-              <div class="field toggles">
-                <label class="toggle">
-                  <input v-model="draft.stream" type="checkbox" />
-                  <span>Streaming</span>
+              <template v-for="control in fieldControls" :key="control.key">
+                <label v-if="control.type === 'range'" class="field">
+                  <span class="label"
+                    >{{ control.label }}
+                    <span class="value">{{ formatControlValue(control, getDraftValue(control.key)) }}</span></span
+                  >
+                  <input
+                    class="range"
+                    type="range"
+                    :min="control.min"
+                    :max="control.max"
+                    :step="control.step"
+                    :value="Number(getDraftValue(control.key) ?? 0)"
+                    @input="onRangeInput(control, $event)"
+                  />
                 </label>
-                <label class="toggle">
-                  <input v-model="draft.enableWebSearch" type="checkbox" :disabled="!supportsWebSearch" />
-                  <span>Web Search（部分提供方）</span>
+
+                <label v-else-if="control.type === 'number'" class="field">
+                  <span class="label">{{ control.label }}</span>
+                  <input
+                    class="control"
+                    type="number"
+                    :min="control.min"
+                    :max="control.max"
+                    :step="control.step"
+                    :value="Number(getDraftValue(control.key) ?? 0)"
+                    @input="onNumberInput(control, $event)"
+                  />
+                </label>
+
+                <label v-else-if="control.type === 'select'" class="field">
+                  <span class="label">{{ control.label }}</span>
+                  <select
+                    class="control"
+                    :value="String(getDraftValue(control.key) ?? '')"
+                    @change="onSelectChange(control, $event)"
+                  >
+                    <option v-for="option in control.options" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </label>
+              </template>
+
+              <div v-if="toggleControls.length" class="field toggles">
+                <label v-for="control in toggleControls" :key="control.key" class="toggle">
+                  <input
+                    type="checkbox"
+                    :checked="Boolean(getDraftValue(control.key))"
+                    @change="onToggleChange(control, $event)"
+                  />
+                  <span>{{ control.label }}</span>
                 </label>
               </div>
             </div>
