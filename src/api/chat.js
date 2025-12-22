@@ -107,11 +107,11 @@ export async function uploadChatPresetAvatar(presetId, file) {
   return data.preset;
 }
 
-export async function createChatSession({ title, settings } = {}) {
+export async function createChatSession({ title, settings, presetId } = {}) {
   const res = await fetch("/api/chat/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    body: JSON.stringify({ title, settings }),
+    body: JSON.stringify({ title, settings, presetId }),
   });
   const data = await readJsonSafe(res);
   if (!res.ok) throw new Error(data.error || "创建会话失败");

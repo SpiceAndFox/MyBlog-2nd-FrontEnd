@@ -24,6 +24,7 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     if (existing) {
       existing.title = normalized.title;
       existing.updatedAt = normalized.updatedAt;
+      existing.presetId = normalized.presetId;
       existing.settings = normalized.settings;
       return;
     }
@@ -48,10 +49,18 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     await ensureMessagesLoaded(normalizedId);
   }
 
-  async function loadSessions() {
+  async function loadSessions({ preserveActive = true } = {}) {
     const rawSessions = await listChatSessions();
     sessions.value = rawSessions.map(mapSession).filter(Boolean);
-    await activateSession(sessions.value[0]?.id || "", { closeSidebar: false });
+    const sessionIds = new Set(sessions.value.map((session) => session.id));
+    for (const key of Object.keys(messagesBySessionId)) {
+      if (!sessionIds.has(key)) delete messagesBySessionId[key];
+    }
+
+    const preferredSessionId = preserveActive ? activeSessionId.value : "";
+    const nextSessionId =
+      sessions.value.find((session) => session.id === preferredSessionId)?.id || sessions.value[0]?.id || "";
+    await activateSession(nextSessionId, { closeSidebar: false });
   }
 
   async function selectSession(sessionId) {
@@ -71,7 +80,8 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
   }
 
   async function createSession() {
-    const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value });
+    const presetId = String(settings.value?.systemPromptPresetId || "default");
+    const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value, presetId });
     const session = mapSession(created);
     if (!session) throw new Error("创建会话失败");
 

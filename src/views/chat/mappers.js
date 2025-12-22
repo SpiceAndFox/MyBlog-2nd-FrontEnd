@@ -112,10 +112,15 @@ export function mapMetaDefaults(rawDefaults) {
 
 export function mapSession(raw) {
   if (!raw) return null;
+  const settings = raw.settings || {};
+  const presetIdRaw = raw.preset_id ?? raw.presetId ?? "";
+  const settingsPresetId = typeof settings.systemPromptPresetId === "string" ? settings.systemPromptPresetId : "";
+  const presetId = String(presetIdRaw || settingsPresetId || "default");
   return {
     id: String(raw.id ?? ""),
     title: raw.title || DEFAULT_SESSION_TITLE,
-    settings: raw.settings || {},
+    presetId,
+    settings,
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updated_at || raw.updatedAt || new Date().toISOString(),
   };

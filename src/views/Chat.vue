@@ -76,6 +76,7 @@ useChatComposerSlashFocus({
       :collapsed="isSidebarCollapsed"
       :isMobile="isMobile"
       :mobileOpen="isMobileSidebarOpen"
+      :promptPresets="promptPresets"
       @select-session="selectSession"
       @create-session="createNewSession"
       @toggle-collapse="toggleSidebarCollapsed"

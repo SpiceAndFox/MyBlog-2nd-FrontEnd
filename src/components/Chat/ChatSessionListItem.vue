@@ -1,10 +1,12 @@
 <script setup>
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
+import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
 
 const props = defineProps({
   session: { type: Object, required: true },
   active: { type: Boolean, default: false },
   collapsed: { type: Boolean, default: false },
+  promptPresets: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(["select", "rename", "delete"]);
@@ -25,6 +27,27 @@ const avatarLabel = computed(() => {
   if (!title) return "·";
   return title.slice(0, 1).toUpperCase();
 });
+
+const sessionPresetId = computed(() => {
+  const fromSession = props.session?.presetId || props.session?.preset_id;
+  return String(fromSession || props.session?.settings?.systemPromptPresetId || "default");
+});
+
+const sessionPreset = computed(() => {
+  const list = Array.isArray(props.promptPresets) ? props.promptPresets : [];
+  return list.find((preset) => preset?.id === sessionPresetId.value) || list.find((preset) => preset?.id === "default") || null;
+});
+
+const sessionAvatarUrl = computed(() => String(sessionPreset.value?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL || ""));
+const sessionAvatarFailed = ref(false);
+
+watch(sessionAvatarUrl, () => {
+  sessionAvatarFailed.value = false;
+});
+
+function markSessionAvatarFailed() {
+  sessionAvatarFailed.value = true;
+}
 
 async function startEditingTitle() {
   if (props.collapsed) return;
@@ -94,7 +117,16 @@ function onMainKeydown(event) {
       @click="selectThisSession"
       @keydown="onMainKeydown"
     >
-      <span v-if="collapsed" class="collapsed-badge" aria-hidden="true">{{ avatarLabel }}</span>
+      <span v-if="collapsed" class="collapsed-badge" aria-hidden="true">
+        <img
+          v-if="sessionAvatarUrl && !sessionAvatarFailed"
+          class="collapsed-badge-image"
+          :src="sessionAvatarUrl"
+          alt=""
+          @error="markSessionAvatarFailed"
+        />
+        <span v-else class="collapsed-badge-fallback">{{ avatarLabel }}</span>
+      </span>
 
       <template v-else>
         <span v-if="!isEditingTitle" class="session-title">{{ session.title }}</span>
@@ -183,6 +215,21 @@ function onMainKeydown(event) {
   font-weight: 800;
   font-size: 0.85rem;
   flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.collapsed-badge-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.collapsed-badge-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
 }
 
 .session-title {

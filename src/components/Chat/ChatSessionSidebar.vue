@@ -8,6 +8,7 @@ const props = defineProps({
   collapsed: { type: Boolean, default: false },
   isMobile: { type: Boolean, default: false },
   mobileOpen: { type: Boolean, default: false },
+  promptPresets: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits([
@@ -101,6 +102,7 @@ function onOverlayClick() {
             :session="session"
             :active="session.id === activeSessionId"
             :collapsed="effectiveCollapsed"
+            :promptPresets="promptPresets"
             @select="emit('select-session', session.id)"
             @rename="emit('request-rename-session', $event)"
             @delete="emit('request-delete-session', session.id)"
@@ -225,6 +227,15 @@ function onOverlayClick() {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
+}
+
+.sidebar.collapsed .session-list {
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+}
+
+.sidebar.collapsed .session-list::-webkit-scrollbar {
+  width: 0;
 }
 
 .session-list::-webkit-scrollbar {

@@ -95,7 +95,8 @@ export function useChatPage({ router }) {
   });
 
   const assistantPresetId = computed(() => {
-    const fromSession = chatSessions.activeSession.value?.settings?.systemPromptPresetId;
+    const fromSession =
+      chatSessions.activeSession.value?.presetId || chatSessions.activeSession.value?.settings?.systemPromptPresetId;
     return String(fromSession || chatSettings.settings.value?.systemPromptPresetId || "default");
   });
 
@@ -111,6 +112,56 @@ export function useChatPage({ router }) {
     name: assistantPreset.value?.name || "Assistant",
     avatarUrl: assistantPreset.value?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL,
   }));
+
+  function syncSettingsToSessionPreset(session, presets) {
+    if (!session) return;
+    const rawPresetId = session?.presetId || session?.preset_id || session?.settings?.systemPromptPresetId;
+    const sessionPresetId = String(rawPresetId || "").trim();
+    if (!sessionPresetId) return;
+
+    const presetList = Array.isArray(presets) ? presets : [];
+    const resolvedPreset =
+      presetList.find((preset) => preset.id === sessionPresetId) ||
+      presetList.find((preset) => preset.id === "default") ||
+      presetList[0] ||
+      null;
+
+    const currentSettings = isPlainObject(chatSettings.settings.value) ? chatSettings.settings.value : {};
+    const nextPresetId = resolvedPreset?.id || sessionPresetId;
+    const nextSystemPrompt = resolvedPreset?.systemPrompt ?? currentSettings.systemPrompt ?? "";
+
+    if (
+      currentSettings.systemPromptPresetId === nextPresetId &&
+      String(currentSettings.systemPrompt ?? "") === String(nextSystemPrompt)
+    ) {
+      return;
+    }
+
+    chatSettings.settings.value = {
+      ...currentSettings,
+      systemPromptPresetId: nextPresetId,
+      systemPrompt: nextSystemPrompt,
+    };
+  }
+
+  watch(
+    [chatSessions.activeSession, chatSettings.promptPresets],
+    ([session, presets]) => {
+      syncSettingsToSessionPreset(session, presets);
+    },
+    { immediate: true }
+  );
+
+  async function updatePromptPreset(presetId, payload) {
+    const preset = await chatSettings.updatePromptPreset(presetId, payload);
+    await chatSessions.loadSessions({ preserveActive: true });
+    return preset;
+  }
+
+  async function deletePromptPreset(presetId) {
+    await chatSettings.deletePromptPreset(presetId);
+    await chatSessions.loadSessions({ preserveActive: true });
+  }
 
   function openSettings() {
     isSettingsOpen.value = true;
@@ -188,8 +239,8 @@ export function useChatPage({ router }) {
     isEditingMessage,
 
     createPromptPreset: chatSettings.createPromptPreset,
-    updatePromptPreset: chatSettings.updatePromptPreset,
-    deletePromptPreset: chatSettings.deletePromptPreset,
+    updatePromptPreset,
+    deletePromptPreset,
     uploadPromptPresetAvatar: chatSettings.uploadPromptPresetAvatar,
     refreshPromptPresets: chatSettings.refreshPromptPresets,
 
