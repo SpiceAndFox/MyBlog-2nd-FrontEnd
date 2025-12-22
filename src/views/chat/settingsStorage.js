@@ -1,4 +1,4 @@
-import { SETTINGS_STORAGE_KEY } from "./constants";
+import { SETTINGS_STORAGE_KEY } from "@/config/chat";
 import { isPlainObject } from "./helpers";
 
 export function loadPersistedSettings() {

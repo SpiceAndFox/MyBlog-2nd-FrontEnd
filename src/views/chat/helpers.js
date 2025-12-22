@@ -1,4 +1,4 @@
-import { DEFAULT_SESSION_TITLE } from "./constants";
+import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 
 export function createId(prefix = "id") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();

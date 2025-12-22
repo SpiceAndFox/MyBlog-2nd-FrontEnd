@@ -1,6 +1,6 @@
 import { nextTick, reactive, ref } from "vue";
 import { editChatMessage, sendChatMessage, streamChatMessage, streamEditChatMessage } from "@/api/chat";
-import { DEFAULT_SESSION_TITLE } from "./constants";
+import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 import { createId, formatSessionTitleFromMessage, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 

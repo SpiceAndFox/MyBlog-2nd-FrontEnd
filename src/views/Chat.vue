@@ -5,7 +5,7 @@ import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
-import { DEFAULT_SESSION_TITLE } from "./chat/constants";
+import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 import { useChatComposerSlashFocus } from "./chat/useChatComposerSlashFocus";
 import { useChatPage } from "./chat/useChatPage";
 

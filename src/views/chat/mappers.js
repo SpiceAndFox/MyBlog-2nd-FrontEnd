@@ -1,4 +1,4 @@
-import { DEFAULT_SESSION_TITLE } from "./constants";
+import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 import { createId, isPlainObject } from "./helpers";
 
 export function mapPreset(raw) {

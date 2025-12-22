@@ -6,7 +6,7 @@ import {
   listChatSessions,
   renameChatSession,
 } from "@/api/chat";
-import { DEFAULT_SESSION_TITLE } from "./constants";
+import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 import { mapMessage, mapSession } from "./mappers";
 
 export function useChatSessions({ settings, handleApiError, closeMobileSidebar, resetEditingState }) {

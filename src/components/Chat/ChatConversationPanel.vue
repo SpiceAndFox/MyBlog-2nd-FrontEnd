@@ -2,9 +2,10 @@
 import ChatMessageList from "@/components/Chat/ChatMessageList.vue";
 import ChatComposer from "@/components/Chat/ChatComposer.vue";
 import { ref } from "vue";
+import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 
 defineProps({
-  sessionTitle: { type: String, default: "新对话" },
+  sessionTitle: { type: String, default: DEFAULT_SESSION_TITLE },
   messages: { type: Array, default: () => [] },
   userProfile: { type: Object, default: null },
   assistantProfile: { type: Object, default: null },
