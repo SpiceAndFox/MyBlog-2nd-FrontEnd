@@ -27,6 +27,22 @@ export function useChatMessaging({
   const isStreaming = ref(false);
   let activeStreamAbortController = null;
 
+  function resolveSessionPresetId() {
+    const sessionId = String(activeSessionId.value || "");
+    if (!sessionId) return "";
+    const session = sessions.value.find((item) => String(item?.id || "") === sessionId);
+    return String(session?.presetId || session?.settings?.systemPromptPresetId || "");
+  }
+
+  function buildOutgoingSettings() {
+    const base = { ...settings.value };
+    const sessionPresetId = resolveSessionPresetId();
+    if (sessionPresetId) {
+      base.systemPromptPresetId = sessionPresetId;
+    }
+    return base;
+  }
+
   function stopStreaming() {
     if (!isStreaming.value) return;
     activeStreamAbortController?.abort?.();
@@ -143,7 +159,7 @@ export function useChatMessaging({
 
       await nextTick();
 
-      const outgoingSettings = { ...settings.value };
+      const outgoingSettings = buildOutgoingSettings();
 
       if (outgoingSettings.stream) {
         isStreaming.value = true;
@@ -250,7 +266,7 @@ export function useChatMessaging({
 
       await nextTick();
 
-      const outgoingSettings = { ...settings.value };
+      const outgoingSettings = buildOutgoingSettings();
 
       if (outgoingSettings.stream) {
         isStreaming.value = true;
