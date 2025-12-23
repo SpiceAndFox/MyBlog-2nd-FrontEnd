@@ -3,6 +3,7 @@ import { useRoute } from "vue-router";
 import { watch, computed, watchEffect, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
 import iosBg from "@/assets/images/background-mobile-02.webp";
+import SnowEffect from "@/components/SnowEffect.vue";
 
 // 获取路由信息
 const route = useRoute();
@@ -29,6 +30,9 @@ const isHomeOrArticleList = computed(() => {
 const showVideo = computed(() => {
   return isHomeOrArticleList.value && !isIOS;
 });
+
+// 计算是否应该显示下雪效果：是IOS 且 (在首页 或 文章列表页)
+const showSnow = computed(() => isIOS && isHomeOrArticleList.value);
 
 // ios背景设置
 const IOS_ARTICLELIST_BG_COLOR = "rgb(238, 238, 238)";
@@ -88,6 +92,7 @@ const iosBackgroundStyle = computed(() => {
       <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
 
+    <SnowEffect v-if="showSnow" />
     <Navigation :layoutClass="layoutClass"></Navigation>
     <router-view></router-view>
   </div>
