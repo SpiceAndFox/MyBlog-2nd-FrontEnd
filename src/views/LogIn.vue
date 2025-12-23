@@ -1,11 +1,12 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import GooeyAnimation from "@/components/GooeyAnimation.vue";
 import { loginApi } from "@/api/auth";
 
 // 初始化路由
 const router = useRouter();
+const route = useRoute();
 
 // 初始化变量
 const username = ref("");
@@ -13,8 +14,17 @@ const password = ref("");
 const loading = ref(false);
 const errorMsg = ref("");
 
+const resolveRedirectTarget = () => {
+  const raw = route.query?.redirect;
+  const target = Array.isArray(raw) ? raw[0] : raw;
+  if (!target || typeof target !== "string") return "";
+  if (!target.startsWith("/") || target.startsWith("//") || target === "/login") return "";
+  return target;
+};
+
 // 点击登录按钮后的动作
 const handleSubmit = async () => {
+  if (loading.value) return;
   if (!username.value || !password.value) {
     errorMsg.value = "用户名和密码不能为空";
     return;
@@ -32,7 +42,12 @@ const handleSubmit = async () => {
     localStorage.setItem("token", data.token);
 
     // 路由跳转
-    router.push({ name: "AdminLayout" });
+    const redirectTarget = resolveRedirectTarget();
+    if (redirectTarget) {
+      router.replace(redirectTarget);
+    } else {
+      router.push({ name: "AdminLayout" });
+    }
   } catch (err) {
     errorMsg.value = err.message || "登录失败";
   } finally {
@@ -61,6 +76,7 @@ const handleSubmit = async () => {
             type="password"
             name="password"
             id="password"
+            @keydown.enter.prevent="handleSubmit"
             v-model="password"
           ></md-outlined-text-field>
 

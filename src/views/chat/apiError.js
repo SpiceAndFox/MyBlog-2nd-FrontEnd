@@ -8,7 +8,14 @@ export function createApiErrorHandler(router) {
   return function handleApiError(error, { silent = false } = {}) {
     console.error(error);
     if (shouldRedirectToLogin(error)) {
-      router?.push?.({ name: "LogIn" });
+      const currentRoute = router?.currentRoute?.value;
+      const redirectTarget =
+        currentRoute && currentRoute.name !== "LogIn" ? currentRoute.fullPath : "";
+      const location = { name: "LogIn" };
+      if (redirectTarget) {
+        location.query = { redirect: redirectTarget };
+      }
+      router?.push?.(location);
       return true;
     }
     if (!silent) window.alert(error?.message || "请求失败");

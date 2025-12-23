@@ -40,6 +40,7 @@ const routes = [
     component: Chat,
     meta: {
       layoutClass: "chat",
+      requiresAuth: true,
     },
   },
   {
@@ -57,6 +58,7 @@ const routes = [
     redirect: "/admin/write",
     meta: {
       layoutClass: "admin",
+      requiresAuth: true,
     },
     children: [
       {
@@ -86,6 +88,19 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach((to) => {
+  const requiresAuth = to.matched.some((route) => route.meta?.requiresAuth);
+  if (!requiresAuth) return true;
+
+  const token = localStorage.getItem("token");
+  if (token) return true;
+
+  return {
+    name: "LogIn",
+    query: { redirect: to.fullPath },
+  };
 });
 
 export default router;
