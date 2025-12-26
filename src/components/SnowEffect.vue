@@ -45,7 +45,7 @@ onMounted(() => {
 
 <style scoped>
 .snow-container {
-  position: fixed; /* 使用 fixed 覆盖整个视口，模拟雪花在屏幕前飘落 */
+  position: absolute; /* 使用 fixed 覆盖整个视口，模拟雪花在屏幕前飘落 */
   top: 0;
   left: 0;
   width: 100%;
