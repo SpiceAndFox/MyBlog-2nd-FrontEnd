@@ -329,7 +329,7 @@ function applyFromCurrentSettings() {
 
   const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
 
-  const controls = getProviderSettingsSchema(provider);
+  const controls = getProviderSettingsSchema(provider).filter((control) => isControlVisible(control, provider, modelId));
   for (const control of controls) {
     if (!control?.key) continue;
 
@@ -422,7 +422,8 @@ watch(
       draft.enableWebSearch = providerDefaults.enableWebSearch;
     }
 
-    const controls = getProviderSettingsSchema(provider);
+    const modelId = draft.modelId;
+    const controls = getProviderSettingsSchema(provider).filter((control) => isControlVisible(control, provider, modelId));
     for (const control of controls) {
       if (!control?.key) continue;
       if (control.type === "toggle" && control.key === "enableWebSearch") continue;
