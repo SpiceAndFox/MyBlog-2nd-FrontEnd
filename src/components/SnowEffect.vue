@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, onBeforeUnmount } from "vue";
+import { onMounted, ref } from "vue";
 
 // 雪花数量，移动端建议不要太多，30-50片足矣
 const FLAKE_COUNT = 40;
@@ -7,12 +7,6 @@ const flakes = ref([]);
 
 // 生成随机区间数值
 const randomRange = (min, max) => Math.random() * (max - min) + min;
-
-// 确定容器高度
-const containerHeight = ref("100vh");
-const updateHeight = () => {
-  containerHeight.value = document.body.scrollHeight + "px";
-};
 
 onMounted(() => {
   // 初始化生成雪花数据
@@ -23,21 +17,16 @@ onMounted(() => {
     duration: randomRange(5, 12) + "s",
     // 动画延迟，避免同时落下
     delay: randomRange(0, 5) + "s",
+    // 大小 4px - 8px
     size: randomRange(4, 8) + "px",
+    // 透明度 0.4 - 0.9
     opacity: randomRange(0.4, 0.9),
   }));
-
-  updateHeight();
-  window.addEventListener("resize", updateHeight);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener("resize", updateHeight);
 });
 </script>
 
 <template>
-  <div class="snow-container" aria-hidden="true" :style="{ height: containerHeight }">
+  <div class="snow-container" aria-hidden="true">
     <span
       v-for="(flake, index) in flakes"
       :key="index"
@@ -60,8 +49,9 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   width: 100%;
+  height: 100%;
   pointer-events: none; /* 关键：透传点击事件，不阻挡下方交互 */
-  z-index: 999; /* 位于背景之上，但在导航栏之下（或者之上，看你想不想遮住字） */
+  z-index: 10;
   overflow: hidden;
 }
 
@@ -74,7 +64,7 @@ onBeforeUnmount(() => {
   animation-name: fall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  will-change: transform; /* 性能优化 */
+  /* will-change: transform; */
 }
 
 @keyframes fall {
