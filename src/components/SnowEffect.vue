@@ -46,10 +46,10 @@ onMounted(() => {
 <style scoped>
 .snow-container {
   position: fixed; /* 使用 fixed 覆盖整个视口，模拟雪花在屏幕前飘落 */
+  top: 0;
   left: 0;
   width: 100%;
-  top: env(safe-area-inset-top);
-  height: calc(100% - env(safe-area-inset-top));
+  height: 100%;
   pointer-events: none; /* 关键：透传点击事件，不阻挡下方交互 */
   z-index: 999; /* 位于背景之上，但在导航栏之下（或者之上，看你想不想遮住字） */
   overflow: hidden;
