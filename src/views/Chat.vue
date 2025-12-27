@@ -149,9 +149,9 @@ useChatComposerSlashFocus({
 
     <ChatConfirmDialog
       :open="deleteDialog.open"
-      title="删除会话"
-      :message="`确定要删除“${deleteDialog.sessionTitle}”吗？此操作会删除该会话的所有聊天记录，且不可恢复。`"
-      confirmText="删除"
+      title="移入回收站"
+      :message="`确定要将“${deleteDialog.sessionTitle}”移入回收站吗？你可以在回收站中恢复，或彻底删除。`"
+      confirmText="移入回收站"
       cancelText="取消"
       @confirm="confirmDeleteSession"
       @cancel="cancelDeleteSession"
