@@ -18,6 +18,7 @@ const emit = defineEmits([
   "request-close",
   "request-rename-session",
   "request-delete-session",
+  "open-trash",
   "open-settings",
 ]);
 
@@ -110,6 +111,23 @@ function onOverlayClick() {
         </nav>
 
         <footer class="sidebar-footer">
+          <button
+            class="footer-button"
+            :class="{ iconOnly: effectiveCollapsed }"
+            type="button"
+            @click="emit('open-trash')"
+          >
+            <span class="button-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18">
+                <path
+                  d="M9 3a1 1 0 0 0-1 1v1H5.5a1 1 0 1 0 0 2H6v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7h.5a1 1 0 1 0 0-2H16V4a1 1 0 0 0-1-1H9Zm2 4a1 1 0 0 1 2 0v11a1 1 0 1 1-2 0V7Zm-3 0a1 1 0 0 1 2 0v11a1 1 0 1 1-2 0V7Zm8 0a1 1 0 1 0-2 0v11a1 1 0 1 0 2 0V7Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span v-if="!effectiveCollapsed" class="button-text">回收站</span>
+          </button>
+
           <button
             class="footer-button"
             :class="{ iconOnly: effectiveCollapsed }"
@@ -260,6 +278,9 @@ function onOverlayClick() {
 .sidebar-footer {
   padding: 10px 12px 12px;
   border-top: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .footer-button {

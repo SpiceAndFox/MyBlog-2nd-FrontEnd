@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
+import ChatTrashModal from "@/components/Chat/ChatTrashModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
 import { DEFAULT_SESSION_TITLE } from "@/config/chat";
 import { useChatComposerSlashFocus } from "./chat/useChatComposerSlashFocus";
@@ -16,6 +17,7 @@ const {
   isSidebarCollapsed,
   isMobileSidebarOpen,
   isSettingsOpen,
+  isTrashOpen,
   navHeight,
   isSending,
   isStreaming,
@@ -55,6 +57,13 @@ const {
   updateEditDraft,
   commitEditMessage,
   cancelEditMessage,
+  trashedSessions,
+  isTrashLoading,
+  refreshTrash,
+  openTrash,
+  closeTrash,
+  restoreTrashedSession,
+  deleteTrashedSessionPermanently,
   openSettings,
   closeSettings,
   saveSettings,
@@ -64,6 +73,7 @@ const conversationPanelRef = ref(null);
 
 useChatComposerSlashFocus({
   isSettingsOpen,
+  isTrashOpen,
   deleteDialog,
   focusComposer: () => conversationPanelRef.value?.focusComposer?.(),
 });
@@ -84,6 +94,7 @@ useChatComposerSlashFocus({
       @request-close="closeMobileSidebar"
       @request-rename-session="renameSession"
       @request-delete-session="requestDeleteSession"
+      @open-trash="openTrash"
       @open-settings="openSettings"
     />
 
@@ -124,6 +135,16 @@ useChatComposerSlashFocus({
       :uploadPresetAvatar="uploadPromptPresetAvatar"
       @close="closeSettings"
       @save="saveSettings"
+    />
+
+    <ChatTrashModal
+      :open="isTrashOpen"
+      :sessions="trashedSessions"
+      :loading="isTrashLoading"
+      @close="closeTrash"
+      @refresh="refreshTrash"
+      @restore="restoreTrashedSession"
+      @delete-permanent="deleteTrashedSessionPermanently"
     />
 
     <ChatConfirmDialog

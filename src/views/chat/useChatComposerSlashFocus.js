@@ -8,11 +8,12 @@ function isEditableTarget(target) {
   return Boolean(target.closest?.('input, textarea, select, [contenteditable="true"]'));
 }
 
-export function useChatComposerSlashFocus({ isSettingsOpen, deleteDialog, focusComposer } = {}) {
+export function useChatComposerSlashFocus({ isSettingsOpen, isTrashOpen, deleteDialog, focusComposer } = {}) {
   function onGlobalKeydown(event) {
     if (event.defaultPrevented) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (Boolean(isSettingsOpen?.value ?? isSettingsOpen)) return;
+    if (Boolean(isTrashOpen?.value ?? isTrashOpen)) return;
     if (Boolean(deleteDialog?.value?.open ?? deleteDialog?.open)) return;
     if (isEditableTarget(event.target)) return;
     if (event.code !== "Slash") return;
@@ -31,4 +32,3 @@ export function useChatComposerSlashFocus({ isSettingsOpen, deleteDialog, focusC
     window.removeEventListener("keydown", onGlobalKeydown, true);
   });
 }
-

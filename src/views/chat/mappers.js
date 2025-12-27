@@ -123,6 +123,7 @@ export function mapSession(raw) {
     settings,
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updated_at || raw.updatedAt || new Date().toISOString(),
+    deletedAt: raw.deleted_at || raw.deletedAt || "",
   };
 }
 

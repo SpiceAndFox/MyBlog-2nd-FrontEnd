@@ -35,6 +35,15 @@ export async function listChatSessions() {
   return data.sessions || [];
 }
 
+export async function listChatTrashedSessions() {
+  const res = await fetch("/api/chat/sessions/trash", {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "获取回收站失败");
+  return data.sessions || [];
+}
+
 export async function listChatPresets() {
   const res = await fetch("/api/chat/presets", {
     headers: { ...getAuthHeader() },
@@ -139,6 +148,28 @@ export async function deleteChatSession(sessionId) {
   if (res.status === 204) return;
   const data = await readJsonSafe(res);
   if (!res.ok) throw new Error(data.error || "删除会话失败");
+}
+
+export async function restoreChatSession(sessionId) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}/restore`, {
+    method: "PATCH",
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "恢复会话失败");
+  return data.session;
+}
+
+export async function deleteChatSessionPermanently(sessionId) {
+  const normalizedId = normalizeSessionId(sessionId);
+  const res = await fetch(`/api/chat/sessions/${normalizedId}/permanent`, {
+    method: "DELETE",
+    headers: { ...getAuthHeader() },
+  });
+  if (res.status === 204) return;
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "彻底删除会话失败");
 }
 
 export async function listChatMessages(sessionId) {

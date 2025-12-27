@@ -8,6 +8,7 @@ import { lockBodyScroll, startNavHeightTracking } from "./ui";
 import { useChatMessaging } from "./useChatMessaging";
 import { useChatSessions } from "./useChatSessions";
 import { useChatSettings } from "./useChatSettings";
+import { useChatTrash } from "./useChatTrash";
 
 export function useChatPage({ router }) {
   const handleApiError = createApiErrorHandler(router);
@@ -16,6 +17,7 @@ export function useChatPage({ router }) {
   const isSidebarCollapsed = ref(false);
   const isMobileSidebarOpen = ref(false);
   const isSettingsOpen = ref(false);
+  const isTrashOpen = ref(false);
   const navHeight = ref(60);
 
   function openMobileSidebar() {
@@ -73,6 +75,7 @@ export function useChatPage({ router }) {
     closeMobileSidebar,
     resetEditingState,
   });
+  const chatTrash = useChatTrash({ handleApiError });
 
   const chatMessaging = useChatMessaging({
     settings: chatSettings.settings,
@@ -174,6 +177,26 @@ export function useChatPage({ router }) {
     isSettingsOpen.value = false;
   }
 
+  function openTrash() {
+    isTrashOpen.value = true;
+    closeMobileSidebar();
+    void chatTrash.refreshTrash({ silent: true });
+  }
+
+  function closeTrash() {
+    isTrashOpen.value = false;
+  }
+
+  async function restoreTrashedSession(sessionId) {
+    const restored = await chatTrash.restore(sessionId);
+    await chatSessions.loadSessions({ preserveActive: true });
+    return restored;
+  }
+
+  async function deleteTrashedSessionPermanently(sessionId) {
+    await chatTrash.deletePermanently(sessionId);
+  }
+
   function saveSettings(nextSettings) {
     const base = isPlainObject(chatSettings.settings.value) ? chatSettings.settings.value : {};
     const override = isPlainObject(nextSettings) ? nextSettings : {};
@@ -216,6 +239,7 @@ export function useChatPage({ router }) {
     isSidebarCollapsed,
     isMobileSidebarOpen,
     isSettingsOpen,
+    isTrashOpen,
     navHeight,
 
     isSending: chatMessaging.isSending,
@@ -250,6 +274,14 @@ export function useChatPage({ router }) {
     openMobileSidebar,
     closeMobileSidebar,
     toggleSidebarCollapsed,
+
+    trashedSessions: chatTrash.trashedSessions,
+    isTrashLoading: chatTrash.isTrashLoading,
+    refreshTrash: chatTrash.refreshTrash,
+    openTrash,
+    closeTrash,
+    restoreTrashedSession,
+    deleteTrashedSessionPermanently,
 
     createNewSession: chatSessions.createNewSession,
     selectSession: chatSessions.selectSession,
