@@ -2,6 +2,8 @@
 import { computed, nextTick, ref } from "vue";
 
 const props = defineProps({
+  disabled: { type: Boolean, default: false },
+  placeholder: { type: String, default: "输入消息…" },
   isSending: { type: Boolean, default: false },
   isStreaming: { type: Boolean, default: false },
 });
@@ -12,7 +14,7 @@ const draftText = ref("");
 const textareaRef = ref(null);
 
 const canSend = computed(
-  () => !props.isSending && !props.isStreaming && String(draftText.value || "").trim().length > 0
+  () => !props.disabled && !props.isSending && !props.isStreaming && String(draftText.value || "").trim().length > 0
 );
 
 function send() {
@@ -28,6 +30,7 @@ function stop() {
 }
 
 function onKeydown(event) {
+  if (props.disabled) return;
   if (event.key !== "Enter") return;
   if (event.isComposing || event.keyCode === 229) return;
   if (event.shiftKey) return;
@@ -49,6 +52,7 @@ function resizeTextarea() {
 }
 
 function onCardPointerDown(event) {
+  if (props.disabled) return;
   const target = event?.target;
   if (!(target instanceof HTMLElement)) return;
   if (target.closest("button")) return;
@@ -59,6 +63,7 @@ function onCardPointerDown(event) {
 }
 
 function focus() {
+  if (props.disabled) return;
   nextTick(() => {
     const element = textareaRef.value;
     if (!element) return;
@@ -79,7 +84,8 @@ defineExpose({ focus });
         v-model="draftText"
         class="input"
         rows="1"
-        placeholder="输入消息…"
+        :placeholder="placeholder"
+        :disabled="disabled"
         enterkeyhint="send"
         aria-label="输入消息"
         @keydown="onKeydown"

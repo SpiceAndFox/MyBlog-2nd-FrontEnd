@@ -1,22 +1,61 @@
-import { computed, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
   createChatSession,
   deleteChatSession,
   listChatMessages,
   listChatSessions,
-  renameChatSession,
 } from "@/api/chat";
-import { DEFAULT_SESSION_TITLE } from "@/config/chat";
+import { formatLocalDateKey, getSessionDateKey } from "./helpers";
 import { mapMessage, mapSession } from "./mappers";
 
-export function useChatSessions({ settings, handleApiError, closeMobileSidebar, resetEditingState }) {
+export function useChatSessions({
+  settings,
+  activePresetId,
+  handleApiError,
+  closeMobileSidebar,
+  resetEditingState,
+} = {}) {
   const sessions = ref([]);
   const messagesBySessionId = reactive({});
   const activeSessionId = ref("");
   const isDraftSession = ref(false);
 
+  const resolvedActivePresetId = computed(() => {
+    const raw = activePresetId?.value ?? settings?.value?.systemPromptPresetId;
+    const normalized = String(raw || "default").trim();
+    return normalized || "default";
+  });
+
+  const todayKey = ref(formatLocalDateKey(new Date()));
+  let todayKeyTimer = null;
+
+  function refreshTodayKey() {
+    const nextKey = formatLocalDateKey(new Date());
+    if (nextKey && nextKey !== todayKey.value) todayKey.value = nextKey;
+  }
+
+  onMounted(() => {
+    refreshTodayKey();
+    todayKeyTimer = window.setInterval(refreshTodayKey, 60_000);
+  });
+
+  onBeforeUnmount(() => {
+    if (todayKeyTimer) window.clearInterval(todayKeyTimer);
+    todayKeyTimer = null;
+  });
+
   const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value) || null);
   const activeMessages = computed(() => messagesBySessionId[activeSessionId.value] || []);
+
+  const sessionsForActivePreset = computed(() =>
+    sessions.value.filter((session) => String(session?.presetId || "") === resolvedActivePresetId.value)
+  );
+
+  const activeSessionDateKey = computed(() => (activeSession.value ? getSessionDateKey(activeSession.value) : ""));
+  const isActiveSessionToday = computed(
+    () => Boolean(activeSession.value) && activeSessionDateKey.value === todayKey.value
+  );
+  const isActiveSessionReadOnly = computed(() => Boolean(activeSession.value) && !isActiveSessionToday.value);
 
   function upsertSession(rawSession) {
     const normalized = mapSession(rawSession);
@@ -51,6 +90,67 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     await ensureMessagesLoaded(normalizedId);
   }
 
+  function enterDraft({ closeSidebar = true } = {}) {
+    isDraftSession.value = true;
+    activeSessionId.value = "";
+    if (closeSidebar) closeMobileSidebar?.();
+    resetEditingState?.();
+  }
+
+  function resolvePresetId(rawPresetId) {
+    const normalized = String(rawPresetId || resolvedActivePresetId.value || "default").trim();
+    return normalized || "default";
+  }
+
+  function findTodaySessionId(presetId) {
+    const resolvedPresetId = resolvePresetId(presetId);
+    const dateKey = todayKey.value || formatLocalDateKey(new Date());
+    if (!dateKey) return "";
+
+    const match = sessions.value.find(
+      (session) => String(session?.presetId || "") === resolvedPresetId && getSessionDateKey(session) === dateKey
+    );
+    return match?.id || "";
+  }
+
+  async function activateTodayContext({ presetId, closeSidebar = true } = {}) {
+    const resolvedPresetId = resolvePresetId(presetId);
+    const todaySessionId = findTodaySessionId(resolvedPresetId);
+    if (todaySessionId) {
+      await activateSession(todaySessionId, { closeSidebar });
+      return todaySessionId;
+    }
+
+    enterDraft({ closeSidebar });
+    return "";
+  }
+
+  async function createTodaySession({ presetId } = {}) {
+    const resolvedPresetId = resolvePresetId(presetId);
+    const title = todayKey.value || formatLocalDateKey(new Date());
+    const created = await createChatSession({ title, settings: settings?.value, presetId: resolvedPresetId });
+    const session = mapSession(created);
+    if (!session) throw new Error("创建会话失败");
+
+    sessions.value.unshift(session);
+    messagesBySessionId[session.id] = [];
+    return session;
+  }
+
+  async function ensureTodaySession({ presetId } = {}) {
+    const resolvedPresetId = resolvePresetId(presetId);
+
+    const todaySessionId = findTodaySessionId(resolvedPresetId);
+    if (todaySessionId) {
+      await activateSession(todaySessionId);
+      return todaySessionId;
+    }
+
+    const session = await createTodaySession({ presetId: resolvedPresetId });
+    await activateSession(session.id);
+    return session.id;
+  }
+
   async function loadSessions({ preserveActive = true } = {}) {
     const rawSessions = await listChatSessions();
     sessions.value = rawSessions.map(mapSession).filter(Boolean);
@@ -59,14 +159,13 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
       if (!sessionIds.has(key)) delete messagesBySessionId[key];
     }
 
-    const shouldStayDraft = preserveActive && isDraftSession.value;
-    const preferredSessionId = preserveActive && !shouldStayDraft ? activeSessionId.value : "";
-    const nextSessionId = shouldStayDraft
-      ? ""
-      : preferredSessionId
-      ? sessions.value.find((session) => session.id === preferredSessionId)?.id || sessions.value[0]?.id || ""
-      : sessions.value[0]?.id || "";
-    await activateSession(nextSessionId, { closeSidebar: false });
+    if (!preserveActive) return;
+    if (isDraftSession.value) return;
+
+    const existingActiveId = String(activeSessionId.value || "").trim();
+    if (existingActiveId && sessions.value.some((session) => session.id === existingActiveId)) return;
+
+    await activateTodayContext({ presetId: resolvedActivePresetId.value, closeSidebar: false });
   }
 
   async function selectSession(sessionId) {
@@ -85,37 +184,6 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     sessions.value.unshift(session);
   }
 
-  async function createSession() {
-    const presetId = String(settings.value?.systemPromptPresetId || "default");
-    const created = await createChatSession({ title: DEFAULT_SESSION_TITLE, settings: settings.value, presetId });
-    const session = mapSession(created);
-    if (!session) throw new Error("创建会话失败");
-
-    sessions.value.unshift(session);
-    messagesBySessionId[session.id] = [];
-    return session;
-  }
-
-  function createNewSession() {
-    isDraftSession.value = true;
-    activeSessionId.value = "";
-    resetEditingState?.();
-    closeMobileSidebar?.();
-  }
-
-  async function renameSession({ sessionId, title }) {
-    const normalizedTitle = String(title || "").trim();
-    if (!normalizedTitle) return;
-
-    try {
-      const updated = await renameChatSession(sessionId, { title: normalizedTitle });
-      upsertSession(updated);
-      bringSessionToTop(String(sessionId));
-    } catch (error) {
-      handleApiError(error);
-    }
-  }
-
   const deleteDialog = ref({
     open: false,
     sessionId: "",
@@ -127,7 +195,7 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     deleteDialog.value = {
       open: true,
       sessionId,
-      sessionTitle: target?.title || "该会话",
+      sessionTitle: getSessionDateKey(target) || "该会话",
     };
   }
 
@@ -147,7 +215,7 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
       delete messagesBySessionId[sessionId];
 
       if (activeSessionId.value === sessionId) {
-        await activateSession(sessions.value[0]?.id || "", { closeSidebar: false });
+        await activateTodayContext({ presetId: resolvedActivePresetId.value, closeSidebar: false });
       }
     } catch (error) {
       handleApiError(error);
@@ -160,15 +228,19 @@ export function useChatSessions({ settings, handleApiError, closeMobileSidebar, 
     activeSessionId,
     activeSession,
     activeMessages,
+    todayKey,
+    sessionsForActivePreset,
+    activeSessionDateKey,
+    isActiveSessionReadOnly,
     upsertSession,
     ensureMessagesLoaded,
     activateSession,
+    activateTodayContext,
+    ensureTodaySession,
+    enterDraft,
     loadSessions,
     selectSession,
     bringSessionToTop,
-    createSession,
-    createNewSession,
-    renameSession,
     deleteDialog,
     requestDeleteSession,
     cancelDeleteSession,

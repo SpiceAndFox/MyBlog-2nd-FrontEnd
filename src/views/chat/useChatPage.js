@@ -70,8 +70,12 @@ export function useChatPage({ router }) {
   }
 
   const chatSettings = useChatSettings({ handleApiError });
+  const activePresetId = computed(() =>
+    String(chatSettings.settings.value?.systemPromptPresetId || DEFAULT_PROMPT_PRESET_ID)
+  );
   const chatSessions = useChatSessions({
     settings: chatSettings.settings,
+    activePresetId,
     handleApiError,
     closeMobileSidebar,
     resetEditingState,
@@ -84,8 +88,8 @@ export function useChatPage({ router }) {
     messagesBySessionId: chatSessions.messagesBySessionId,
     activeSessionId: chatSessions.activeSessionId,
     ensureMessagesLoaded: chatSessions.ensureMessagesLoaded,
-    createSession: chatSessions.createSession,
-    activateSession: chatSessions.activateSession,
+    ensureTodaySession: chatSessions.ensureTodaySession,
+    isReadOnly: chatSessions.isActiveSessionReadOnly,
     bringSessionToTop: chatSessions.bringSessionToTop,
     upsertSession: chatSessions.upsertSession,
     handleApiError,
@@ -98,11 +102,7 @@ export function useChatPage({ router }) {
     resetEditingState,
   });
 
-  const assistantPresetId = computed(() => {
-    const fromSession =
-      chatSessions.activeSession.value?.presetId || chatSessions.activeSession.value?.settings?.systemPromptPresetId;
-    return String(fromSession || chatSettings.settings.value?.systemPromptPresetId || DEFAULT_PROMPT_PRESET_ID);
-  });
+  const assistantPresetId = computed(() => activePresetId.value);
 
   const assistantPreset = computed(
     () =>
@@ -117,46 +117,15 @@ export function useChatPage({ router }) {
     avatarUrl: assistantPreset.value?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL,
   }));
 
-  const isPresetLocked = computed(() => Boolean(chatSessions.activeSessionId.value));
-
-  function syncSettingsToSessionPreset(session, presets) {
-    if (!session) return;
-    const rawPresetId = session?.presetId || session?.preset_id || session?.settings?.systemPromptPresetId;
-    const sessionPresetId = String(rawPresetId || "").trim();
-    if (!sessionPresetId) return;
-
-    const presetList = Array.isArray(presets) ? presets : [];
-    const resolvedPreset =
-      presetList.find((preset) => preset.id === sessionPresetId) ||
-      presetList.find((preset) => preset.id === DEFAULT_PROMPT_PRESET_ID) ||
-      presetList[0] ||
-      null;
-
-    const currentSettings = isPlainObject(chatSettings.settings.value) ? chatSettings.settings.value : {};
-    const nextPresetId = resolvedPreset?.id || sessionPresetId;
-    const nextSystemPrompt = resolvedPreset?.systemPrompt ?? currentSettings.systemPrompt ?? "";
-
-    if (
-      currentSettings.systemPromptPresetId === nextPresetId &&
-      String(currentSettings.systemPrompt ?? "") === String(nextSystemPrompt)
-    ) {
-      return;
-    }
-
-    chatSettings.settings.value = {
-      ...currentSettings,
-      systemPromptPresetId: nextPresetId,
-      systemPrompt: nextSystemPrompt,
-    };
-  }
-
-  watch(
-    [chatSessions.activeSession, chatSettings.promptPresets],
-    ([session, presets]) => {
-      syncSettingsToSessionPreset(session, presets);
-    },
-    { immediate: true }
+  const isPresetLocked = computed(
+    () => Boolean(chatMessaging.isSending.value || chatMessaging.isStreaming.value || isEditingActive.value || isEditingMessage.value)
   );
+
+  watch(activePresetId, (presetId) => {
+    const normalized = String(presetId || "").trim();
+    if (!normalized) return;
+    void chatSessions.activateTodayContext({ presetId: normalized, closeSidebar: false });
+  });
 
   async function updatePromptPreset(presetId, payload) {
     const preset = await chatSettings.updatePromptPreset(presetId, payload);
@@ -229,6 +198,11 @@ export function useChatPage({ router }) {
   function savePresetSelection(nextSettings) {
     applySettings(nextSettings);
     closePresets();
+    void chatSessions.activateTodayContext({ presetId: activePresetId.value, closeSidebar: false });
+  }
+
+  function goToToday({ closeSidebar = true } = {}) {
+    return chatSessions.activateTodayContext({ presetId: activePresetId.value, closeSidebar });
   }
 
   async function initializeChat() {
@@ -237,6 +211,7 @@ export function useChatPage({ router }) {
       await chatSettings.refreshChatMeta({ silent: true });
       await chatSettings.refreshPromptPresets({ silent: true, forceSystemPrompt: true });
       await chatSessions.loadSessions();
+      await chatSessions.activateTodayContext({ presetId: activePresetId.value, closeSidebar: false });
     } catch (error) {
       handleApiError(error);
     }
@@ -278,10 +253,13 @@ export function useChatPage({ router }) {
     settings: chatSettings.settings,
     isPresetLocked,
 
-    sessions: chatSessions.sessions,
+    sessions: chatSessions.sessionsForActivePreset,
     activeSessionId: chatSessions.activeSessionId,
     activeSession: chatSessions.activeSession,
     activeMessages: chatSessions.activeMessages,
+    isReadOnly: chatSessions.isActiveSessionReadOnly,
+    todayKey: chatSessions.todayKey,
+    activeSessionDateKey: chatSessions.activeSessionDateKey,
 
     userProfile,
     assistantProfile,
@@ -300,6 +278,7 @@ export function useChatPage({ router }) {
     openMobileSidebar,
     closeMobileSidebar,
     toggleSidebarCollapsed,
+    goToToday,
 
     trashedSessions: chatTrash.trashedSessions,
     isTrashLoading: chatTrash.isTrashLoading,
@@ -309,9 +288,7 @@ export function useChatPage({ router }) {
     restoreTrashedSession,
     deleteTrashedSessionPermanently,
 
-    createNewSession: chatSessions.createNewSession,
     selectSession: chatSessions.selectSession,
-    renameSession: chatSessions.renameSession,
 
     deleteDialog: chatSessions.deleteDialog,
     requestDeleteSession: chatSessions.requestDeleteSession,

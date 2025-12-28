@@ -10,6 +10,7 @@ defineProps({
   userProfile: { type: Object, default: null },
   assistantProfile: { type: Object, default: null },
   isMobile: { type: Boolean, default: false },
+  readOnly: { type: Boolean, default: false },
   isSending: { type: Boolean, default: false },
   isStreaming: { type: Boolean, default: false },
   isEditingActive: { type: Boolean, default: false },
@@ -20,6 +21,7 @@ defineProps({
 
 const emit = defineEmits([
   "open-sidebar",
+  "go-today",
   "send-message",
   "stop-output",
   "request-edit-message",
@@ -48,6 +50,11 @@ defineExpose({ focusComposer });
       &gt;
     </button>
 
+    <div v-if="readOnly" class="read-only-banner" role="note" aria-label="历史会话提示">
+      <div class="read-only-text">这是历史对话，只读。回到今天继续对话。</div>
+      <button class="read-only-action" type="button" @click="emit('go-today')">回到今天</button>
+    </div>
+
     <ChatMessageList
       class="message-list"
       :messages="messages"
@@ -56,7 +63,7 @@ defineExpose({ focusComposer });
       :editingMessageId="editingMessageId"
       :editingDraft="editingDraft"
       :editingProcessing="editingProcessing"
-      :actionsDisabled="isSending || isStreaming || isEditingActive || editingProcessing"
+      :actionsDisabled="readOnly || isSending || isStreaming || isEditingActive || editingProcessing"
       @request-edit="emit('request-edit-message', $event)"
       @update-edit-draft="emit('update-edit-draft', $event)"
       @commit-edit="emit('commit-edit-message', $event)"
@@ -65,6 +72,8 @@ defineExpose({ focusComposer });
 
     <ChatComposer
       ref="composerRef"
+      :disabled="readOnly"
+      :placeholder="readOnly ? '历史会话只读，点击“回到今天”继续对话' : '输入消息…'"
       :isSending="isSending || isEditingActive"
       :isStreaming="isStreaming"
       @send="emit('send-message', $event)"
@@ -123,5 +132,44 @@ defineExpose({ focusComposer });
 .message-list {
   flex: 1;
   min-height: 0;
+}
+
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
+  background: rgba(249, 250, 251, 0.92);
+  backdrop-filter: blur(10px);
+  z-index: 2;
+}
+
+.read-only-text {
+  color: var(--chat-muted, rgba(17, 24, 39, 0.62));
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+
+.read-only-action {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 750;
+  background: var(--chat-accent, #10a37f);
+  color: #fff;
+  transition: filter 0.18s ease, transform 0.06s ease;
+  flex: 0 0 auto;
+}
+
+.read-only-action:hover {
+  filter: brightness(1.03);
+}
+
+.read-only-action:active {
+  transform: translateY(1px);
 }
 </style>

@@ -1,4 +1,4 @@
-import { DEFAULT_SESSION_TITLE } from "@/config/chat";
+export { formatLocalDateKey, getSessionDateKey, isDateKey } from "@/chat/sessionDate";
 
 export function createId(prefix = "id") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -7,14 +7,6 @@ export function createId(prefix = "id") {
 
 export function isPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value);
-}
-
-export function formatSessionTitleFromMessage(messageText) {
-  const normalized = String(messageText || "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) return DEFAULT_SESSION_TITLE;
-  return normalized.length > 22 ? `${normalized.slice(0, 22)}…` : normalized;
 }
 
 export function isAbortError(error) {

@@ -9,16 +9,14 @@ const props = defineProps({
   collapsed: { type: Boolean, default: false },
   isMobile: { type: Boolean, default: false },
   mobileOpen: { type: Boolean, default: false },
-  promptPresets: { type: Array, default: () => [] },
   assistantProfile: { type: Object, default: () => ({}) },
 });
 
 const emit = defineEmits([
   "select-session",
-  "create-session",
+  "go-today",
   "toggle-collapse",
   "request-close",
-  "request-rename-session",
   "request-delete-session",
   "open-presets",
   "open-trash",
@@ -61,11 +59,11 @@ function onOverlayClick() {
       <aside class="sidebar" :class="{ collapsed: effectiveCollapsed, mobile: isMobile }" aria-label="历史会话">
         <header class="sidebar-header">
           <template v-if="isMobile">
-            <button class="primary-button" type="button" @click="emit('create-session')" aria-label="新建会话">
+            <button class="primary-button" type="button" @click="emit('go-today')" aria-label="回到今天">
               <span class="button-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="18" height="18">
                   <path
-                    d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
+                    d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1Zm13 8H4v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V10Z"
                     fill="currentColor"
                   />
                 </svg>
@@ -103,11 +101,11 @@ function onOverlayClick() {
               </svg>
             </button>
 
-            <button class="primary-button" type="button" @click="emit('create-session')" aria-label="新建会话">
+            <button class="primary-button" type="button" @click="emit('go-today')" aria-label="回到今天">
               <span class="button-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="18" height="18">
                   <path
-                    d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 0 1 0 2h-6v6a1 1 0 0 1-2 0v-6H5a1 1 0 0 1 0-2h6V5Z"
+                    d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1Zm13 8H4v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V10Z"
                     fill="currentColor"
                   />
                 </svg>
@@ -123,9 +121,7 @@ function onOverlayClick() {
             :session="session"
             :active="session.id === activeSessionId"
             :collapsed="effectiveCollapsed"
-            :promptPresets="promptPresets"
             @select="emit('select-session', session.id)"
-            @rename="emit('request-rename-session', $event)"
             @delete="emit('request-delete-session', session.id)"
           />
         </nav>

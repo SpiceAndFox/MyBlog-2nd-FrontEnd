@@ -33,6 +33,9 @@ const {
   activeSessionId,
   activeSession,
   activeMessages,
+  isReadOnly,
+  todayKey,
+  activeSessionDateKey,
   userProfile,
   assistantProfile,
   editingMessageId,
@@ -47,9 +50,8 @@ const {
   openMobileSidebar,
   closeMobileSidebar,
   toggleSidebarCollapsed,
+  goToToday,
   selectSession,
-  createNewSession,
-  renameSession,
   deleteDialog,
   requestDeleteSession,
   cancelDeleteSession,
@@ -93,13 +95,11 @@ useChatComposerSlashFocus({
       :collapsed="isSidebarCollapsed"
       :isMobile="isMobile"
       :mobileOpen="isMobileSidebarOpen"
-      :promptPresets="promptPresets"
       :assistantProfile="assistantProfile"
       @select-session="selectSession"
-      @create-session="createNewSession"
+      @go-today="goToToday"
       @toggle-collapse="toggleSidebarCollapsed"
       @request-close="closeMobileSidebar"
-      @request-rename-session="renameSession"
       @request-delete-session="requestDeleteSession"
       @open-presets="openPresets"
       @open-trash="openTrash"
@@ -109,11 +109,12 @@ useChatComposerSlashFocus({
     <ChatConversationPanel
       ref="conversationPanelRef"
       class="chat-conversation"
-      :sessionTitle="activeSession?.title || DEFAULT_SESSION_TITLE"
+      :sessionTitle="activeSessionDateKey || todayKey || DEFAULT_SESSION_TITLE"
       :messages="activeMessages"
       :userProfile="userProfile"
       :assistantProfile="assistantProfile"
       :isMobile="isMobile"
+      :readOnly="isReadOnly"
       :isSending="isSending"
       :isStreaming="isStreaming"
       :isEditingActive="isEditingActive"
@@ -121,6 +122,7 @@ useChatComposerSlashFocus({
       :editingDraft="editingDraft"
       :editingProcessing="isEditingMessage"
       @open-sidebar="openMobileSidebar"
+      @go-today="goToToday"
       @send-message="sendMessage"
       @stop-output="stopStreaming"
       @request-edit-message="requestEditMessage"

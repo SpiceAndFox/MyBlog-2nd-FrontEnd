@@ -1,7 +1,6 @@
 import { nextTick, reactive, ref } from "vue";
 import { editChatMessage, sendChatMessage, streamChatMessage, streamEditChatMessage } from "@/api/chat";
-import { DEFAULT_SESSION_TITLE } from "@/config/chat";
-import { createId, formatSessionTitleFromMessage, isAbortError } from "./helpers";
+import { createId, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 
 export function useChatMessaging({
@@ -10,8 +9,8 @@ export function useChatMessaging({
   messagesBySessionId,
   activeSessionId,
   ensureMessagesLoaded,
-  createSession,
-  activateSession,
+  ensureTodaySession,
+  isReadOnly,
   bringSessionToTop,
   upsertSession,
   handleApiError,
@@ -50,6 +49,7 @@ export function useChatMessaging({
 
   function requestEditMessage(message) {
     if (isSending.value || isStreaming.value || isEditingMessage.value) return;
+    if (isReadOnly?.value) return;
     const sessionId = activeSessionId.value;
     if (!sessionId) return;
     if (!message || message.role !== "user") return;
@@ -99,17 +99,15 @@ export function useChatMessaging({
     }
   }
 
-  async function ensureActiveSession() {
-    if (activeSessionId.value) return activeSessionId.value;
-
-    const session = await createSession();
-    await activateSession(session.id);
-    return session.id;
+  async function ensureWritableSessionId() {
+    if (typeof ensureTodaySession !== "function") throw new Error("Missing ensureTodaySession");
+    return await ensureTodaySession();
   }
 
   async function commitEditMessage(messageId) {
     if (!isEditingActive.value) return;
     if (isEditingMessage.value || isSending.value || isStreaming.value) return;
+    if (isReadOnly?.value) return;
 
     const sessionId = String(editingSessionId.value || "");
     const targetMessageId = String(messageId || editingMessageId.value || "");
@@ -150,9 +148,6 @@ export function useChatMessaging({
 
       const session = sessions.value.find((s) => s.id === sessionId);
       if (session) {
-        if (session.title === DEFAULT_SESSION_TITLE && messageIndex === 0) {
-          session.title = formatSessionTitleFromMessage(normalizedContent);
-        }
         session.updatedAt = nowIso;
         bringSessionToTop(sessionId);
       }
@@ -232,6 +227,7 @@ export function useChatMessaging({
 
   async function sendMessage(text) {
     if (isSending.value) return;
+    if (isReadOnly?.value) return;
 
     const content = String(text || "").trim();
     if (!content) return;
@@ -242,7 +238,7 @@ export function useChatMessaging({
     let sessionId = "";
 
     try {
-      sessionId = await ensureActiveSession();
+      sessionId = await ensureWritableSessionId();
       await ensureMessagesLoaded(sessionId);
 
       const optimisticUserMessageId = createId("tmp_msg");
@@ -257,9 +253,6 @@ export function useChatMessaging({
 
       const session = sessions.value.find((s) => s.id === sessionId);
       if (session) {
-        if (session.title === DEFAULT_SESSION_TITLE && (messagesBySessionId[sessionId] || []).length <= 1) {
-          session.title = formatSessionTitleFromMessage(content);
-        }
         session.updatedAt = nowIso;
         bringSessionToTop(sessionId);
       }

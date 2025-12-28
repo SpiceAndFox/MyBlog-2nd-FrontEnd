@@ -1,105 +1,23 @@
 <script setup>
-import { computed, nextTick, ref, watch } from "vue";
-import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
+import { computed } from "vue";
+import { getSessionDateKey, isDateKey } from "@/chat/sessionDate";
 
 const props = defineProps({
   session: { type: Object, required: true },
   active: { type: Boolean, default: false },
   collapsed: { type: Boolean, default: false },
-  promptPresets: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(["select", "rename", "delete"]);
+const emit = defineEmits(["select", "delete"]);
 
-const isEditingTitle = ref(false);
-const draftTitle = ref("");
-const titleInputRef = ref(null);
-
-const updatedAtLabel = computed(() => {
-  const value = props.session?.updatedAt;
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(undefined, { month: "2-digit", day: "2-digit" });
+const sessionDateKey = computed(() => getSessionDateKey(props.session));
+const collapsedLabel = computed(() => {
+  const dateKey = String(sessionDateKey.value || "").trim();
+  if (isDateKey(dateKey)) return dateKey.slice(8, 10);
+  return dateKey.slice(0, 1).toUpperCase() || "·";
 });
-
-const avatarLabel = computed(() => {
-  const title = String(props.session?.title || "").trim();
-  if (!title) return "·";
-  return title.slice(0, 1).toUpperCase();
-});
-
-const sessionPresetId = computed(() => {
-  const fromSession = props.session?.presetId || props.session?.preset_id;
-  return String(fromSession || props.session?.settings?.systemPromptPresetId || "default");
-});
-
-const sessionPreset = computed(() => {
-  const list = Array.isArray(props.promptPresets) ? props.promptPresets : [];
-  return list.find((preset) => preset?.id === sessionPresetId.value) || list.find((preset) => preset?.id === "default") || null;
-});
-
-const sessionAvatarUrl = computed(() => String(sessionPreset.value?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL || ""));
-const sessionAvatarFailed = ref(false);
-
-watch(sessionAvatarUrl, () => {
-  sessionAvatarFailed.value = false;
-});
-
-function markSessionAvatarFailed() {
-  sessionAvatarFailed.value = true;
-}
-
-async function startEditingTitle() {
-  if (props.collapsed) return;
-  isEditingTitle.value = true;
-  draftTitle.value = String(props.session?.title || "");
-  await nextTick();
-  titleInputRef.value?.focus?.();
-  titleInputRef.value?.select?.();
-}
-
-function finishEditingTitle({ commit } = {}) {
-  const normalizedNextTitle = String(draftTitle.value || "").trim();
-  const originalTitle = String(props.session?.title || "").trim();
-
-  isEditingTitle.value = false;
-  draftTitle.value = "";
-
-  if (!commit) return;
-  if (!normalizedNextTitle) return;
-  if (normalizedNextTitle === originalTitle) return;
-  emit("rename", { sessionId: props.session.id, title: normalizedNextTitle });
-}
-
-function confirmEditingTitle() {
-  finishEditingTitle({ commit: true });
-}
-
-function cancelEditingTitle() {
-  finishEditingTitle({ commit: false });
-}
-
-function onTitleKeydown(event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    event.stopPropagation();
-    confirmEditingTitle();
-    return;
-  }
-  if (event.key === "Escape") {
-    event.preventDefault();
-    event.stopPropagation();
-    cancelEditingTitle();
-  }
-}
-
-function selectThisSession() {
-  if (isEditingTitle.value) return;
-  emit("select");
-}
 
 function onMainKeydown(event) {
-  if (isEditingTitle.value) return;
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
     emit("select");
@@ -112,47 +30,21 @@ function onMainKeydown(event) {
     <div
       class="session-main"
       role="button"
-      :tabindex="isEditingTitle ? -1 : 0"
-      :title="session.title"
-      @click="selectThisSession"
+      tabindex="0"
+      :title="sessionDateKey"
+      @click="emit('select')"
       @keydown="onMainKeydown"
     >
       <span v-if="collapsed" class="collapsed-badge" aria-hidden="true">
-        <img
-          v-if="sessionAvatarUrl && !sessionAvatarFailed"
-          class="collapsed-badge-image"
-          :src="sessionAvatarUrl"
-          alt=""
-          @error="markSessionAvatarFailed"
-        />
-        <span v-else class="collapsed-badge-fallback">{{ avatarLabel }}</span>
+        <span class="collapsed-badge-fallback">{{ collapsedLabel }}</span>
       </span>
 
       <template v-else>
-        <span v-if="!isEditingTitle" class="session-title">{{ session.title }}</span>
-        <input
-          v-else
-          ref="titleInputRef"
-          v-model="draftTitle"
-          class="title-input"
-          type="text"
-          maxlength="60"
-          @keydown="onTitleKeydown"
-          @blur="confirmEditingTitle"
-        />
-        <span v-if="!isEditingTitle" class="session-meta">{{ updatedAtLabel }}</span>
+        <span class="session-title">{{ sessionDateKey }}</span>
       </template>
     </div>
 
-    <div v-if="!collapsed && !isEditingTitle" class="actions" aria-label="会话操作">
-      <button class="icon-button" type="button" @click="startEditingTitle" aria-label="重命名">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path
-            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm18-11.5a1 1 0 0 0 0-1.41l-1.34-1.34a1 1 0 0 0-1.41 0l-1.13 1.13 3.75 3.75L21 5.75Z"
-            fill="currentColor"
-          />
-        </svg>
-      </button>
+    <div v-if="!collapsed" class="actions" aria-label="会话操作">
       <button class="icon-button danger" type="button" @click="emit('delete')" aria-label="删除">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
           <path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z" fill="currentColor" />
@@ -218,13 +110,6 @@ function onMainKeydown(event) {
   overflow: hidden;
 }
 
-.collapsed-badge-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
 .collapsed-badge-fallback {
   width: 100%;
   height: 100%;
@@ -246,23 +131,6 @@ function onMainKeydown(event) {
   color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.62));
   white-space: nowrap;
   flex: 0 0 auto;
-}
-
-.title-input {
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.14));
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
-  padding: 6px 10px;
-  font-size: 0.9rem;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.title-input:focus {
-  border-color: rgba(16, 163, 127, 0.75);
-  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.22);
 }
 
 .actions {

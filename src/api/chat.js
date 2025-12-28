@@ -127,7 +127,7 @@ export async function createChatSession({ title, settings, presetId } = {}) {
   return data.session;
 }
 
-export async function renameChatSession(sessionId, { title }) {
+async function renameChatSession(sessionId, { title }) {
   const normalizedId = normalizeSessionId(sessionId);
   const res = await fetch(`/api/chat/sessions/${normalizedId}`, {
     method: "PATCH",
