@@ -5,7 +5,7 @@ import {
   listChatMessages,
   listChatSessions,
 } from "@/api/chat";
-import { formatLocalDateKey, getSessionDateKey } from "./helpers";
+import { formatLocalDateKey, getMsUntilNextDayBoundary, getSessionDateKey } from "./helpers";
 import { mapMessage, mapSession } from "./mappers";
 
 export function useChatSessions({
@@ -34,14 +34,6 @@ export function useChatSessions({
     if (nextKey && nextKey !== todayKey.value) todayKey.value = nextKey;
   }
 
-  function getMsUntilNextLocalMidnight(date = new Date()) {
-    const now = date instanceof Date ? date : new Date(date);
-    if (Number.isNaN(now.getTime())) return 60_000;
-    const next = new Date(now);
-    next.setHours(24, 0, 0, 0);
-    return Math.max(0, next.getTime() - now.getTime());
-  }
-
   function clearTodayKeyTimer() {
     if (!todayKeyTimer) return;
     window.clearTimeout(todayKeyTimer);
@@ -50,7 +42,7 @@ export function useChatSessions({
 
   function scheduleMidnightRefresh() {
     clearTodayKeyTimer();
-    const delay = getMsUntilNextLocalMidnight(new Date());
+    const delay = getMsUntilNextDayBoundary(new Date());
     todayKeyTimer = window.setTimeout(() => {
       refreshTodayKey();
       scheduleMidnightRefresh();
