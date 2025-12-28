@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import ChatSessionListItem from "@/components/Chat/ChatSessionListItem.vue";
+import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
 
 const props = defineProps({
   sessions: { type: Array, required: true },
@@ -9,6 +10,7 @@ const props = defineProps({
   isMobile: { type: Boolean, default: false },
   mobileOpen: { type: Boolean, default: false },
   promptPresets: { type: Array, default: () => [] },
+  assistantProfile: { type: Object, default: () => ({}) },
 });
 
 const emit = defineEmits([
@@ -18,12 +20,30 @@ const emit = defineEmits([
   "request-close",
   "request-rename-session",
   "request-delete-session",
+  "open-presets",
   "open-trash",
   "open-settings",
 ]);
 
 const effectiveCollapsed = computed(() => !props.isMobile && props.collapsed);
 const shouldShow = computed(() => !props.isMobile || props.mobileOpen);
+
+const presetName = computed(() => String(props.assistantProfile?.name || "默认预设"));
+const presetAvatarUrl = computed(() => String(props.assistantProfile?.avatarUrl || DEFAULT_ASSISTANT_AVATAR_URL || ""));
+const presetAvatarLabel = computed(() => {
+  const normalized = presetName.value.trim();
+  if (!normalized) return "AI";
+  return normalized.slice(0, 1).toUpperCase();
+});
+
+const presetAvatarFailed = ref(false);
+watch(presetAvatarUrl, () => {
+  presetAvatarFailed.value = false;
+});
+
+function markPresetAvatarFailed() {
+  presetAvatarFailed.value = true;
+}
 
 function onOverlayClick() {
   if (!props.isMobile) return;
@@ -111,6 +131,26 @@ function onOverlayClick() {
         </nav>
 
         <footer class="sidebar-footer">
+          <button
+            class="footer-button"
+            :class="{ iconOnly: effectiveCollapsed }"
+            type="button"
+            :aria-label="`预设：${presetName}`"
+            @click="emit('open-presets')"
+          >
+            <span class="preset-avatar" aria-hidden="true">
+              <img
+                v-if="presetAvatarUrl && !presetAvatarFailed"
+                class="preset-avatar-image"
+                :src="presetAvatarUrl"
+                alt=""
+                @error="markPresetAvatarFailed"
+              />
+              <span v-else class="preset-avatar-fallback">{{ presetAvatarLabel }}</span>
+            </span>
+            <span v-if="!effectiveCollapsed" class="button-text">{{ presetName }}</span>
+          </button>
+
           <button
             class="footer-button"
             :class="{ iconOnly: effectiveCollapsed }"
@@ -305,6 +345,34 @@ function onOverlayClick() {
 
 .footer-button.iconOnly {
   justify-content: center;
+}
+
+.preset-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--chat-sidebar-active, rgba(255, 255, 255, 0.12));
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
+}
+
+.preset-avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.preset-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.85rem;
 }
 
 .mobile-overlay {

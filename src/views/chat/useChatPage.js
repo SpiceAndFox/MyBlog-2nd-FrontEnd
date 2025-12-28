@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
-import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
+import { DEFAULT_ASSISTANT_AVATAR_URL, DEFAULT_PROMPT_PRESET_ID } from "@/config/chat";
 import { getMeApi } from "@/api/auth";
 import { createApiErrorHandler } from "./apiError";
 import { isPlainObject } from "./helpers";
@@ -17,6 +17,7 @@ export function useChatPage({ router }) {
   const isSidebarCollapsed = ref(false);
   const isMobileSidebarOpen = ref(false);
   const isSettingsOpen = ref(false);
+  const isPresetsOpen = ref(false);
   const isTrashOpen = ref(false);
   const navHeight = ref(60);
 
@@ -100,13 +101,13 @@ export function useChatPage({ router }) {
   const assistantPresetId = computed(() => {
     const fromSession =
       chatSessions.activeSession.value?.presetId || chatSessions.activeSession.value?.settings?.systemPromptPresetId;
-    return String(fromSession || chatSettings.settings.value?.systemPromptPresetId || "default");
+    return String(fromSession || chatSettings.settings.value?.systemPromptPresetId || DEFAULT_PROMPT_PRESET_ID);
   });
 
   const assistantPreset = computed(
     () =>
       chatSettings.promptPresets.value.find((preset) => preset.id === assistantPresetId.value) ||
-      chatSettings.promptPresets.value.find((preset) => preset.id === "default") ||
+      chatSettings.promptPresets.value.find((preset) => preset.id === DEFAULT_PROMPT_PRESET_ID) ||
       chatSettings.promptPresets.value[0] ||
       null
   );
@@ -127,7 +128,7 @@ export function useChatPage({ router }) {
     const presetList = Array.isArray(presets) ? presets : [];
     const resolvedPreset =
       presetList.find((preset) => preset.id === sessionPresetId) ||
-      presetList.find((preset) => preset.id === "default") ||
+      presetList.find((preset) => preset.id === DEFAULT_PROMPT_PRESET_ID) ||
       presetList[0] ||
       null;
 
@@ -169,6 +170,8 @@ export function useChatPage({ router }) {
   }
 
   function openSettings() {
+    isPresetsOpen.value = false;
+    isTrashOpen.value = false;
     isSettingsOpen.value = true;
     closeMobileSidebar();
   }
@@ -177,7 +180,20 @@ export function useChatPage({ router }) {
     isSettingsOpen.value = false;
   }
 
+  function openPresets() {
+    isSettingsOpen.value = false;
+    isTrashOpen.value = false;
+    isPresetsOpen.value = true;
+    closeMobileSidebar();
+  }
+
+  function closePresets() {
+    isPresetsOpen.value = false;
+  }
+
   function openTrash() {
+    isSettingsOpen.value = false;
+    isPresetsOpen.value = false;
     isTrashOpen.value = true;
     closeMobileSidebar();
     void chatTrash.refreshTrash({ silent: true });
@@ -197,13 +213,22 @@ export function useChatPage({ router }) {
     await chatTrash.deletePermanently(sessionId);
   }
 
-  function saveSettings(nextSettings) {
+  function applySettings(nextSettings) {
     const base = isPlainObject(chatSettings.settings.value) ? chatSettings.settings.value : {};
     const override = isPlainObject(nextSettings) ? nextSettings : {};
     chatSettings.settings.value = { ...base, ...override };
     chatSettings.normalizeSettings();
     chatSettings.persistCurrentSettings();
+  }
+
+  function saveSettings(nextSettings) {
+    applySettings(nextSettings);
     closeSettings();
+  }
+
+  function savePresetSelection(nextSettings) {
+    applySettings(nextSettings);
+    closePresets();
   }
 
   async function initializeChat() {
@@ -239,6 +264,7 @@ export function useChatPage({ router }) {
     isSidebarCollapsed,
     isMobileSidebarOpen,
     isSettingsOpen,
+    isPresetsOpen,
     isTrashOpen,
     navHeight,
 
@@ -301,5 +327,8 @@ export function useChatPage({ router }) {
     openSettings,
     closeSettings,
     saveSettings,
+    openPresets,
+    closePresets,
+    savePresetSelection,
   };
 }

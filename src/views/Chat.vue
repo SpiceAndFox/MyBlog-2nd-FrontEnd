@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
 import ChatSettingsModal from "@/components/Chat/ChatSettingsModal.vue";
+import ChatPresetModal from "@/components/Chat/ChatPresetModal.vue";
 import ChatTrashModal from "@/components/Chat/ChatTrashModal.vue";
 import ChatConfirmDialog from "@/components/Chat/ChatConfirmDialog.vue";
 import { DEFAULT_SESSION_TITLE } from "@/config/chat";
@@ -17,6 +18,7 @@ const {
   isSidebarCollapsed,
   isMobileSidebarOpen,
   isSettingsOpen,
+  isPresetsOpen,
   isTrashOpen,
   navHeight,
   isSending,
@@ -67,12 +69,16 @@ const {
   openSettings,
   closeSettings,
   saveSettings,
+  openPresets,
+  closePresets,
+  savePresetSelection,
 } = useChatPage({ router });
 
 const conversationPanelRef = ref(null);
 
 useChatComposerSlashFocus({
   isSettingsOpen,
+  isPresetsOpen,
   isTrashOpen,
   deleteDialog,
   focusComposer: () => conversationPanelRef.value?.focusComposer?.(),
@@ -88,12 +94,14 @@ useChatComposerSlashFocus({
       :isMobile="isMobile"
       :mobileOpen="isMobileSidebarOpen"
       :promptPresets="promptPresets"
+      :assistantProfile="assistantProfile"
       @select-session="selectSession"
       @create-session="createNewSession"
       @toggle-collapse="toggleSidebarCollapsed"
       @request-close="closeMobileSidebar"
       @request-rename-session="renameSession"
       @request-delete-session="requestDeleteSession"
+      @open-presets="openPresets"
       @open-trash="openTrash"
       @open-settings="openSettings"
     />
@@ -124,6 +132,14 @@ useChatComposerSlashFocus({
     <ChatSettingsModal
       :open="isSettingsOpen"
       :providers="providers"
+      :currentSettings="settings"
+      :defaultSettings="chatDefaults"
+      @close="closeSettings"
+      @save="saveSettings"
+    />
+
+    <ChatPresetModal
+      :open="isPresetsOpen"
       :promptPresets="promptPresets"
       :currentSettings="settings"
       :defaultSettings="chatDefaults"
@@ -133,8 +149,8 @@ useChatComposerSlashFocus({
       :updatePreset="updatePromptPreset"
       :deletePreset="deletePromptPreset"
       :uploadPresetAvatar="uploadPromptPresetAvatar"
-      @close="closeSettings"
-      @save="saveSettings"
+      @close="closePresets"
+      @save="savePresetSelection"
     />
 
     <ChatTrashModal

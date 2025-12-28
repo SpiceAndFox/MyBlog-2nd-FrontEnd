@@ -1,19 +1,11 @@
 <script setup>
 import { computed, reactive, watch } from "vue";
-import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
   providers: { type: Array, default: () => [] },
-  promptPresets: { type: Array, default: () => [] },
   currentSettings: { type: Object, required: true },
   defaultSettings: { type: Object, default: () => ({}) },
-  presetLocked: { type: Boolean, default: false },
-  refreshPresets: { type: Function, default: null },
-  createPreset: { type: Function, default: null },
-  updatePreset: { type: Function, default: null },
-  deletePreset: { type: Function, default: null },
-  uploadPresetAvatar: { type: Function, default: null },
 });
 
 const emit = defineEmits(["close", "save"]);
@@ -151,157 +143,6 @@ function onSelectChange(control, event) {
   setDraftValue(control.key, String(event?.target?.value ?? ""));
 }
 
-function isValidPresetId(value) {
-  return /^[a-zA-Z0-9_-]{1,64}$/.test(String(value || "").trim());
-}
-
-function isReservedPresetId(presetId) {
-  const normalizedId = String(presetId || "").trim();
-  if (!normalizedId) return false;
-  return props.promptPresets.some((p) => p?.isBuiltin && String(p.id) === normalizedId);
-}
-
-const presetEditor = reactive({
-  open: false,
-  mode: "create", // create | edit
-  originalId: "",
-  sourcePresetId: "",
-  id: "",
-  name: "",
-  systemPrompt: "",
-  avatarUrl: "",
-  avatarFile: null,
-  avatarObjectUrl: "",
-  saving: false,
-});
-
-const allowPresetIdEdit = false;
-const showPresetIdInput = computed(() => presetEditor.mode === "create" || allowPresetIdEdit);
-
-function resetPresetEditor() {
-  presetEditor.open = false;
-  presetEditor.mode = "create";
-  presetEditor.originalId = "";
-  presetEditor.sourcePresetId = "";
-  presetEditor.id = "";
-  presetEditor.name = "";
-  presetEditor.systemPrompt = "";
-  presetEditor.avatarUrl = "";
-  presetEditor.avatarFile = null;
-  if (presetEditor.avatarObjectUrl) URL.revokeObjectURL(presetEditor.avatarObjectUrl);
-  presetEditor.avatarObjectUrl = "";
-  presetEditor.saving = false;
-}
-
-function beginCreatePreset() {
-  resetPresetEditor();
-  presetEditor.open = true;
-  presetEditor.mode = "create";
-}
-
-function beginEditPreset(preset) {
-  if (!preset) return;
-  const builtin = Boolean(preset?.isBuiltin);
-  resetPresetEditor();
-  presetEditor.open = true;
-  presetEditor.mode = builtin ? "create" : "edit";
-  presetEditor.originalId = builtin ? "" : String(preset.id || "");
-  presetEditor.sourcePresetId = builtin ? String(preset.id || "") : "";
-  presetEditor.id = builtin ? `${String(preset.id || "preset")}_custom` : String(preset.id || "");
-  presetEditor.name = String(preset.name || "");
-  presetEditor.systemPrompt = String(preset.systemPrompt || "");
-  presetEditor.avatarUrl = String(preset.avatarUrl || "");
-}
-
-function onAvatarFileChange(event) {
-  const file = event?.target?.files?.[0] || null;
-  presetEditor.avatarFile = file;
-  if (presetEditor.avatarObjectUrl) URL.revokeObjectURL(presetEditor.avatarObjectUrl);
-  presetEditor.avatarObjectUrl = file ? URL.createObjectURL(file) : "";
-}
-
-const presetAvatarPreviewUrl = computed(() => presetEditor.avatarObjectUrl || presetEditor.avatarUrl || "");
-
-async function savePreset() {
-  if (presetEditor.saving) return;
-  if (!props.createPreset || !props.refreshPresets) return;
-  if (presetEditor.mode === "edit" && !props.updatePreset) return;
-
-  const id = String(presetEditor.id || "").trim();
-  const name = String(presetEditor.name || "").trim();
-  const systemPrompt = String(presetEditor.systemPrompt || "");
-
-  if (!isValidPresetId(id)) {
-    window.alert("预设ID仅支持字母/数字/下划线/短横线，长度 1-64");
-    return;
-  }
-  if (isReservedPresetId(id)) {
-    window.alert("该预设ID为内置预设保留ID，请换一个ID（例如: my_assistant）");
-    return;
-  }
-  if (!name) {
-    window.alert("预设名称不能为空");
-    return;
-  }
-
-  presetEditor.saving = true;
-
-  try {
-    let savedPreset;
-    if (presetEditor.mode === "create") {
-      savedPreset = await props.createPreset({ id, name, systemPrompt });
-      if (savedPreset?.id && !props.presetLocked) {
-        draft.systemPromptPresetId = savedPreset.id;
-        draft.systemPrompt = savedPreset.systemPrompt || "";
-      }
-    } else {
-      const originalId = String(presetEditor.originalId || "").trim();
-      if (!originalId) throw new Error("缺少原始预设ID");
-      savedPreset = await props.updatePreset(originalId, { id, name, systemPrompt });
-
-      if (!props.presetLocked && draft.systemPromptPresetId === originalId && savedPreset?.id) {
-        draft.systemPromptPresetId = savedPreset.id;
-      }
-      if (!props.presetLocked && draft.systemPromptPresetId === savedPreset?.id) {
-        draft.systemPrompt = savedPreset.systemPrompt || "";
-      }
-    }
-
-    if (savedPreset?.id && presetEditor.avatarFile && props.uploadPresetAvatar) {
-      const avatarPresetId = String(savedPreset.id || "").trim();
-      await props.uploadPresetAvatar(avatarPresetId, presetEditor.avatarFile);
-    }
-
-    await props.refreshPresets();
-    resetPresetEditor();
-  } catch (error) {
-    window.alert(error?.message || "保存预设失败");
-  } finally {
-    presetEditor.saving = false;
-  }
-}
-
-async function removePreset(preset) {
-  if (!preset?.id || !props.deletePreset || !props.refreshPresets) return;
-  if (preset?.isBuiltin) return;
-  const confirmed = window.confirm(`确定要删除预设 “${preset.name || preset.id}” 吗？`);
-  if (!confirmed) return;
-
-  try {
-    await props.deletePreset(String(preset.id));
-    const nextPresets = await props.refreshPresets();
-
-    if (!props.presetLocked && draft.systemPromptPresetId === preset.id) {
-      const fallback = nextPresets?.find?.((p) => p.id) || null;
-      const defaults = readDefaults();
-      draft.systemPromptPresetId = fallback?.id || defaults.systemPromptPresetId || "";
-      draft.systemPrompt = fallback?.systemPrompt || defaults.systemPrompt || "";
-    }
-  } catch (error) {
-    window.alert(error?.message || "删除预设失败");
-  }
-}
-
 function applyFromCurrentSettings() {
   const source = props.currentSettings || {};
   const defaults = readDefaults();
@@ -354,9 +195,6 @@ function applyFromCurrentSettings() {
   } else if (typeof defaults.enableWebSearch === "boolean") {
     draft.enableWebSearch = defaults.enableWebSearch;
   }
-
-  draft.systemPromptPresetId = source.systemPromptPresetId || providerDefaults.systemPromptPresetId || defaults.systemPromptPresetId || "";
-  draft.systemPrompt = typeof source.systemPrompt === "string" ? source.systemPrompt : providerDefaults.systemPrompt || defaults.systemPrompt || "";
 }
 
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
@@ -460,25 +298,6 @@ watch(
 );
 
 watch(
-  () => draft.systemPromptPresetId,
-  (presetId) => {
-    const preset = props.promptPresets.find((p) => p.id === presetId);
-    if (!preset) return;
-    draft.systemPrompt = preset.systemPrompt || "";
-  }
-);
-
-watch(
-  () => props.promptPresets,
-  (presets) => {
-    if (!props.open) return;
-    const preset = (presets || []).find((p) => p.id === draft.systemPromptPresetId);
-    if (!preset) return;
-    draft.systemPrompt = preset.systemPrompt || "";
-  }
-);
-
-watch(
   () => props.open,
   (open, _previous, onCleanup) => {
     if (!open) return;
@@ -492,7 +311,6 @@ watch(
 );
 
 function close() {
-  resetPresetEditor();
   emit("close");
 }
 
@@ -595,140 +413,6 @@ function save() {
                     @change="onToggleChange(control, $event)"
                   />
                   <span>{{ control.label }}</span>
-                </label>
-              </div>
-            </div>
-          </section>
-
-          <section class="section">
-            <h4 class="section-title">预设提示词（System Prompt）</h4>
-            <div class="grid">
-              <label class="field">
-                <span class="label">Preset</span>
-                <select v-model="draft.systemPromptPresetId" class="control" :disabled="presetLocked">
-                  <option v-for="preset in promptPresets" :key="preset.id" :value="preset.id">
-                    {{ preset.name }}
-                  </option>
-                </select>
-                <span v-if="presetLocked" class="preset-lock-hint">当前会话已开始，不能更改预设。</span>
-              </label>
-
-              <label class="field full">
-                <span class="label">System Prompt</span>
-                <div class="prompt-preview" aria-label="System Prompt">{{ draft.systemPrompt }}</div>
-              </label>
-            </div>
-          </section>
-
-          <section class="section">
-            <div class="section-header">
-              <h4 class="section-title">预设管理</h4>
-              <div class="section-actions">
-                <button
-                  class="mini-button"
-                  type="button"
-                  :disabled="!props.refreshPresets"
-                  @click="props.refreshPresets?.()"
-                >
-                  刷新
-                </button>
-                <button class="mini-button primary" type="button" @click="beginCreatePreset">新建预设</button>
-              </div>
-            </div>
-
-            <div class="preset-list">
-              <div v-if="promptPresets.length === 0" class="preset-empty">暂无预设</div>
-
-              <div v-else class="preset-items">
-                <div v-for="preset in promptPresets" :key="preset.id" class="preset-item">
-                  <div class="preset-avatar" aria-hidden="true">
-                    <img v-if="preset.avatarUrl" :src="preset.avatarUrl" class="preset-avatar-image" alt="" />
-                    <img v-else :src="DEFAULT_ASSISTANT_AVATAR_URL" class="preset-avatar-image" />
-                  </div>
-
-                  <div class="preset-main">
-                    <div class="preset-name">{{ preset.name }}</div>
-                    <div class="preset-meta">
-                      ID: {{ preset.id }} <span v-if="preset.isBuiltin" class="preset-badge">内置</span>
-                    </div>
-                  </div>
-
-                  <div class="preset-actions">
-                    <button v-if="preset.isBuiltin" class="mini-button" type="button" @click="beginEditPreset(preset)">
-                      基于此创建
-                    </button>
-                    <template v-else>
-                      <button class="mini-button" type="button" @click="beginEditPreset(preset)">编辑</button>
-                      <button class="mini-button danger" type="button" @click="removePreset(preset)">删除</button>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="presetEditor.open" class="preset-editor">
-              <h5 class="preset-editor-title">{{ presetEditor.mode === "create" ? "新建预设" : "编辑预设" }}</h5>
-              <p v-if="presetEditor.sourcePresetId" class="preset-editor-hint">
-                基于内置预设 “{{ presetEditor.sourcePresetId }}” 创建副本
-              </p>
-
-              <div class="grid">
-                <label class="field">
-                  <span class="label">ID</span>
-                  <input
-                    v-if="showPresetIdInput"
-                    v-model="presetEditor.id"
-                    class="control"
-                    placeholder="例如: my_assistant"
-                  />
-                  <div v-else class="control preset-id-label">{{ presetEditor.id }}</div>
-                </label>
-
-                <label class="field">
-                  <span class="label">Name</span>
-                  <input v-model="presetEditor.name" class="control" placeholder="例如: Assistant" />
-                </label>
-
-                <label class="field full">
-                  <span class="label">System Prompt</span>
-                  <textarea
-                    v-model="presetEditor.systemPrompt"
-                    class="control textarea"
-                    rows="6"
-                    placeholder="写下该预设的系统提示词"
-                  ></textarea>
-                </label>
-
-                <label class="field full">
-                  <span class="label">Avatar</span>
-                  <div class="avatar-uploader">
-                    <div class="avatar-preview" aria-hidden="true">
-                      <img v-if="presetAvatarPreviewUrl" :src="presetAvatarPreviewUrl" class="avatar-image" alt="" />
-                      <div v-else class="avatar-preview-fallback">AI</div>
-                    </div>
-
-                    <div class="avatar-controls">
-                      <input class="file-input" type="file" accept="image/*" @change="onAvatarFileChange" />
-                      <div class="preset-editor-actions">
-                        <button
-                          class="mini-button"
-                          type="button"
-                          :disabled="presetEditor.saving"
-                          @click="resetPresetEditor"
-                        >
-                          取消
-                        </button>
-                        <button
-                          class="mini-button primary"
-                          type="button"
-                          :disabled="presetEditor.saving"
-                          @click="savePreset"
-                        >
-                          {{ presetEditor.saving ? "保存中..." : "保存预设" }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 </label>
               </div>
             </div>
@@ -869,19 +553,6 @@ function save() {
   color: rgba(17, 24, 39, 0.92);
 }
 
-.preset-id-label {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  background: rgba(249, 250, 251, 0.6);
-  color: rgba(17, 24, 39, 0.7);
-}
-
-.preset-lock-hint {
-  font-size: 0.78rem;
-  color: rgba(17, 24, 39, 0.6);
-}
-
 .control:focus {
   border-color: rgba(16, 163, 127, 0.65);
   box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
@@ -893,22 +564,6 @@ function save() {
   max-width: 100%;
   min-height: 140px;
   line-height: 1.55;
-}
-
-.prompt-preview {
-  width: 100%;
-  min-height: 140px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  background: rgba(249, 250, 251, 0.9);
-  color: rgba(17, 24, 39, 0.92);
-  font-size: 0.95rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  overflow: auto;
-  box-sizing: border-box;
-  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
 }
 
 .range {
@@ -979,213 +634,6 @@ function save() {
 
 .button-primary:hover {
   background: var(--chat-accent-strong, #2563eb);
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.section-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.mini-button {
-  border: 1px solid rgba(17, 24, 39, 0.16);
-  background: rgba(249, 250, 251, 0.9);
-  color: rgba(17, 24, 39, 0.82);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
-}
-
-.mini-button:hover:not(:disabled) {
-  background: rgba(17, 24, 39, 0.05);
-}
-
-.mini-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.mini-button.primary {
-  border-color: rgba(16, 163, 127, 0.35);
-  background: rgba(16, 163, 127, 0.1);
-  color: rgba(16, 163, 127, 0.95);
-}
-
-.mini-button.danger {
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.1);
-  color: rgba(220, 38, 38, 0.95);
-}
-
-.preset-list {
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  border-radius: 14px;
-  background: rgba(249, 250, 251, 0.8);
-  overflow: hidden;
-}
-
-.preset-empty {
-  padding: 14px 12px;
-  color: rgba(17, 24, 39, 0.62);
-  font-size: 0.9rem;
-}
-
-.preset-items {
-  display: flex;
-  flex-direction: column;
-}
-
-.preset-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 12px;
-  border-top: 1px solid rgba(17, 24, 39, 0.08);
-}
-
-.preset-item:first-child {
-  border-top: none;
-}
-
-.preset-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.12);
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-}
-
-.preset-avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.preset-avatar-fallback {
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.8);
-  font-size: 0.85rem;
-}
-
-.preset-main {
-  min-width: 0;
-  flex: 1;
-}
-
-.preset-name {
-  font-weight: 700;
-  color: rgba(17, 24, 39, 0.92);
-}
-
-.preset-meta {
-  margin-top: 2px;
-  font-size: 0.8rem;
-  color: rgba(17, 24, 39, 0.6);
-}
-
-.preset-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-left: 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 1px solid rgba(59, 130, 246, 0.28);
-  background: rgba(59, 130, 246, 0.1);
-  color: rgba(37, 99, 235, 0.95);
-}
-
-.preset-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.preset-editor {
-  margin-top: 12px;
-  padding: 12px 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.preset-editor-title {
-  margin: 0 0 10px;
-  font-size: 0.92rem;
-  color: rgba(17, 24, 39, 0.88);
-}
-
-.preset-editor-hint {
-  margin: -4px 0 10px;
-  color: rgba(17, 24, 39, 0.62);
-  font-size: 0.85rem;
-}
-
-.avatar-uploader {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.avatar-preview {
-  width: 56px;
-  height: 56px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.12);
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.avatar-preview-fallback {
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.8);
-  font-size: 0.9rem;
-}
-
-.avatar-controls {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.file-input {
-  width: 100%;
-  min-width: 0;
-}
-
-.preset-editor-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .chat-dialog-fade-enter-active,
