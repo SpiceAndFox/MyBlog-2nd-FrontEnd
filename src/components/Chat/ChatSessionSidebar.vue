@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ChatSessionListItem from "@/components/Chat/ChatSessionListItem.vue";
 import { DEFAULT_ASSISTANT_AVATAR_URL } from "@/config/chat";
 
@@ -10,6 +10,9 @@ const props = defineProps({
   isMobile: { type: Boolean, default: false },
   mobileOpen: { type: Boolean, default: false },
   assistantProfile: { type: Object, default: () => ({}) },
+  promptPresets: { type: Array, default: () => [] },
+  activePresetId: { type: String, default: "" },
+  presetLocked: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -18,6 +21,7 @@ const emit = defineEmits([
   "toggle-collapse",
   "request-close",
   "request-delete-session",
+  "select-preset",
   "open-presets",
   "open-trash",
   "open-settings",
@@ -47,15 +51,77 @@ function onOverlayClick() {
   if (!props.isMobile) return;
   emit("request-close");
 }
+
+const presetMenuOpen = ref(false);
+const presetControlsRef = ref(null);
+
+const presetList = computed(() => (Array.isArray(props.promptPresets) ? props.promptPresets : []));
+const normalizedActivePresetId = computed(() => String(props.activePresetId || "").trim());
+
+function closePresetMenu() {
+  presetMenuOpen.value = false;
+}
+
+function togglePresetMenu() {
+  if (props.presetLocked) return;
+  presetMenuOpen.value = !presetMenuOpen.value;
+}
+
+function openPresetManager() {
+  closePresetMenu();
+  emit("open-presets");
+}
+
+function selectPreset(presetId) {
+  if (props.presetLocked) return;
+  const normalized = String(presetId || "").trim();
+  if (!normalized) return;
+  closePresetMenu();
+  emit("select-preset", normalized);
+}
+
+function onGlobalPointerDown(event) {
+  if (!presetMenuOpen.value) return;
+  const target = event?.target;
+  if (!(target instanceof Node)) return;
+  if (presetControlsRef.value?.contains(target)) return;
+  closePresetMenu();
+}
+
+function onGlobalKeyDown(event) {
+  if (!presetMenuOpen.value) return;
+  if (event?.key === "Escape") closePresetMenu();
+}
+
+watch(
+  () => props.mobileOpen,
+  (open) => {
+    if (!open) closePresetMenu();
+  }
+);
+watch(
+  () => props.collapsed,
+  () => closePresetMenu()
+);
+watch(
+  () => props.isMobile,
+  () => closePresetMenu()
+);
+
+onMounted(() => {
+  window.addEventListener("pointerdown", onGlobalPointerDown);
+  window.addEventListener("keydown", onGlobalKeyDown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("pointerdown", onGlobalPointerDown);
+  window.removeEventListener("keydown", onGlobalKeyDown);
+});
 </script>
 
 <template>
   <transition name="chat-overlay-fade">
-    <div
-      v-show="shouldShow"
-      :class="isMobile ? 'mobile-overlay' : 'desktop-wrapper'"
-      @click.self="onOverlayClick"
-    >
+    <div v-show="shouldShow" :class="isMobile ? 'mobile-overlay' : 'desktop-wrapper'" @click.self="onOverlayClick">
       <aside class="sidebar" :class="{ collapsed: effectiveCollapsed, mobile: isMobile }" aria-label="历史会话">
         <header class="sidebar-header">
           <template v-if="isMobile">
@@ -127,25 +193,88 @@ function onOverlayClick() {
         </nav>
 
         <footer class="sidebar-footer">
-          <button
-            class="footer-button"
-            :class="{ iconOnly: effectiveCollapsed }"
-            type="button"
-            :aria-label="`预设：${presetName}`"
-            @click="emit('open-presets')"
-          >
-            <span class="preset-avatar" aria-hidden="true">
-              <img
-                v-if="presetAvatarUrl && !presetAvatarFailed"
-                class="preset-avatar-image"
-                :src="presetAvatarUrl"
-                alt=""
-                @error="markPresetAvatarFailed"
-              />
-              <span v-else class="preset-avatar-fallback">{{ presetAvatarLabel }}</span>
-            </span>
-            <span v-if="!effectiveCollapsed" class="button-text">{{ presetName }}</span>
-          </button>
+          <div ref="presetControlsRef" class="preset-controls" :class="{ collapsed: effectiveCollapsed }">
+            <button
+              class="footer-button preset-selector"
+              :class="{ iconOnly: effectiveCollapsed }"
+              type="button"
+              :aria-label="`选择预设：${presetName}`"
+              aria-haspopup="menu"
+              :aria-expanded="presetMenuOpen ? 'true' : 'false'"
+              :disabled="presetLocked"
+              @click="togglePresetMenu"
+            >
+              <span class="preset-avatar" aria-hidden="true">
+                <img
+                  v-if="presetAvatarUrl && !presetAvatarFailed"
+                  class="preset-avatar-image"
+                  :src="presetAvatarUrl"
+                  alt=""
+                  @error="markPresetAvatarFailed"
+                />
+                <span v-else class="preset-avatar-fallback">{{ presetAvatarLabel }}</span>
+              </span>
+              <span v-if="!effectiveCollapsed" class="button-text">{{ presetName }}</span>
+              <span v-if="!effectiveCollapsed" class="preset-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    d="M7.41 9.59a1 1 0 0 1 1.41 0L12 12.76l3.18-3.17a1 1 0 1 1 1.41 1.41l-3.89 3.89a1 1 0 0 1-1.41 0L7.41 11a1 1 0 0 1 0-1.41Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+            </button>
+
+            <button
+              class="footer-button preset-manage"
+              :class="{ iconOnly: effectiveCollapsed }"
+              type="button"
+              aria-label="管理预设"
+              title="管理预设"
+              @click="openPresetManager"
+            >
+              <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    d="M16.9 3a1 1 0 0 1 .7.29l3.11 3.11a1 1 0 0 1 0 1.41l-9.9 9.9a1 1 0 0 1-.45.26l-4.2 1.05a1 1 0 0 1-1.21-1.21l1.05-4.2a1 1 0 0 1 .26-.45l9.9-9.9A1 1 0 0 1 16.9 3Zm-.7 2.41-9.36 9.36-.6 2.39 2.39-.6 9.36-9.36-1.79-1.79Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+            </button>
+
+            <transition name="chat-preset-menu-fade">
+              <div v-show="presetMenuOpen" class="preset-menu" role="menu" aria-label="预设列表">
+                <div v-if="!presetList.length" class="preset-menu-empty">暂无预设</div>
+
+                <button
+                  v-for="preset in presetList"
+                  :key="preset.id"
+                  type="button"
+                  class="preset-menu-item"
+                  :class="{ active: preset.id === normalizedActivePresetId }"
+                  role="menuitemradio"
+                  :aria-checked="preset.id === normalizedActivePresetId ? 'true' : 'false'"
+                  :disabled="presetLocked"
+                  @click="selectPreset(preset.id)"
+                >
+                  <span class="preset-avatar" aria-hidden="true">
+                    <img v-if="preset.avatarUrl" class="preset-avatar-image" :src="preset.avatarUrl" alt="" />
+                    <img v-else class="preset-avatar-image" :src="DEFAULT_ASSISTANT_AVATAR_URL" alt="" />
+                  </span>
+                  <span class="preset-menu-name">{{ preset.name || preset.id }}</span>
+                  <span v-if="preset.id === normalizedActivePresetId" class="preset-menu-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                      <path
+                        d="M9.55 16.2 5.8 12.45a1 1 0 1 1 1.41-1.41l2.34 2.34 7.24-7.24a1 1 0 0 1 1.41 1.41l-7.95 7.95a1 1 0 0 1-1.41 0Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </transition>
+          </div>
 
           <button
             class="footer-button"
@@ -339,8 +468,121 @@ function onOverlayClick() {
   color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.95));
 }
 
+.footer-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .footer-button.iconOnly {
   justify-content: center;
+}
+
+.preset-controls {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.preset-controls .footer-button {
+  width: auto;
+}
+
+.preset-controls.collapsed {
+  flex-direction: column;
+}
+
+.preset-controls.collapsed .footer-button {
+  width: 100%;
+}
+
+.preset-selector {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.preset-chevron {
+  margin-left: auto;
+  color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.62));
+  transition: transform 0.18s ease;
+}
+
+.preset-selector[aria-expanded="true"] .preset-chevron {
+  transform: rotate(180deg);
+}
+
+.preset-manage {
+  flex: 0 0 auto;
+}
+
+.preset-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: 60%;
+  min-width: 170px;
+  max-height: min(360px, 55vh);
+  overflow: auto;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
+  background: var(--chat-sidebar-actions-bg, rgba(32, 33, 35, 0.96));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+  z-index: 30;
+}
+
+.preset-menu-empty {
+  padding: 10px 10px;
+  color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.7));
+  font-size: 0.9rem;
+}
+
+.preset-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.preset-menu-item:hover:not(:disabled) {
+  background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
+}
+
+.preset-menu-item.active {
+  background: var(--chat-sidebar-active, rgba(255, 255, 255, 0.12));
+}
+
+.preset-menu-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-menu-check {
+  flex: 0 0 auto;
+  color: var(--chat-accent, #10a37f);
+}
+
+.chat-preset-menu-fade-enter-active,
+.chat-preset-menu-fade-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.chat-preset-menu-fade-enter-from,
+.chat-preset-menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .preset-avatar {

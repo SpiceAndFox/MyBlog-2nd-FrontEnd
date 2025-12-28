@@ -74,6 +74,7 @@ const {
   closeSettings,
   saveSettings,
   openPresets,
+  selectPreset,
   closePresets,
   savePresetSelection,
 } = useChatPage({ router });
@@ -104,11 +105,15 @@ useChatComposerSlashFocus({
       :isMobile="isMobile"
       :mobileOpen="isMobileSidebarOpen"
       :assistantProfile="assistantProfile"
+      :promptPresets="promptPresets"
+      :activePresetId="settings.systemPromptPresetId"
+      :presetLocked="isPresetLocked"
       @select-session="selectSession"
       @go-today="handleGoToToday"
       @toggle-collapse="toggleSidebarCollapsed"
       @request-close="closeMobileSidebar"
       @request-delete-session="requestDeleteSession"
+      @select-preset="selectPreset"
       @open-presets="openPresets"
       @open-trash="openTrash"
       @open-settings="openSettings"

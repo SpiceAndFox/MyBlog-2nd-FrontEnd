@@ -258,6 +258,27 @@ export function useChatPage({ router }) {
     isPresetsOpen.value = false;
   }
 
+  function selectPreset(presetId) {
+    if (isPresetLocked.value) return;
+
+    const presets = Array.isArray(chatSettings.promptPresets.value) ? chatSettings.promptPresets.value : [];
+    const normalizedId = String(presetId || "").trim();
+    if (!normalizedId) return;
+
+    const preset =
+      presets.find((entry) => entry?.id === normalizedId) ||
+      presets.find((entry) => entry?.id === DEFAULT_PROMPT_PRESET_ID) ||
+      presets[0] ||
+      null;
+
+    if (!preset?.id) return;
+
+    applySettings({
+      systemPromptPresetId: preset.id,
+      systemPrompt: preset.systemPrompt || "",
+    });
+  }
+
   function openTrash() {
     isSettingsOpen.value = false;
     isPresetsOpen.value = false;
@@ -411,6 +432,7 @@ export function useChatPage({ router }) {
     saveSettings,
     openPresets,
     closePresets,
+    selectPreset,
     savePresetSelection,
   };
 }
