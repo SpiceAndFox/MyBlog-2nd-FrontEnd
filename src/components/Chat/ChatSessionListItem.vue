@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { getSessionDateKey, isDateKey } from "@/chat/sessionDate";
+import { getSessionDateKey, isDateKey } from "@/components/Chat/utils/sessionDate";
 
 const props = defineProps({
   session: { type: Object, required: true },
@@ -124,13 +124,6 @@ function onMainKeydown(event) {
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
-}
-
-.session-meta {
-  font-size: 0.75rem;
-  color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.62));
-  white-space: nowrap;
-  flex: 0 0 auto;
 }
 
 .actions {

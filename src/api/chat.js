@@ -127,18 +127,6 @@ export async function createChatSession({ title, settings, presetId } = {}) {
   return data.session;
 }
 
-async function renameChatSession(sessionId, { title }) {
-  const normalizedId = normalizeSessionId(sessionId);
-  const res = await fetch(`/api/chat/sessions/${normalizedId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    body: JSON.stringify({ title }),
-  });
-  const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "重命名会话失败");
-  return data.session;
-}
-
 export async function deleteChatSession(sessionId) {
   const normalizedId = normalizeSessionId(sessionId);
   const res = await fetch(`/api/chat/sessions/${normalizedId}`, {

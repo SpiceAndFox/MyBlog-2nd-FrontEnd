@@ -1,4 +1,4 @@
-export { formatLocalDateKey, getSessionDateKey, isDateKey } from "@/chat/sessionDate";
+export { formatLocalDateKey, getSessionDateKey, isDateKey } from "@/components/Chat/utils/sessionDate";
 
 export function createId(prefix = "id") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();

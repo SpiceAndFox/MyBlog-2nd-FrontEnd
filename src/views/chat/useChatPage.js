@@ -102,11 +102,9 @@ export function useChatPage({ router }) {
     resetEditingState,
   });
 
-  const assistantPresetId = computed(() => activePresetId.value);
-
   const assistantPreset = computed(
     () =>
-      chatSettings.promptPresets.value.find((preset) => preset.id === assistantPresetId.value) ||
+      chatSettings.promptPresets.value.find((preset) => preset.id === activePresetId.value) ||
       chatSettings.promptPresets.value.find((preset) => preset.id === DEFAULT_PROMPT_PRESET_ID) ||
       chatSettings.promptPresets.value[0] ||
       null
@@ -198,7 +196,6 @@ export function useChatPage({ router }) {
   function savePresetSelection(nextSettings) {
     applySettings(nextSettings);
     closePresets();
-    void chatSessions.activateTodayContext({ presetId: activePresetId.value, closeSidebar: false });
   }
 
   function goToToday({ closeSidebar = true } = {}) {

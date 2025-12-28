@@ -237,7 +237,6 @@ export function useChatSessions({
     activateSession,
     activateTodayContext,
     ensureTodaySession,
-    enterDraft,
     loadSessions,
     selectSession,
     bringSessionToTop,

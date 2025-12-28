@@ -51,7 +51,7 @@ defineExpose({ focusComposer });
     </button>
 
     <div v-if="readOnly" class="read-only-banner" role="note" aria-label="历史会话提示">
-      <div class="read-only-text">这是历史对话，只读。回到今天继续对话。</div>
+      <div class="read-only-text">历史对话，只读</div>
       <button class="read-only-action" type="button" @click="emit('go-today')">回到今天</button>
     </div>
 
