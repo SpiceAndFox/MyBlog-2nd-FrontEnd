@@ -34,14 +34,46 @@ export function useChatSessions({
     if (nextKey && nextKey !== todayKey.value) todayKey.value = nextKey;
   }
 
+  function getMsUntilNextLocalMidnight(date = new Date()) {
+    const now = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(now.getTime())) return 60_000;
+    const next = new Date(now);
+    next.setHours(24, 0, 0, 0);
+    return Math.max(0, next.getTime() - now.getTime());
+  }
+
+  function clearTodayKeyTimer() {
+    if (!todayKeyTimer) return;
+    window.clearTimeout(todayKeyTimer);
+    todayKeyTimer = null;
+  }
+
+  function scheduleMidnightRefresh() {
+    clearTodayKeyTimer();
+    const delay = getMsUntilNextLocalMidnight(new Date());
+    todayKeyTimer = window.setTimeout(() => {
+      refreshTodayKey();
+      scheduleMidnightRefresh();
+    }, delay + 250);
+  }
+
+  function onVisibilityOrFocus() {
+    if (typeof document !== "undefined" && document.hidden) return;
+    refreshTodayKey();
+    scheduleMidnightRefresh();
+  }
+
   onMounted(() => {
     refreshTodayKey();
-    todayKeyTimer = window.setInterval(refreshTodayKey, 60_000);
+    scheduleMidnightRefresh();
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
   });
 
   onBeforeUnmount(() => {
-    if (todayKeyTimer) window.clearInterval(todayKeyTimer);
-    todayKeyTimer = null;
+    clearTodayKeyTimer();
+    window.removeEventListener("focus", onVisibilityOrFocus);
+    document.removeEventListener("visibilitychange", onVisibilityOrFocus);
   });
 
   const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value) || null);

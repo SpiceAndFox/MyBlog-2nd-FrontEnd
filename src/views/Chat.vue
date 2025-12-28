@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { useRouter } from "vue-router";
 import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
@@ -29,6 +29,8 @@ const {
   chatDefaults,
   settings,
   isPresetLocked,
+  composerDraft,
+  dayRollover,
   sessions,
   activeSessionId,
   activeSession,
@@ -78,6 +80,12 @@ const {
 
 const conversationPanelRef = ref(null);
 
+async function handleGoToToday(options) {
+  await goToToday(options);
+  await nextTick();
+  conversationPanelRef.value?.focusComposer?.();
+}
+
 useChatComposerSlashFocus({
   isSettingsOpen,
   isPresetsOpen,
@@ -97,7 +105,7 @@ useChatComposerSlashFocus({
       :mobileOpen="isMobileSidebarOpen"
       :assistantProfile="assistantProfile"
       @select-session="selectSession"
-      @go-today="goToToday"
+      @go-today="handleGoToToday"
       @toggle-collapse="toggleSidebarCollapsed"
       @request-close="closeMobileSidebar"
       @request-delete-session="requestDeleteSession"
@@ -115,6 +123,8 @@ useChatComposerSlashFocus({
       :assistantProfile="assistantProfile"
       :isMobile="isMobile"
       :readOnly="isReadOnly"
+      v-model:composerDraft="composerDraft"
+      :dayRollover="dayRollover"
       :isSending="isSending"
       :isStreaming="isStreaming"
       :isEditingActive="isEditingActive"
@@ -122,7 +132,7 @@ useChatComposerSlashFocus({
       :editingDraft="editingDraft"
       :editingProcessing="isEditingMessage"
       @open-sidebar="openMobileSidebar"
-      @go-today="goToToday"
+      @go-today="handleGoToToday"
       @send-message="sendMessage"
       @stop-output="stopStreaming"
       @request-edit-message="requestEditMessage"

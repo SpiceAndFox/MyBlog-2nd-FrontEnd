@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import { DEFAULT_ASSISTANT_AVATAR_URL, DEFAULT_PROMPT_PRESET_ID } from "@/config/chat";
 import { getMeApi } from "@/api/auth";
@@ -73,6 +73,93 @@ export function useChatPage({ router }) {
   const activePresetId = computed(() =>
     String(chatSettings.settings.value?.systemPromptPresetId || DEFAULT_PROMPT_PRESET_ID)
   );
+
+  const COMPOSER_DRAFT_STORAGE_PREFIX = "blog.chat.composerDraft.v1:";
+  const composerDraftByPresetId = reactive({});
+  const draftPersistTimers = new Map();
+
+  function normalizePresetId(rawPresetId) {
+    const normalized = String(rawPresetId || DEFAULT_PROMPT_PRESET_ID).trim();
+    return normalized || DEFAULT_PROMPT_PRESET_ID;
+  }
+
+  function loadComposerDraft(presetId) {
+    const normalizedPresetId = normalizePresetId(presetId);
+    try {
+      const raw = localStorage.getItem(`${COMPOSER_DRAFT_STORAGE_PREFIX}${normalizedPresetId}`);
+      return String(raw ?? "");
+    } catch {
+      return "";
+    }
+  }
+
+  function persistComposerDraft(presetId, draftText) {
+    const normalizedPresetId = normalizePresetId(presetId);
+    const normalizedDraft = String(draftText ?? "");
+    const storageKey = `${COMPOSER_DRAFT_STORAGE_PREFIX}${normalizedPresetId}`;
+
+    try {
+      if (!normalizedDraft) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
+      localStorage.setItem(storageKey, normalizedDraft);
+    } catch {
+      // ignore
+    }
+  }
+
+  function ensureComposerDraftLoaded(presetId) {
+    const normalizedPresetId = normalizePresetId(presetId);
+    if (Object.prototype.hasOwnProperty.call(composerDraftByPresetId, normalizedPresetId)) return;
+    composerDraftByPresetId[normalizedPresetId] = loadComposerDraft(normalizedPresetId);
+  }
+
+  function scheduleDraftPersist(presetId) {
+    const normalizedPresetId = normalizePresetId(presetId);
+    const existing = draftPersistTimers.get(normalizedPresetId);
+    if (existing) window.clearTimeout(existing);
+
+    const timer = window.setTimeout(() => {
+      draftPersistTimers.delete(normalizedPresetId);
+      persistComposerDraft(normalizedPresetId, composerDraftByPresetId[normalizedPresetId] || "");
+    }, 350);
+
+    draftPersistTimers.set(normalizedPresetId, timer);
+  }
+
+  function flushDraftPersistence() {
+    const pending = Array.from(draftPersistTimers.entries());
+    for (const [presetId, timer] of pending) {
+      window.clearTimeout(timer);
+      draftPersistTimers.delete(presetId);
+      persistComposerDraft(presetId, composerDraftByPresetId[presetId] || "");
+    }
+  }
+
+  function onVisibilityChange() {
+    if (typeof document === "undefined") return;
+    if (!document.hidden) return;
+    flushDraftPersistence();
+  }
+
+  const composerDraft = computed({
+    get: () => {
+      const presetId = normalizePresetId(activePresetId.value);
+      ensureComposerDraftLoaded(presetId);
+      return composerDraftByPresetId[presetId] || "";
+    },
+    set: (nextDraft) => {
+      const presetId = normalizePresetId(activePresetId.value);
+      composerDraftByPresetId[presetId] = String(nextDraft ?? "");
+      scheduleDraftPersist(presetId);
+    },
+  });
+
+  watch(activePresetId, (presetId) => {
+    ensureComposerDraftLoaded(presetId);
+  });
+
   const chatSessions = useChatSessions({
     settings: chatSettings.settings,
     activePresetId,
@@ -81,6 +168,19 @@ export function useChatPage({ router }) {
     resetEditingState,
   });
   const chatTrash = useChatTrash({ handleApiError });
+
+  const dayRollover = ref(null);
+
+  watch(
+    () => chatSessions.todayKey.value,
+    (nextKey, prevKey) => {
+      const next = String(nextKey || "").trim();
+      const prev = String(prevKey || "").trim();
+      if (!prev || !next || prev === next) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      dayRollover.value = { fromKey: prev, toKey: next, at: Date.now() };
+    }
+  );
 
   const chatMessaging = useChatMessaging({
     settings: chatSettings.settings,
@@ -220,12 +320,17 @@ export function useChatPage({ router }) {
   onMounted(() => {
     releaseBodyScrollLock = lockBodyScroll();
     stopNavTracking = startNavHeightTracking(navHeight);
+    window.addEventListener("beforeunload", flushDraftPersistence);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     void initializeChat();
   });
 
   onBeforeUnmount(() => {
     stopNavTracking?.();
     stopNavTracking = null;
+    flushDraftPersistence();
+    window.removeEventListener("beforeunload", flushDraftPersistence);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
     chatMessaging.stopStreaming();
     releaseBodyScrollLock?.();
     releaseBodyScrollLock = null;
@@ -249,6 +354,9 @@ export function useChatPage({ router }) {
     chatDefaults: chatSettings.chatDefaults,
     settings: chatSettings.settings,
     isPresetLocked,
+
+    composerDraft,
+    dayRollover,
 
     sessions: chatSessions.sessionsForActivePreset,
     activeSessionId: chatSessions.activeSessionId,

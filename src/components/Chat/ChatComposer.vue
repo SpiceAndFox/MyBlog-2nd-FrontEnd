@@ -1,16 +1,20 @@
 <script setup>
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps({
+  modelValue: { type: String, default: "" },
   disabled: { type: Boolean, default: false },
   placeholder: { type: String, default: "输入消息…" },
   isSending: { type: Boolean, default: false },
   isStreaming: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["send", "stop"]);
+const emit = defineEmits(["send", "stop", "update:modelValue"]);
 
-const draftText = ref("");
+const draftText = computed({
+  get: () => String(props.modelValue ?? ""),
+  set: (value) => emit("update:modelValue", String(value ?? "")),
+});
 const textareaRef = ref(null);
 
 const canSend = computed(
@@ -50,6 +54,14 @@ function resizeTextarea() {
   const nextHeight = Math.min(element.scrollHeight, 160);
   element.style.height = `${Math.max(nextHeight, 44)}px`;
 }
+
+watch(
+  () => props.modelValue,
+  () => {
+    nextTick(resizeTextarea);
+  },
+  { immediate: true }
+);
 
 function onCardPointerDown(event) {
   if (props.disabled) return;
