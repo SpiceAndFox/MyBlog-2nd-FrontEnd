@@ -170,14 +170,17 @@ function applyFromCurrentSettings() {
 
   const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
 
-  const controls = getProviderSettingsSchema(provider).filter((control) => isControlVisible(control, provider, modelId));
+  const controls = getProviderSettingsSchema(provider).filter((control) =>
+    isControlVisible(control, provider, modelId)
+  );
   for (const control of controls) {
     if (!control?.key) continue;
 
     let nextValue = coerceControlValue(control, getValueByPath(source, control.key));
     if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
     if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-    if (nextValue === undefined && control.default !== undefined) nextValue = coerceControlValue(control, control.default);
+    if (nextValue === undefined && control.default !== undefined)
+      nextValue = coerceControlValue(control, control.default);
 
     if (control.key === "enableWebSearch" && !providerSupportsWebSearch) {
       nextValue = false;
@@ -247,7 +250,10 @@ watch(
 
     const previousProvider = props.providers.find((p) => p.id === previousProviderId) || null;
     const previousDefaults =
-      previousProvider && previousProvider.defaults && typeof previousProvider.defaults === "object" && !Array.isArray(previousProvider.defaults)
+      previousProvider &&
+      previousProvider.defaults &&
+      typeof previousProvider.defaults === "object" &&
+      !Array.isArray(previousProvider.defaults)
         ? previousProvider.defaults
         : defaults;
 
@@ -261,7 +267,9 @@ watch(
     }
 
     const modelId = draft.modelId;
-    const controls = getProviderSettingsSchema(provider).filter((control) => isControlVisible(control, provider, modelId));
+    const controls = getProviderSettingsSchema(provider).filter((control) =>
+      isControlVisible(control, provider, modelId)
+    );
     for (const control of controls) {
       if (!control?.key) continue;
       if (control.type === "toggle" && control.key === "enableWebSearch") continue;
@@ -271,16 +279,20 @@ watch(
 
       if (currentValue === undefined) {
         let nextDefaultValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
-        if (nextDefaultValue === undefined) nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-        if (nextDefaultValue === undefined && control.default !== undefined) nextDefaultValue = coerceControlValue(control, control.default);
+        if (nextDefaultValue === undefined)
+          nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
+        if (nextDefaultValue === undefined && control.default !== undefined)
+          nextDefaultValue = coerceControlValue(control, control.default);
         if (nextDefaultValue !== undefined) setDraftValue(control.key, nextDefaultValue);
         continue;
       }
 
       if (previousDefaultValue !== undefined && currentValue === previousDefaultValue) {
         let nextDefaultValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
-        if (nextDefaultValue === undefined) nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-        if (nextDefaultValue === undefined && control.default !== undefined) nextDefaultValue = coerceControlValue(control, control.default);
+        if (nextDefaultValue === undefined)
+          nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
+        if (nextDefaultValue === undefined && control.default !== undefined)
+          nextDefaultValue = coerceControlValue(control, control.default);
         if (nextDefaultValue !== undefined) setDraftValue(control.key, nextDefaultValue);
         continue;
       }
@@ -443,7 +455,7 @@ function save() {
 
 .modal {
   width: min(860px, 100%);
-  height: min(720px, 92vh);
+  height: min(550px, 70vh);
   border-radius: var(--chat-radius-lg, 14px);
   background: var(--chat-surface-2, #fff);
   border: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
