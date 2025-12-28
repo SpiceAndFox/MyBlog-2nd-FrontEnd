@@ -480,8 +480,8 @@ onBeforeUnmount(() => {
 .preset-controls {
   position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  align-items: center;
+  gap: 3px;
 }
 
 .preset-controls .footer-button {
@@ -492,7 +492,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.preset-controls.collapsed .footer-button {
+.preset-controls.collapsed .footer-button:not(.preset-manage) {
   width: 100%;
 }
 
@@ -511,16 +511,26 @@ onBeforeUnmount(() => {
   transform: rotate(180deg);
 }
 
-.preset-manage {
+.preset-controls .footer-button.preset-manage {
   flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 999px;
+  justify-content: center;
+}
+
+.preset-manage .button-text {
+  display: none;
 }
 
 .preset-menu {
   position: absolute;
   left: 0;
   bottom: calc(100% + 8px);
-  width: 60%;
-  min-width: 170px;
+  width: 100%;
+  min-width: 240px;
   max-height: min(360px, 55vh);
   overflow: auto;
   padding: 6px;
@@ -583,6 +593,10 @@ onBeforeUnmount(() => {
 .chat-preset-menu-fade-leave-to {
   opacity: 0;
   transform: translateY(6px);
+}
+
+.preset-controls.collapsed .preset-manage {
+  align-self: center;
 }
 
 .preset-avatar {
