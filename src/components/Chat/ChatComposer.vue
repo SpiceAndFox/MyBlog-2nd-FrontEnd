@@ -180,7 +180,7 @@ defineExpose({ focus });
   height: 40px;
   border-radius: 999px;
   border: 1px solid transparent;
-  background: linear-gradient(180deg, var(--chat-accent, #10a37f), var(--chat-accent-strong, #0f8a6c));
+  background: linear-gradient(180deg, #795226, #6b4111);
   color: #fff;
   cursor: pointer;
   display: grid;
