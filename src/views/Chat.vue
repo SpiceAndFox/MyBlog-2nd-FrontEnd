@@ -64,12 +64,15 @@ const {
   commitEditMessage,
   cancelEditMessage,
   trashedSessions,
+  trashedPresets,
   isTrashLoading,
   refreshTrash,
   openTrash,
   closeTrash,
   restoreTrashedSession,
   deleteTrashedSessionPermanently,
+  restoreTrashedPreset,
+  deleteTrashedPresetPermanently,
   openSettings,
   closeSettings,
   saveSettings,
@@ -173,11 +176,14 @@ useChatComposerSlashFocus({
     <ChatTrashModal
       :open="isTrashOpen"
       :sessions="trashedSessions"
+      :presets="trashedPresets"
       :loading="isTrashLoading"
       @close="closeTrash"
       @refresh="refreshTrash"
-      @restore="restoreTrashedSession"
-      @delete-permanent="deleteTrashedSessionPermanently"
+      @restore-session="restoreTrashedSession"
+      @delete-session-permanent="deleteTrashedSessionPermanently"
+      @restore-preset="restoreTrashedPreset"
+      @delete-preset-permanent="deleteTrashedPresetPermanently"
     />
 
     <ChatConfirmDialog

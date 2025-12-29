@@ -301,6 +301,18 @@ export function useChatPage({ router }) {
     await chatTrash.deletePermanently(sessionId);
   }
 
+  async function restoreTrashedPreset(presetId) {
+    const restored = await chatTrash.restorePreset(presetId);
+    await chatSettings.refreshPromptPresets({ silent: true });
+    return restored;
+  }
+
+  async function deleteTrashedPresetPermanently(presetId) {
+    await chatTrash.deletePresetPermanently(presetId);
+    await chatSettings.refreshPromptPresets({ silent: true });
+    await chatSessions.loadSessions({ preserveActive: true });
+  }
+
   function applySettings(nextSettings) {
     const base = isPlainObject(chatSettings.settings.value) ? chatSettings.settings.value : {};
     const override = isPlainObject(nextSettings) ? nextSettings : {};
@@ -407,12 +419,15 @@ export function useChatPage({ router }) {
     goToToday,
 
     trashedSessions: chatTrash.trashedSessions,
+    trashedPresets: chatTrash.trashedPresets,
     isTrashLoading: chatTrash.isTrashLoading,
     refreshTrash: chatTrash.refreshTrash,
     openTrash,
     closeTrash,
     restoreTrashedSession,
     deleteTrashedSessionPermanently,
+    restoreTrashedPreset,
+    deleteTrashedPresetPermanently,
 
     selectSession: chatSessions.selectSession,
 

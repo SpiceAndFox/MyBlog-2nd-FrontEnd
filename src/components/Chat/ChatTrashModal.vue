@@ -1,13 +1,23 @@
 <script setup>
-import { watch } from "vue";
+import { computed, watch } from "vue";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
   sessions: { type: Array, default: () => [] },
+  presets: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["close", "refresh", "restore", "delete-permanent"]);
+const emit = defineEmits([
+  "close",
+  "refresh",
+  "restore-session",
+  "delete-session-permanent",
+  "restore-preset",
+  "delete-preset-permanent",
+]);
+
+const isEmpty = computed(() => !props.sessions.length && !props.presets.length);
 
 function formatDate(value) {
   const raw = String(value || "").trim();
@@ -17,12 +27,20 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
-function requestPermanentDelete(session) {
+function requestPermanentDeleteSession(session) {
   if (!session?.id) return;
   const title = session?.title ? `“${session.title}”` : "该会话";
   const confirmed = window.confirm(`确定要彻底删除${title}吗？此操作不可恢复。`);
   if (!confirmed) return;
-  emit("delete-permanent", session.id);
+  emit("delete-session-permanent", session.id);
+}
+
+function requestPermanentDeletePreset(preset) {
+  if (!preset?.id) return;
+  const title = preset?.name ? `“${preset.name}”` : `“${preset.id}”`;
+  const confirmed = window.confirm(`确定要彻底删除预设${title}吗？这将同时删除该预设下的所有会话与消息，且不可恢复。`);
+  if (!confirmed) return;
+  emit("delete-preset-permanent", preset.id);
 }
 
 watch(
@@ -63,20 +81,58 @@ watch(
 
         <div class="modal-body">
           <p v-if="loading" class="hint">加载中...</p>
-          <p v-else-if="!sessions.length" class="hint">回收站为空</p>
+          <p v-else-if="isEmpty" class="hint">回收站为空</p>
 
           <div v-else class="list">
-            <div v-for="session in sessions" :key="session.id" class="item">
+            <div v-if="sessions.length" class="section-label">会话</div>
+            <div v-for="session in sessions" :key="`session:${session.id}`" class="item">
               <div class="item-main">
                 <div class="item-title">{{ session.title }}</div>
                 <div class="item-meta">删除时间：{{ formatDate(session.deletedAt) }}</div>
               </div>
 
               <div class="item-actions">
-                <button class="button button-secondary" type="button" :disabled="loading" @click="emit('restore', session.id)">
+                <button
+                  class="button button-secondary"
+                  type="button"
+                  :disabled="loading"
+                  @click="emit('restore-session', session.id)"
+                >
                   恢复
                 </button>
-                <button class="button button-danger" type="button" :disabled="loading" @click="requestPermanentDelete(session)">
+                <button
+                  class="button button-danger"
+                  type="button"
+                  :disabled="loading"
+                  @click="requestPermanentDeleteSession(session)"
+                >
+                  彻底删除
+                </button>
+              </div>
+            </div>
+
+            <div v-if="presets.length" class="section-label">预设</div>
+            <div v-for="preset in presets" :key="`preset:${preset.id}`" class="item">
+              <div class="item-main">
+                <div class="item-title">{{ preset.name || preset.id }}</div>
+                <div class="item-meta">删除时间：{{ formatDate(preset.deletedAt) }}</div>
+              </div>
+
+              <div class="item-actions">
+                <button
+                  class="button button-secondary"
+                  type="button"
+                  :disabled="loading"
+                  @click="emit('restore-preset', preset.id)"
+                >
+                  恢复
+                </button>
+                <button
+                  class="button button-danger"
+                  type="button"
+                  :disabled="loading"
+                  @click="requestPermanentDeletePreset(preset)"
+                >
                   彻底删除
                 </button>
               </div>
@@ -180,6 +236,17 @@ watch(
 .hint {
   margin: 0;
   color: var(--chat-muted, rgba(17, 24, 39, 0.62));
+}
+
+.section-label {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(17, 24, 39, 0.68);
+}
+
+.section-label:first-child {
+  margin-top: 0;
 }
 
 .list {

@@ -53,6 +53,15 @@ export async function listChatPresets() {
   return data.presets || [];
 }
 
+export async function listChatTrashedPresets() {
+  const res = await fetch("/api/chat/presets/trash", {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "Failed to load trashed presets");
+  return data.presets || [];
+}
+
 export async function getChatMeta() {
   const res = await fetch("/api/chat/meta", {
     headers: { ...getAuthHeader() },
@@ -96,6 +105,30 @@ export async function deleteChatPreset(presetId) {
   if (res.status === 204) return;
   const data = await readJsonSafe(res);
   if (!res.ok) throw new Error(data.error || "删除预设失败");
+}
+
+export async function restoreChatPreset(presetId) {
+  const normalizedId = String(presetId ?? "").trim();
+  if (!normalizedId) throw new Error("Missing preset id");
+  const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}/restore`, {
+    method: "PATCH",
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "Failed to restore preset");
+  return data.preset;
+}
+
+export async function deleteChatPresetPermanently(presetId) {
+  const normalizedId = String(presetId ?? "").trim();
+  if (!normalizedId) throw new Error("Missing preset id");
+  const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}/permanent`, {
+    method: "DELETE",
+    headers: { ...getAuthHeader() },
+  });
+  if (res.status === 204) return;
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw new Error(data.error || "Failed to delete preset permanently");
 }
 
 export async function uploadChatPresetAvatar(presetId, file) {

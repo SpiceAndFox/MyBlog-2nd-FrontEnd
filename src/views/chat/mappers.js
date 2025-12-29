@@ -8,6 +8,7 @@ export function mapPreset(raw) {
     name: String(raw.name ?? ""),
     systemPrompt: typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
     avatarUrl: typeof raw.avatarUrl === "string" ? raw.avatarUrl.trim() : "",
+    deletedAt: raw.deleted_at || raw.deletedAt || "",
     isBuiltin: Boolean(raw.isBuiltin ?? raw.is_builtin),
   };
 }
