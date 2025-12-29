@@ -5,6 +5,7 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   sessions: { type: Array, default: () => [] },
   presets: { type: Array, default: () => [] },
+  promptPresets: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
 });
 
@@ -19,12 +20,35 @@ const emit = defineEmits([
 
 const isEmpty = computed(() => !props.sessions.length && !props.presets.length);
 
+const presetLookup = computed(() => {
+  const map = new Map();
+  const addList = (list) => {
+    const presets = Array.isArray(list) ? list : [];
+    for (const preset of presets) {
+      const id = String(preset?.id || "").trim();
+      if (!id) continue;
+      map.set(id, preset);
+    }
+  };
+  addList(props.promptPresets);
+  addList(props.presets);
+  return map;
+});
+
 function formatDate(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
   return date.toLocaleString();
+}
+
+function formatSessionPreset(session) {
+  const presetId = String(session?.presetId || "").trim();
+  if (!presetId) return "";
+  const preset = presetLookup.value.get(presetId);
+  const name = String(preset?.name || "").trim();
+  return name ? `${name} (${presetId})` : presetId;
 }
 
 function requestPermanentDeleteSession(session) {
@@ -88,7 +112,10 @@ watch(
             <div v-for="session in sessions" :key="`session:${session.id}`" class="item">
               <div class="item-main">
                 <div class="item-title">{{ session.title }}</div>
-                <div class="item-meta">删除时间：{{ formatDate(session.deletedAt) }}</div>
+                <div class="item-meta">
+                  <div v-if="formatSessionPreset(session)" class="meta-line">预设：{{ formatSessionPreset(session) }}</div>
+                  <div class="meta-line">删除时间：{{ formatDate(session.deletedAt) }}</div>
+                </div>
               </div>
 
               <div class="item-actions">
@@ -285,6 +312,10 @@ watch(
   color: var(--chat-muted, rgba(17, 24, 39, 0.62));
 }
 
+.meta-line {
+  line-height: 1.35;
+}
+
 .item-actions {
   display: flex;
   align-items: center;
@@ -339,4 +370,3 @@ watch(
   opacity: 0;
 }
 </style>
-

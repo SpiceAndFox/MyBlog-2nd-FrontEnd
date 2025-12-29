@@ -177,6 +177,7 @@ useChatComposerSlashFocus({
       :open="isTrashOpen"
       :sessions="trashedSessions"
       :presets="trashedPresets"
+      :promptPresets="promptPresets"
       :loading="isTrashLoading"
       @close="closeTrash"
       @refresh="refreshTrash"
