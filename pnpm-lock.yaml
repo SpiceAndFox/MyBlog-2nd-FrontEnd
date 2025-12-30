@@ -47,6 +47,9 @@ importers:
       vue-select:
         specifier: 4.0.0-beta.6
         version: 4.0.0-beta.6(vue@3.5.21)
+      workbox-window:
+        specifier: ^7.4.0
+        version: 7.4.0
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
@@ -834,6 +837,12 @@ packages:
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
+  workbox-core@7.4.0:
+    resolution: {integrity: sha512-6BMfd8tYEnN4baG4emG9U0hdXM4gGuDU3ectXuVHnj71vwxTFI7WOpQJC4siTOlVtGqCUtj0ZQNsrvi6kZZTAQ==}
+
+  workbox-window@7.4.0:
+    resolution: {integrity: sha512-/bIYdBLAVsNR3v7gYGaV4pQW3M3kEPx5E8vDxGvxo6khTrGtSSCS7QiFKv9ogzBgZiy0OXLP9zO28U/1nF1mfw==}
+
 snapshots:
 
   '@babel/helper-string-parser@7.27.1': {}
@@ -1570,3 +1579,10 @@ snapshots:
       '@vue/shared': 3.5.21
 
   w3c-keyname@2.2.8: {}
+
+  workbox-core@7.4.0: {}
+
+  workbox-window@7.4.0:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+      workbox-core: 7.4.0
