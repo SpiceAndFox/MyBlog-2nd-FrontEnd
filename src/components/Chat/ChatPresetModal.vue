@@ -166,7 +166,7 @@ async function savePreset() {
     } else {
       const originalId = String(presetEditor.originalId || "").trim();
       if (!originalId) throw new Error("缺少原始预设ID");
-      savedPreset = await props.updatePreset(originalId, { id, name, systemPrompt });
+      savedPreset = await props.updatePreset(originalId, { name, systemPrompt });
 
       if (!props.presetLocked && draft.systemPromptPresetId === originalId && savedPreset?.id) {
         draft.systemPromptPresetId = savedPreset.id;

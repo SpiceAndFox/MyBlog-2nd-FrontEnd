@@ -82,13 +82,13 @@ export async function createChatPreset({ id, name, systemPrompt } = {}) {
   return data.preset;
 }
 
-export async function updateChatPreset(presetId, { id, name, systemPrompt } = {}) {
+export async function updateChatPreset(presetId, { name, systemPrompt } = {}) {
   const normalizedId = String(presetId ?? "").trim();
   if (!normalizedId) throw new Error("缺少预设ID");
   const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    body: JSON.stringify({ id, name, systemPrompt }),
+    body: JSON.stringify({ name, systemPrompt }),
   });
   const data = await readJsonSafe(res);
   if (!res.ok) throw new Error(data.error || "更新预设失败");
