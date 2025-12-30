@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute } from "vue-router";
-import { watch, computed, watchEffect, onBeforeUnmount } from "vue";
+import { watch, computed, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
 import iosBg from "@/assets/images/background-mobile-03.webp";
 import SnowEffect from "@/components/SnowEffect.vue";
@@ -75,19 +75,30 @@ onBeforeUnmount(() => {
   clearIOSRootBg();
 });
 
-const iosBackgroundStyle = computed(() => {
-  return isHomeOrArticleList.value && isIOS
+const showIOSArticleListBg = computed(() => isIOS && isArticleList.value);
+const iosArticleListBgStyle = computed(() => {
+  return showIOSArticleListBg.value
     ? {
         backgroundImage: `url(${iosBg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
       }
     : {};
+});
+
+const iosBackgroundStyle = computed(() => {
+  if (!isIOS) return {};
+  if (!isHome.value) return {};
+  return {
+    backgroundImage: `url(${iosBg})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  };
 });
 </script>
 
 <template>
-  <div class="app-layout" :class="layoutClass" :style="iosBackgroundStyle">
+  <div class="app-layout" :class="[layoutClass, isIOS ? 'isIOS' : '']" :style="iosBackgroundStyle">
+    <div v-if="showIOSArticleListBg" class="ios-articlelist-background" :style="iosArticleListBgStyle"></div>
     <video v-if="showVideo" class="background-video" autoplay muted loop playsinline>
       <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
@@ -119,6 +130,7 @@ const iosBackgroundStyle = computed(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  z-index: 0;
   overflow: hidden; /*避免视频溢出 */
 }
 
@@ -133,14 +145,31 @@ const iosBackgroundStyle = computed(() => {
   z-index: -1;
 }
 
-.app-layout.layout--articleList::after {
+.app-layout.layout--articleList.isIOS {
+  background-color: rgb(238, 238, 238);
+}
+
+.ios-articlelist-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 800px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.ios-articlelist-background::after {
   content: "";
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to top, rgb(238, 238, 238) 0%, rgb(238, 238, 238) 60%, transparent 100%);
+  background: linear-gradient(to top, rgb(238, 238, 238) 0%, rgb(238, 238, 238) 30%, transparent 70%);
   opacity: 1;
   z-index: 0;
 }
