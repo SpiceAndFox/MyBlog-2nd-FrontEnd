@@ -2,7 +2,7 @@
 import { useRoute } from "vue-router";
 import { watch, computed, watchEffect, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
-import iosBg from "@/assets/images/background-mobile-02.webp";
+import iosBg from "@/assets/images/background-mobile-03.webp";
 import SnowEffect from "@/components/SnowEffect.vue";
 
 // 获取路由信息
