@@ -15,6 +15,7 @@ const props = defineProps({
   dayRollover: { type: Object, default: null },
   isSending: { type: Boolean, default: false },
   isStreaming: { type: Boolean, default: false },
+  memoryLockMessage: { type: String, default: "" },
   isEditingActive: { type: Boolean, default: false },
   editingMessageId: { type: String, default: "" },
   editingDraft: { type: String, default: "" },
@@ -105,6 +106,10 @@ defineExpose({ focusComposer });
       <button class="read-only-action" type="button" @click="emit('go-today')">回到今天</button>
     </div>
 
+    <div v-else-if="memoryLockMessage" class="memory-lock-banner" role="note" aria-label="记忆重建提示">
+      <div class="memory-lock-text">{{ memoryLockMessage }}</div>
+    </div>
+
     <ChatMessageList
       class="message-list"
       :messages="messages"
@@ -113,7 +118,7 @@ defineExpose({ focusComposer });
       :editingMessageId="editingMessageId"
       :editingDraft="editingDraft"
       :editingProcessing="editingProcessing"
-      :actionsDisabled="readOnly || isSending || isStreaming || isEditingActive || editingProcessing"
+      :actionsDisabled="readOnly || isSending || isStreaming || isEditingActive || editingProcessing || Boolean(memoryLockMessage)"
       @request-edit="emit('request-edit-message', $event)"
       @update-edit-draft="emit('update-edit-draft', $event)"
       @commit-edit="emit('commit-edit-message', $event)"
@@ -124,7 +129,7 @@ defineExpose({ focusComposer });
       ref="composerRef"
       v-model="composerDraftModel"
       :disabled="readOnly"
-      :placeholder="readOnly ? '历史会话只读，点击“回到今天”继续对话' : '输入消息…'"
+      :placeholder="readOnly ? '历史会话只读，点击“回到今天”继续对话' : memoryLockMessage ? '记忆重建中，请稍后再试…' : '输入消息…'"
       :isSending="isSending || isEditingActive"
       :isStreaming="isStreaming"
       @send="emit('send-message', $event)"
@@ -250,6 +255,26 @@ defineExpose({ focusComposer });
   backdrop-filter: blur(10px);
   z-index: 2;
   animation: read-only-banner-in 0.22s ease both;
+}
+
+.memory-lock-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
+  background: rgba(254, 243, 199, 0.92);
+  backdrop-filter: blur(10px);
+  z-index: 2;
+  animation: read-only-banner-in 0.22s ease both;
+}
+
+.memory-lock-text {
+  color: rgba(146, 64, 14, 0.95);
+  font-weight: 650;
+  font-size: 0.92rem;
 }
 
 @keyframes read-only-banner-in {

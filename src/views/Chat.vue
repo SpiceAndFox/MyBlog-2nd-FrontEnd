@@ -23,6 +23,7 @@ const {
   navHeight,
   isSending,
   isStreaming,
+  memoryLockMessage,
   stopStreaming,
   providers,
   promptPresets,
@@ -135,6 +136,7 @@ useChatComposerSlashFocus({
       :dayRollover="dayRollover"
       :isSending="isSending"
       :isStreaming="isStreaming"
+      :memoryLockMessage="memoryLockMessage"
       :isEditingActive="isEditingActive"
       :editingMessageId="editingMessageId"
       :editingDraft="editingDraft"
@@ -189,9 +191,13 @@ useChatComposerSlashFocus({
 
     <ChatConfirmDialog
       :open="deleteDialog.open"
-      title="移入回收站"
-      :message="`确定要将“${deleteDialog.sessionTitle}”移入回收站吗？你可以在回收站中恢复，或彻底删除。`"
-      confirmText="移入回收站"
+      :title="deleteDialog.step === 2 ? '二次确认' : '移入回收站'"
+      :message="
+        deleteDialog.step === 2
+          ? '注意：移入回收站会触发该预设的“记忆重建”，期间将暂时无法继续对话，并可能产生额外模型调用开销。仍要继续吗？'
+          : `确定要将“${deleteDialog.sessionTitle}”移入回收站吗？你可以在回收站中恢复，或彻底删除。`
+      "
+      :confirmText="deleteDialog.step === 2 ? '确认移入回收站' : '继续'"
       cancelText="取消"
       @confirm="confirmDeleteSession"
       @cancel="cancelDeleteSession"

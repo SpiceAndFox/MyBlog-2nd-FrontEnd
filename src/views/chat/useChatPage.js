@@ -184,6 +184,10 @@ export function useChatPage({ router }) {
 
   const chatMessaging = useChatMessaging({
     settings: chatSettings.settings,
+    getComposerDraft: () => composerDraft.value,
+    setComposerDraft: (value) => {
+      composerDraft.value = String(value ?? "");
+    },
     sessions: chatSessions.sessions,
     messagesBySessionId: chatSessions.messagesBySessionId,
     activeSessionId: chatSessions.activeSessionId,
@@ -380,6 +384,7 @@ export function useChatPage({ router }) {
 
     isSending: chatMessaging.isSending,
     isStreaming: chatMessaging.isStreaming,
+    memoryLockMessage: chatMessaging.memoryLockMessage,
     stopStreaming: chatMessaging.stopStreaming,
 
     providers: chatSettings.providers,

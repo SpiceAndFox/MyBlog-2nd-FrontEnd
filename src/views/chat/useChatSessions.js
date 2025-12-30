@@ -212,6 +212,7 @@ export function useChatSessions({
     open: false,
     sessionId: "",
     sessionTitle: "",
+    step: 1,
   });
 
   function requestDeleteSession(sessionId) {
@@ -220,17 +221,27 @@ export function useChatSessions({
       open: true,
       sessionId,
       sessionTitle: getSessionDateKey(target) || "该会话",
+      step: 1,
     };
   }
 
   function cancelDeleteSession() {
     deleteDialog.value.open = false;
+    deleteDialog.value.step = 1;
   }
 
   async function confirmDeleteSession() {
     const sessionId = deleteDialog.value.sessionId;
-    deleteDialog.value.open = false;
     if (!sessionId) return;
+
+    if (deleteDialog.value.step === 1) {
+      deleteDialog.value.step = 2;
+      deleteDialog.value.open = true;
+      return;
+    }
+
+    deleteDialog.value.open = false;
+    deleteDialog.value.step = 1;
 
     try {
       await deleteChatSession(sessionId);

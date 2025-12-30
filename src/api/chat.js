@@ -14,6 +14,23 @@ async function readJsonSafe(res) {
   }
 }
 
+export class ApiError extends Error {
+  constructor(message, { status, code, data } = {}) {
+    super(String(message || "请求失败"));
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.data = data;
+  }
+}
+
+function createApiError(res, data, fallbackMessage) {
+  const message = (data && typeof data === "object" && String(data.error || "").trim()) || fallbackMessage || "请求失败";
+  const status = res?.status;
+  const code = data && typeof data === "object" ? data.code : undefined;
+  return new ApiError(message, { status, code, data });
+}
+
 function normalizeSessionId(sessionId) {
   const normalized = String(sessionId ?? "").trim();
   if (!normalized) throw new Error("缺少会话ID");
@@ -31,7 +48,7 @@ export async function listChatSessions() {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "获取会话列表失败");
+  if (!res.ok) throw createApiError(res, data, "获取会话列表失败");
   return data.sessions || [];
 }
 
@@ -40,7 +57,7 @@ export async function listChatTrashedSessions() {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "获取回收站失败");
+  if (!res.ok) throw createApiError(res, data, "获取回收站失败");
   return data.sessions || [];
 }
 
@@ -49,7 +66,7 @@ export async function listChatPresets() {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "获取预设失败");
+  if (!res.ok) throw createApiError(res, data, "获取预设失败");
   return data.presets || [];
 }
 
@@ -58,7 +75,7 @@ export async function listChatTrashedPresets() {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "Failed to load trashed presets");
+  if (!res.ok) throw createApiError(res, data, "Failed to load trashed presets");
   return data.presets || [];
 }
 
@@ -67,7 +84,7 @@ export async function getChatMeta() {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "获取聊天配置失败");
+  if (!res.ok) throw createApiError(res, data, "获取聊天配置失败");
   return data; // { providers, defaults }
 }
 
@@ -78,7 +95,7 @@ export async function createChatPreset({ id, name, systemPrompt } = {}) {
     body: JSON.stringify({ id, name, systemPrompt }),
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "创建预设失败");
+  if (!res.ok) throw createApiError(res, data, "创建预设失败");
   return data.preset;
 }
 
@@ -91,7 +108,7 @@ export async function updateChatPreset(presetId, { name, systemPrompt } = {}) {
     body: JSON.stringify({ name, systemPrompt }),
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "更新预设失败");
+  if (!res.ok) throw createApiError(res, data, "更新预设失败");
   return data.preset;
 }
 
@@ -104,7 +121,7 @@ export async function deleteChatPreset(presetId) {
   });
   if (res.status === 204) return;
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "删除预设失败");
+  if (!res.ok) throw createApiError(res, data, "删除预设失败");
 }
 
 export async function restoreChatPreset(presetId) {
@@ -115,7 +132,7 @@ export async function restoreChatPreset(presetId) {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "Failed to restore preset");
+  if (!res.ok) throw createApiError(res, data, "Failed to restore preset");
   return data.preset;
 }
 
@@ -128,7 +145,7 @@ export async function deleteChatPresetPermanently(presetId) {
   });
   if (res.status === 204) return;
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "Failed to delete preset permanently");
+  if (!res.ok) throw createApiError(res, data, "Failed to delete preset permanently");
 }
 
 export async function uploadChatPresetAvatar(presetId, file) {
@@ -145,7 +162,7 @@ export async function uploadChatPresetAvatar(presetId, file) {
     body: formData,
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "上传头像失败");
+  if (!res.ok) throw createApiError(res, data, "上传头像失败");
   return data.preset;
 }
 
@@ -156,7 +173,7 @@ export async function createChatSession({ title, settings, presetId } = {}) {
     body: JSON.stringify({ title, settings, presetId }),
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "创建会话失败");
+  if (!res.ok) throw createApiError(res, data, "创建会话失败");
   return data.session;
 }
 
@@ -168,7 +185,7 @@ export async function deleteChatSession(sessionId) {
   });
   if (res.status === 204) return;
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "删除会话失败");
+  if (!res.ok) throw createApiError(res, data, "删除会话失败");
 }
 
 export async function restoreChatSession(sessionId) {
@@ -178,7 +195,7 @@ export async function restoreChatSession(sessionId) {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "恢复会话失败");
+  if (!res.ok) throw createApiError(res, data, "恢复会话失败");
   return data.session;
 }
 
@@ -190,7 +207,7 @@ export async function deleteChatSessionPermanently(sessionId) {
   });
   if (res.status === 204) return;
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "彻底删除会话失败");
+  if (!res.ok) throw createApiError(res, data, "彻底删除会话失败");
 }
 
 export async function listChatMessages(sessionId) {
@@ -199,7 +216,7 @@ export async function listChatMessages(sessionId) {
     headers: { ...getAuthHeader() },
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "获取消息失败");
+  if (!res.ok) throw createApiError(res, data, "获取消息失败");
   return data.messages || [];
 }
 
@@ -211,7 +228,7 @@ export async function sendChatMessage(sessionId, { content, settings } = {}) {
     body: JSON.stringify({ content, settings }),
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "发送消息失败");
+  if (!res.ok) throw createApiError(res, data, "发送消息失败");
   return data; // { session, user_message, assistant_message }
 }
 
@@ -224,7 +241,7 @@ export async function editChatMessage(sessionId, messageId, { content, settings,
     body: JSON.stringify({ content, settings, truncate, regenerate }),
   });
   const data = await readJsonSafe(res);
-  if (!res.ok) throw new Error(data.error || "修改对话失败");
+  if (!res.ok) throw createApiError(res, data, "修改对话失败");
   return data; // { session, user_message, assistant_message? }
 }
 
@@ -263,7 +280,7 @@ export async function streamChatMessage(
 
   if (!res.ok) {
     const data = await readJsonSafe(res);
-    throw new Error(data.error || "发送消息失败");
+    throw createApiError(res, data, "发送消息失败");
   }
 
   if (!res.body) throw new Error("响应流不可用");
@@ -326,7 +343,7 @@ export async function streamEditChatMessage(
 
   if (!res.ok) {
     const data = await readJsonSafe(res);
-    throw new Error(data.error || "修改对话失败");
+    throw createApiError(res, data, "修改对话失败");
   }
 
   if (!res.body) throw new Error("响应流不可用");

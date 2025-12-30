@@ -1,10 +1,12 @@
-import { nextTick, reactive, ref } from "vue";
+import { nextTick, reactive, ref, watch } from "vue";
 import { editChatMessage, sendChatMessage, streamChatMessage, streamEditChatMessage } from "@/api/chat";
 import { createId, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 
 export function useChatMessaging({
   settings,
+  getComposerDraft,
+  setComposerDraft,
   sessions,
   messagesBySessionId,
   activeSessionId,
@@ -25,6 +27,36 @@ export function useChatMessaging({
   const isSending = ref(false);
   const isStreaming = ref(false);
   let activeStreamAbortController = null;
+
+  const memoryLockMessage = ref("");
+
+  function isMemoryRebuildingError(error) {
+    return error?.code === "CHAT_MEMORY_REBUILDING" || error?.status === 423;
+  }
+
+  function restoreComposerDraftIfIdle(value) {
+    if (typeof setComposerDraft !== "function") return;
+    try {
+      const currentDraft =
+        typeof getComposerDraft === "function" ? String(getComposerDraft() ?? "") : "";
+      if (currentDraft.trim()) return;
+      setComposerDraft(String(value ?? ""));
+    } catch {
+      // ignore
+    }
+  }
+
+  function setMemoryLocked(error) {
+    memoryLockMessage.value = String(error?.message || "记忆重建中，请稍后再试");
+  }
+
+  function clearMemoryLocked() {
+    memoryLockMessage.value = "";
+  }
+
+  watch(activeSessionId, () => {
+    clearMemoryLocked();
+  });
 
   function resolveSessionPresetId() {
     const sessionId = String(activeSessionId.value || "");
@@ -129,6 +161,8 @@ export function useChatMessaging({
 
     if (normalizedContent === originalTrimmed) return;
 
+    clearMemoryLocked();
+
     isEditingMessage.value = true;
     isSending.value = true;
     const nowIso = new Date().toISOString();
@@ -191,6 +225,12 @@ export function useChatMessaging({
             },
           });
         } catch (error) {
+          if (isMemoryRebuildingError(error)) {
+            messagesBySessionId[sessionId] = snapshot;
+            setMemoryLocked(error);
+            handleApiError(error, { silent: true });
+            return;
+          }
           if (isAbortError(error)) {
             if (!String(optimisticAssistantMessage.content || "").trim()) {
               messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
@@ -216,8 +256,14 @@ export function useChatMessaging({
       });
 
       applyServerPayload(sessionId, result, { optimisticUserMessage: targetMessage });
+      clearMemoryLocked();
     } catch (error) {
       messagesBySessionId[sessionId] = snapshot;
+      if (isMemoryRebuildingError(error)) {
+        setMemoryLocked(error);
+        handleApiError(error, { silent: true });
+        return;
+      }
       handleApiError(error);
     } finally {
       isSending.value = false;
@@ -232,17 +278,21 @@ export function useChatMessaging({
     const content = String(text || "").trim();
     if (!content) return;
 
+    clearMemoryLocked();
+
     isSending.value = true;
     const nowIso = new Date().toISOString();
 
     let sessionId = "";
+    let optimisticUserMessage = null;
+    let optimisticAssistantMessage = null;
 
     try {
       sessionId = await ensureWritableSessionId();
       await ensureMessagesLoaded(sessionId);
 
       const optimisticUserMessageId = createId("tmp_msg");
-      const optimisticUserMessage = reactive({
+      optimisticUserMessage = reactive({
         id: optimisticUserMessageId,
         clientId: optimisticUserMessageId,
         role: "user",
@@ -267,7 +317,7 @@ export function useChatMessaging({
         activeStreamAbortController = abortController;
 
         const optimisticAssistantMessageId = createId("tmp_msg");
-        const optimisticAssistantMessage = reactive({
+        optimisticAssistantMessage = reactive({
           id: optimisticAssistantMessageId,
           clientId: optimisticAssistantMessageId,
           role: "assistant",
@@ -292,6 +342,15 @@ export function useChatMessaging({
             },
           });
         } catch (error) {
+          if (isMemoryRebuildingError(error)) {
+            setMemoryLocked(error);
+            restoreComposerDraftIfIdle(content);
+            messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
+              (m) => m !== optimisticUserMessage && m !== optimisticAssistantMessage
+            );
+            handleApiError(error, { silent: true });
+            return;
+          }
           if (isAbortError(error)) {
             if (!String(optimisticAssistantMessage.content || "").trim()) {
               messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
@@ -312,7 +371,19 @@ export function useChatMessaging({
 
       const result = await sendChatMessage(sessionId, { content, settings: outgoingSettings });
       applyServerPayload(sessionId, result, { optimisticUserMessage });
+      clearMemoryLocked();
     } catch (error) {
+      if (isMemoryRebuildingError(error)) {
+        setMemoryLocked(error);
+        restoreComposerDraftIfIdle(content);
+        if (sessionId) {
+          messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
+            (m) => m !== optimisticUserMessage && m !== optimisticAssistantMessage
+          );
+        }
+        handleApiError(error, { silent: true });
+        return;
+      }
       const redirected = handleApiError(error, { silent: Boolean(sessionId) });
 
       if (!redirected && sessionId) {
@@ -334,6 +405,7 @@ export function useChatMessaging({
   return {
     isSending,
     isStreaming,
+    memoryLockMessage,
     stopStreaming,
     requestEditMessage,
     updateEditDraft,
