@@ -7,6 +7,7 @@ import {
   updateChatPreset,
   uploadChatPresetAvatar,
 } from "@/api/chat";
+import { DEFAULT_PROMPT_PRESET_ID } from "@/config/chat";
 import { isPlainObject } from "./helpers";
 import { mapMetaDefaults, mapPreset, mapProvider } from "./mappers";
 import { loadPersistedSettings, persistSettings } from "./settingsStorage";
@@ -182,14 +183,20 @@ export function useChatSettings({ handleApiError }) {
     const desiredPresetId = String(merged.systemPromptPresetId || "").trim();
     const defaultPresetId = String(defaults.systemPromptPresetId || "").trim();
 
-    const preset =
-      presetList.find((p) => p.id === desiredPresetId) ||
-      presetList.find((p) => p.id === defaultPresetId) ||
-      presetList.find((p) => p.id === "default") ||
-      presetList[0] ||
-      null;
+    let preset = null;
+    if (presetList.length) {
+      preset =
+        presetList.find((p) => p.id === desiredPresetId) ||
+        presetList.find((p) => p.id === defaultPresetId) ||
+        presetList.find((p) => p.id === DEFAULT_PROMPT_PRESET_ID) ||
+        presetList[0] ||
+        null;
 
-    if (preset?.id) normalized.systemPromptPresetId = preset.id;
+      if (preset?.id) normalized.systemPromptPresetId = preset.id;
+    } else {
+      const fallbackPresetId = desiredPresetId || defaultPresetId || DEFAULT_PROMPT_PRESET_ID;
+      if (fallbackPresetId) normalized.systemPromptPresetId = fallbackPresetId;
+    }
 
     const hasBaseSystemPrompt =
       Object.prototype.hasOwnProperty.call(base, "systemPrompt") && typeof base.systemPrompt === "string";
