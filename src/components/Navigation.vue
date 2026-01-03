@@ -129,8 +129,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     to bottom,
     rgb(238, 238, 238) 0%,
-    rgba(238, 238, 238, 0.9) 20%,
-    rgba(238, 238, 238, 0) 50%,
+    rgba(238, 238, 238, 0) 70%,
     rgba(238, 238, 238, 0) 100%
   );
 }
@@ -138,8 +137,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     to bottom,
     rgb(238, 238, 238) 0%,
-    rgba(238, 238, 238, 0.9) 20%,
-    rgba(238, 238, 238, 0) 50%,
+    rgba(238, 238, 238, 0) 70%,
     rgba(238, 238, 238, 0) 100%
   );
 }
@@ -184,6 +182,14 @@ onBeforeUnmount(() => {
   font-weight: bold;
   font-family: "Aurora", serif;
   transition: color 1s;
+}
+
+/* ios特化 */
+.navigation.layout--home.isIOS .logo-container .char {
+  color: #ffffff;
+}
+.navigation.layout--articleList.isIOS .logo-container .char {
+  color: #ffffff;
 }
 
 .logo-container:hover .char {
