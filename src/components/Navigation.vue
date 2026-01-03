@@ -129,6 +129,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     to bottom,
     rgb(238, 238, 238) 0%,
+    rgb(238, 238, 238) 5%,
     rgba(238, 238, 238, 0) 70%,
     rgba(238, 238, 238, 0) 100%
   );
@@ -137,6 +138,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     to bottom,
     rgb(238, 238, 238) 0%,
+    rgb(238, 238, 238) 5%,
     rgba(238, 238, 238, 0) 70%,
     rgba(238, 238, 238, 0) 100%
   );
