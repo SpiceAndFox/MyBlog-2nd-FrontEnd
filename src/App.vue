@@ -102,6 +102,7 @@ const iosBackgroundStyle = computed(() => {
     <video v-if="showVideo" class="background-video" autoplay muted loop playsinline>
       <source src="@/assets/videos/background-2.mp4" type="video/mp4" />
     </video>
+    <div v-if="showVideo" class="video-overlay" :class="[layoutClass]"></div>
 
     <SnowEffect v-if="showSnow" />
     <Navigation :layoutClass="layoutClass"></Navigation>
@@ -143,6 +144,29 @@ const iosBackgroundStyle = computed(() => {
   height: 100vh;
   object-fit: cover;
   z-index: -1;
+}
+
+.video-overlay.layout--articleList {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1; /* 注意：要在内容后，但在视频前 */
+}
+
+.video-overlay.layout--articleList::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgb(238, 238, 238) 0%,
+    rgb(238, 238, 238, 0.9) 50%,
+    rgb(238, 238, 238, 0.3) 70%,
+    transparent 80%
+  );
 }
 
 .app-layout.layout--articleList.isIOS {
