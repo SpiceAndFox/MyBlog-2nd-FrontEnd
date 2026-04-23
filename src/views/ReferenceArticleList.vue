@@ -1,233 +1,340 @@
 <script setup>
-import { computed, ref } from "vue";
-import avatarUrl from "@/assets/images/icons/avatar.jpg";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { fetchAllTags } from "@/api/tags";
+import { getPublishedArticles } from "@/api/articles";
+import LoadingOverlay from "@/components/LoadingOverlay.vue";
+import ReferenceArticleCard from "@/components/ReferenceArticleList/ReferenceArticleCard.vue";
+import ReferenceArticleSidebar from "@/components/ReferenceArticleList/ReferenceArticleSidebar.vue";
+import ReferencePagination from "@/components/ReferenceArticleList/ReferencePagination.vue";
 
-const searchText = ref("");
+const DEFAULT_PAGE_SIZE = 6;
 
-const menuItems = [
-  { label: "全部文章", icon: "A", active: true },
-  { label: "技术文章", icon: "T" },
-  { label: "动画随笔", icon: "M" },
-  { label: "生活记录", icon: "L" },
-  { label: "设计分享", icon: "D" },
-];
+const tags = ref({ topTags: [], subTags: {} });
+const articles = ref([]);
+const loading = ref(false);
+const errorMessage = ref("");
+const hasFetchedOnce = ref(false);
+const searchInput = ref("");
 
-const hotTags = ["Tech", "JavaScript", "Vue", "动画", "生活", "设计", "随笔", "AI"];
+const route = useRoute();
+const router = useRouter();
 
-const archives = [
-  { label: "2024年5月", count: 18 },
-  { label: "2024年4月", count: 24 },
-  { label: "2024年3月", count: 21 },
-];
-
-const articles = [
-  {
-    order: 4,
-    title: "使用 Slide Generate 自动生成精美 PPT",
-    summary:
-      "尝试了几个月的优化迭代和 PPT 方案后，我找到了目前最满意的工作流。配合自动化，可以显著提升内容整理与演示制作效率。",
-    tags: ["Tech", "工具", "效率"],
-    author: "香料的小屋",
-    date: "2024-05-20",
-    views: "1.2k",
-    variant: "",
-    keywords: "slide generate 自动生成 精美 ppt tech 工具 效率",
-  },
-  {
-    order: 3,
-    title: "宫崎骏对人类的思考与爱：风之谷",
-    summary:
-      "这部跨越时代的作品，至今仍在不断给予我们关于自然、战争与人类未来的思考。它温柔又锋利，值得反复重温。",
-    tags: ["动画", "宫崎骏", "影评"],
-    author: "香料的小屋",
-    date: "2024-05-15",
-    views: "2.5k",
-    variant: "variant-2",
-    keywords: "宫崎骏 风之谷 动画 影评 爱 人类 思考",
-  },
-  {
-    order: 2,
-    title: "一种必须保持运动的生物",
-    summary:
-      "如果非要概括当前前进的根源，或许是因为自己同时犯了贪婪与怯懦。但反过来说，什么造就了你的坚持与节奏？",
-    tags: ["生活", "思考", "成长"],
-    author: "香料的小屋",
-    date: "2024-05-10",
-    views: "985",
-    variant: "variant-3",
-    keywords: "运动 生活 思考 成长 自律",
-  },
-  {
-    order: 1,
-    title: "如何优雅地使用 CSS 实现现代化布局",
-    summary:
-      "深入探讨 Flexbox 和 Grid 布局的最佳实践，分享一些在实际项目中总结的小技巧，让页面更清晰、稳定，也更容易维护。",
-    tags: ["Tech", "CSS", "前端"],
-    author: "香料的小屋",
-    date: "2024-05-08",
-    views: "842",
-    variant: "variant-4",
-    keywords: "css 布局 前端 tech flexbox grid 现代化",
-  },
-];
-
-const visibleArticles = computed(() => {
-  const keyword = searchText.value.trim().toLowerCase();
-  const result = articles.filter((article) => {
-    if (!keyword) return true;
-    const haystack = [
-      article.title,
-      article.summary,
-      article.author,
-      article.date,
-      article.views,
-      article.keywords,
-      ...article.tags,
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(keyword);
-  });
-
-  return result.sort((a, b) => b.order - a.order);
+const currentFilter = ref({
+  topTag: "",
+  subTag: "",
+  year: null,
+  month: -1,
+  page: 1,
+  limit: DEFAULT_PAGE_SIZE,
+  search: "",
 });
 
+const pagination = ref({
+  total: 0,
+  page: 1,
+  limit: DEFAULT_PAGE_SIZE,
+  totalPages: 1,
+});
+
+const hasPagination = computed(() => pagination.value.totalPages > 1);
+const hasArticles = computed(() => articles.value.length > 0);
+const showEmpty = computed(() => hasFetchedOnce.value && !loading.value && !hasArticles.value);
+
+const articleListSectionTitle = computed(() => {
+  const { topTag, subTag, year, month } = currentFilter.value;
+  let title = subTag ? `${topTag} / ${subTag}` : topTag || "全部文章";
+  if (year && month !== -1) title += ` (${year}-${String(month).padStart(2, "0")})`;
+  else if (year) title += ` (${year})`;
+  return title;
+});
+
+const subtitle = computed(() => {
+  const total = pagination.value.total;
+  if (total) return `共 ${total} 篇文章`;
+  if (loading.value && !hasFetchedOnce.value) return "正在加载文章";
+  return "记录技术、动画与生活";
+});
+
+const emptyText = computed(() => {
+  if (currentFilter.value.search) return "没有找到匹配的文章，试试别的关键词。";
+  return "当前筛选条件下没有文章。";
+});
+
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(firstQueryValue(value), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function mapTagsFromApi(raw = []) {
+  const top = [];
+  const subMap = {};
+
+  raw.forEach((tag) => {
+    if (!tag || !tag.name) return;
+    top.push(tag.name);
+    subMap[tag.name] = Array.isArray(tag.subTags) ? tag.subTags.map((subTag) => subTag.name).filter(Boolean) : [];
+  });
+
+  return { topTags: top, subTags: subMap };
+}
+
+function mapArticleFromApi(article) {
+  const tagList = Array.isArray(article.tags) ? article.tags : [];
+  const topTag = tagList.find((tag) => tag && tag.parent_id === null)?.name || tagList[0]?.name || "未分类";
+  const subTag = tagList.find((tag) => tag && tag.parent_id !== null)?.name || "";
+  const tagNames = tagList.map((tag) => tag?.name).filter(Boolean);
+
+  return {
+    id: article.id,
+    link: `/article/${article.id}`,
+    headImgUrl: article.header_image_url || "",
+    thumbnail: article.thumbnail_url || article.header_image_url || "",
+    title: article.title,
+    topTag,
+    subTag,
+    tags: tagNames.length ? tagNames : [topTag, subTag].filter(Boolean),
+    datetime: article.published_at ? article.published_at.slice(0, 10) : "",
+    summary: article.summary || "",
+  };
+}
+
+function buildFilterQuery() {
+  const { topTag, subTag, year, month, page, limit, search } = currentFilter.value;
+  const params = new URLSearchParams();
+
+  if (topTag) params.set("topTag", topTag);
+  if (subTag) params.set("subTag", subTag);
+  if (year) params.set("year", year);
+  if (month && month !== -1) params.set("month", month);
+  if (page && page !== 1) params.set("page", page);
+  if (limit && limit !== DEFAULT_PAGE_SIZE) params.set("limit", limit);
+  if (search) params.set("search", search);
+
+  return Object.fromEntries(params);
+}
+
+function isSameQuery(nextQuery) {
+  const currentQuery = route.query || {};
+  const currentKeys = Object.keys(currentQuery);
+  const nextKeys = Object.keys(nextQuery);
+  if (currentKeys.length !== nextKeys.length) return false;
+
+  return nextKeys.every((key) => String(firstQueryValue(currentQuery[key]) ?? "") === String(nextQuery[key] ?? ""));
+}
+
+function syncRouteWithFilter() {
+  const query = buildFilterQuery();
+  if (isSameQuery(query)) return;
+  router.push({ path: "/articles", query });
+}
+
+function updateFilterFromRoute(r) {
+  const query = r.query || {};
+
+  currentFilter.value.topTag = firstQueryValue(query.topTag) || "";
+  currentFilter.value.subTag = firstQueryValue(query.subTag) || "";
+  currentFilter.value.year = query.year ? parsePositiveInt(query.year, null) : null;
+  currentFilter.value.month = query.month ? parsePositiveInt(query.month, -1) : -1;
+  currentFilter.value.page = parsePositiveInt(query.page, 1);
+  currentFilter.value.limit = parsePositiveInt(query.limit, DEFAULT_PAGE_SIZE);
+  currentFilter.value.search = firstQueryValue(query.search) ? String(firstQueryValue(query.search)) : "";
+  searchInput.value = currentFilter.value.search;
+}
+
+async function fetchTags() {
+  try {
+    const data = await fetchAllTags();
+    tags.value = mapTagsFromApi(data);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function fetchArticles() {
+  loading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const { topTag, subTag, year, month, page, limit, search } = currentFilter.value;
+    const res = await getPublishedArticles({
+      topTag,
+      subTag,
+      year,
+      month: month === -1 ? undefined : month,
+      search,
+      page,
+      limit,
+    });
+
+    articles.value = (res.articles || []).map(mapArticleFromApi);
+
+    const serverPagination = res.pagination || {};
+    const total = serverPagination.total ?? 0;
+    const limitFromServer = serverPagination.limit ?? limit;
+    const totalPages = serverPagination.totalPages ?? Math.max(1, Math.ceil(total / limitFromServer));
+    const pageFromServer = serverPagination.page ?? page;
+
+    pagination.value = {
+      total,
+      page: pageFromServer,
+      limit: limitFromServer,
+      totalPages,
+    };
+    currentFilter.value.page = pageFromServer;
+    currentFilter.value.limit = limitFromServer;
+  } catch (err) {
+    errorMessage.value = err.message || "文章加载失败";
+    articles.value = [];
+    pagination.value = {
+      total: 0,
+      page: currentFilter.value.page,
+      limit: currentFilter.value.limit,
+      totalPages: 1,
+    };
+  } finally {
+    loading.value = false;
+    hasFetchedOnce.value = true;
+  }
+}
+
+function handlePageChange(newPage) {
+  const totalPages = pagination.value.totalPages || 1;
+  if (newPage < 1 || newPage > totalPages || newPage === currentFilter.value.page) return;
+  currentFilter.value.page = newPage;
+  syncRouteWithFilter();
+}
+
+function handleFilterChange({ type, value }) {
+  const filter = currentFilter.value;
+
+  switch (type) {
+    case "reset":
+      filter.topTag = "";
+      filter.subTag = "";
+      filter.year = null;
+      filter.month = -1;
+      filter.search = "";
+      searchInput.value = "";
+      break;
+    case "topTag":
+      filter.topTag = filter.topTag === value ? "" : value;
+      filter.subTag = "";
+      break;
+    case "subTag":
+      filter.subTag = filter.subTag === value ? "" : value;
+      break;
+    case "year":
+      filter.year = value;
+      filter.month = -1;
+      break;
+    case "month":
+      filter.month = value;
+      break;
+    case "search":
+      filter.search = String(value || "").trim();
+      searchInput.value = filter.search;
+      break;
+    default:
+      return;
+  }
+
+  filter.page = 1;
+  syncRouteWithFilter();
+}
+
+function handleSearchSubmit() {
+  handleFilterChange({ type: "search", value: searchInput.value });
+}
+
+watch(
+  () => route.query,
+  () => {
+    updateFilterFromRoute(route);
+    fetchArticles();
+  }
+);
+
+onMounted(async () => {
+  updateFilterFromRoute(route);
+  await Promise.all([fetchTags(), fetchArticles()]);
+});
 </script>
 
 <template>
   <div class="reference-page">
     <div class="page-shell">
-      <div class="reference-app">
-        <div class="content">
-          <aside class="sidebar">
-            <section class="panel profile-card">
-              <img class="profile-avatar" :src="avatarUrl" alt="香料的小屋" />
-              <div class="profile-name">香料的小屋</div>
-              <p class="profile-desc">在代码与文字间，遇见更好的自己。</p>
-              <div class="stats">
-                <div class="stat">
-                  <div class="stat-label">文章</div>
-                  <div class="stat-value">128</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-label">分类</div>
-                  <div class="stat-value">12</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-label">标签</div>
-                  <div class="stat-value">36</div>
-                </div>
-              </div>
-            </section>
+      <div class="content">
+        <ReferenceArticleSidebar
+          :tags="tags"
+          :selectedTopTag="currentFilter.topTag"
+          :selectedSubTag="currentFilter.subTag"
+          :selectedYear="currentFilter.year"
+          :selectedMonth="currentFilter.month"
+          :totalArticles="pagination.total"
+          @update="handleFilterChange"
+        />
 
-            <section class="panel menu-panel">
-              <div class="menu-list">
-                <a
-                  v-for="item in menuItems"
-                  :key="item.label"
-                  class="menu-item"
-                  :class="{ active: item.active }"
-                  href="#"
-                  @click.prevent
-                >
-                  <span class="mini-icon">{{ item.icon }}</span>
-                  {{ item.label }}
-                </a>
-              </div>
-            </section>
+        <main class="main panel">
+          <div class="main-header">
+            <div class="main-title-row">
+              <div class="main-heading">
+                <div class="main-title-line">
+                  <h1 class="main-title">{{ articleListSectionTitle }}</h1>
 
-            <section class="panel tag-panel">
-              <div class="side-title">热门标签</div>
-              <div class="tags">
-                <span v-for="tag in hotTags" :key="tag" class="tag">{{ tag }}</span>
-              </div>
-              <a class="link-more" href="#" @click.prevent>更多标签 <span>→</span></a>
-            </section>
-
-            <section class="panel archive-panel">
-              <div class="side-title">归档</div>
-              <div class="archive-list">
-                <div v-for="archive in archives" :key="archive.label" class="archive-item">
-                  <span>{{ archive.label }}</span>
-                  <span>{{ archive.count }}</span>
-                </div>
-              </div>
-              <a class="link-more" href="#" @click.prevent>更多归档 <span>→</span></a>
-            </section>
-          </aside>
-
-          <main class="main panel">
-            <div class="main-header">
-              <div class="main-title-row">
-                <div>
-                  <h1 class="main-title">全部文章</h1>
-                  <div class="subtext">共 128 篇文章</div>
-                </div>
-                <div class="main-actions">
-                  <form class="article-list__search" @submit.prevent>
-                    <button type="submit">Search</button>
-                    <input v-model="searchText" type="search" placeholder="搜索文章..." aria-label="搜索文章" />
+                  <form class="article-list__search" @submit.prevent="handleSearchSubmit">
+                    <button type="submit" aria-label="搜索文章">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="m21 21-4.3-4.3" />
+                        <circle cx="11" cy="11" r="7" />
+                      </svg>
+                    </button>
+                    <input v-model="searchInput" type="search" placeholder="搜索文章..." aria-label="搜索文章" />
                   </form>
                 </div>
+                <div class="subtext">{{ subtitle }}</div>
               </div>
             </div>
+          </div>
 
-            <section v-if="visibleArticles.length" class="article-list">
-              <article v-for="article in visibleArticles" :key="article.title" class="article-card">
-                <div class="thumb" :class="article.variant">
-                  <span class="thumb-label">图片占位 / 16:9</span>
-                </div>
-                <div class="article-body">
-                  <h2 class="article-title">{{ article.title }}</h2>
-                  <p class="article-desc">{{ article.summary }}</p>
-                  <div class="meta-tags">
-                    <span v-for="tag in article.tags" :key="tag" class="chip">{{ tag }}</span>
-                  </div>
-                  <div class="meta-bottom">
-                    <div class="author-row">
-                      <img class="author-mini" :src="avatarUrl" alt="" aria-hidden="true" />
-                      <span>{{ article.author }}</span>
-                      <span>{{ article.date }}</span>
-                    </div>
-                    <span class="views">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                      {{ article.views }}
-                    </span>
-                  </div>
-                </div>
-              </article>
-            </section>
+          <p v-if="errorMessage" class="article-error">{{ errorMessage }}</p>
 
-            <div v-else class="empty-state">没有找到匹配的文章，试试别的关键词。</div>
-          </main>
-        </div>
+          <section v-if="hasArticles" class="article-list">
+            <ReferenceArticleCard
+              v-for="article in articles"
+              :key="article.id"
+              :article="article"
+            />
+          </section>
+
+          <div v-else-if="showEmpty" class="empty-state">{{ emptyText }}</div>
+
+          <ReferencePagination v-if="hasPagination" :pagination="pagination" @change="handlePageChange" />
+        </main>
       </div>
+
+      <LoadingOverlay :show="loading" />
     </div>
   </div>
 </template>
 
 <style scoped>
 .reference-page {
-  --panel: rgba(255, 255, 255, 0.82);
-  --panel-border: rgba(15, 23, 42, 0.08);
-  --text: #1f2937;
-  --text-soft: #6b7280;
-  --text-faint: #9ca3af;
-  --green: #6ea37e;
-  --green-soft: #eef5f0;
-  --shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
-  --radius-xl: 20px;
+  --reference-panel: rgba(255, 255, 255, 0.84);
+  --reference-panel-border: rgba(15, 23, 42, 0.08);
+  --reference-text: #1f2937;
+  --reference-text-soft: #6b7280;
+  --reference-text-faint: #9ca3af;
+  --reference-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
   width: 100%;
   min-height: calc(100vh - 60px);
   min-height: calc(100dvh - 60px);
-  color: var(--text);
-  background:
-    radial-gradient(circle at 12% 0%, rgba(110, 163, 126, 0.14), transparent 32%),
-    radial-gradient(circle at 92% 12%, rgba(125, 151, 190, 0.14), transparent 28%),
-    linear-gradient(180deg, #f6f7f8 0%, #eef2f1 100%);
+  color: var(--reference-text);
+  background: linear-gradient(180deg, #f6f7f8 0%, #eef2f1 100%);
   font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
@@ -235,22 +342,11 @@ const visibleArticles = computed(() => {
   box-sizing: border-box;
 }
 
-.page-shell,
-.reference-app {
+.page-shell {
   width: 100%;
   min-height: inherit;
-}
-
-.page-shell {
   background: rgba(255, 255, 255, 0.34);
   backdrop-filter: blur(12px);
-}
-
-.profile-avatar,
-.author-mini {
-  object-fit: cover;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 .content {
@@ -262,175 +358,16 @@ const visibleArticles = computed(() => {
   padding: 24px 22px 32px;
 }
 
-.sidebar,
 .main {
   min-width: 0;
 }
 
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow);
+  background: var(--reference-panel);
+  border: 1px solid var(--reference-panel-border);
+  border-radius: 8px;
+  box-shadow: var(--reference-shadow);
   backdrop-filter: blur(12px);
-}
-
-.sidebar .panel + .panel {
-  margin-top: 16px;
-}
-
-.profile-card {
-  padding: 32px 24px 24px;
-  text-align: center;
-}
-
-.profile-avatar {
-  width: 78px;
-  height: 78px;
-  margin: 0 auto 18px;
-  border: 3px solid rgba(255, 255, 255, 0.78);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-}
-
-.profile-name {
-  margin-bottom: 10px;
-  font-size: 1.45rem;
-  font-weight: 700;
-}
-
-.profile-desc {
-  margin: 0 8px 20px;
-  color: var(--text-soft);
-  font-size: 14px;
-  line-height: 1.8;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding-top: 10px;
-}
-
-.stat {
-  border-right: 1px solid rgba(17, 24, 39, 0.06);
-}
-
-.stat:last-child {
-  border-right: 0;
-}
-
-.stat-label {
-  color: var(--text-faint);
-  font-size: 12px;
-}
-
-.stat-value {
-  margin-top: 8px;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.menu-panel,
-.tag-panel,
-.archive-panel {
-  padding: 18px 16px;
-}
-
-.side-title {
-  margin: 2px 8px 14px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.menu-list,
-.archive-list {
-  display: grid;
-}
-
-.menu-list {
-  gap: 8px;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 12px;
-  border-radius: 12px;
-  color: #68717c;
-  text-decoration: none;
-  transition: 0.2s ease;
-}
-
-.menu-item:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.menu-item.active {
-  color: var(--green);
-  background: var(--green-soft);
-  font-weight: 600;
-}
-
-.mini-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 11px;
-}
-
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 0 8px 6px;
-}
-
-.tag,
-.chip {
-  border: 1px solid rgba(17, 24, 39, 0.04);
-  border-radius: 999px;
-  color: #6b7280;
-  background: rgba(245, 247, 249, 0.95);
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 13px;
-  font-size: 13px;
-}
-
-.link-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-left: 8px;
-  padding: 8px;
-  color: #7a8592;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.archive-list {
-  gap: 14px;
-  padding: 0 8px 4px;
-}
-
-.archive-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #727b87;
-  font-size: 15px;
 }
 
 .main-header {
@@ -439,26 +376,30 @@ const visibleArticles = computed(() => {
 }
 
 .main-title-row {
+  min-width: 0;
+}
+
+.main-heading {
+  min-width: 0;
+}
+
+.main-title-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-}
-
-.main-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  min-width: 0;
+  min-height: 46px;
 }
 
 .main-title {
   margin: 0;
   font-size: 1.85rem;
+  line-height: 1;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .subtext {
@@ -470,6 +411,9 @@ const visibleArticles = computed(() => {
 .article-list__search {
   display: flex;
   align-items: center;
+  flex: 0 1 260px;
+  min-width: 132px;
+  min-height: 46px;
   gap: 10px;
   padding: 6px 12px;
   margin: 0;
@@ -479,15 +423,17 @@ const visibleArticles = computed(() => {
 }
 
 .article-list__search button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   appearance: none;
   border: none;
-  border-radius: 10px;
-  padding: 6px 8px;
+  border-radius: 50%;
   background: transparent;
   color: #5b5b5b;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
   transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
 }
 
@@ -505,173 +451,45 @@ const visibleArticles = computed(() => {
   outline-offset: 2px;
 }
 
+.article-list__search svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
 .article-list__search input {
-  width: 160px;
-  max-width: min(30vw, 220px);
+  width: 100%;
+  min-width: 0;
   padding: 6px 2px;
   border: none;
-  border-bottom: 2px solid rgba(60, 60, 60, 0.28);
   background: transparent;
   outline: none;
   color: #3f3f3f;
   font-size: 0.95rem;
-  transition: border-bottom-color 0.22s ease, box-shadow 0.22s ease;
+  line-height: 1.2;
 }
 
 .article-list__search input:focus {
-  border-bottom-color: rgba(60, 60, 60, 0.75);
-  box-shadow: 0 8px 18px -16px rgba(0, 0, 0, 0.55);
+  box-shadow: none;
 }
 
 .article-list {
   display: grid;
   gap: 16px;
-  padding: 20px 18px 20px;
+  padding: 20px 18px;
 }
 
-.article-card {
-  display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
-  align-items: center;
-  gap: 24px;
-  padding: 18px;
-  border: 1px solid rgba(17, 24, 39, 0.05);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.74);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.045);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-.article-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(110, 163, 126, 0.2);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-}
-
-.thumb {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 34%),
-    linear-gradient(135deg, #9bc4cb, #5aa48f 40%, #2e615d 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-}
-
-.thumb::before,
-.thumb::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  opacity: 0.9;
-  filter: blur(2px);
-}
-
-.thumb::before {
-  left: -20px;
-  bottom: -18px;
-  width: 120px;
-  height: 120px;
-  background: radial-gradient(circle, rgba(190, 235, 197, 0.95) 0, rgba(190, 235, 197, 0) 70%);
-}
-
-.thumb::after {
-  right: -18px;
-  top: -18px;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(255, 220, 175, 0.55) 0, rgba(255, 220, 175, 0) 65%);
-}
-
-.thumb.variant-2 {
-  background: linear-gradient(135deg, #233d64, #4f6aa7 40%, #ef8b5a 100%);
-}
-
-.thumb.variant-3 {
-  background: linear-gradient(135deg, #5a7ccc, #8797ff 35%, #f0656d 100%);
-}
-
-.thumb.variant-4 {
-  background: linear-gradient(135deg, #87a3ff, #f09e7f 45%, #6070bc 100%);
-}
-
-.thumb-label {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  padding: 7px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.18);
-  font-size: 12px;
-  backdrop-filter: blur(8px);
-}
-
-.article-body {
-  min-width: 0;
-}
-
-.article-title {
-  margin: 0 0 12px;
-  font-size: 1.55rem;
-  line-height: 1.35;
-  font-weight: 800;
-}
-
-.article-desc {
-  max-width: 72ch;
-  margin: 0 0 18px;
-  color: #7b8490;
-  font-size: 15px;
-  line-height: 1.75;
-}
-
-.meta-tags,
-.meta-bottom {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  padding: 7px 11px;
-  font-size: 12px;
-}
-
-.meta-bottom {
-  justify-content: space-between;
-  margin-top: 16px;
-  color: #8b94a1;
-  font-size: 14px;
-  gap: 16px;
-}
-
-.author-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.author-mini {
-  width: 22px;
-  height: 22px;
-}
-
-.views {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-}
-
-.views svg {
-  width: 16px;
-  height: 16px;
-  color: #98a2ae;
+.article-error {
+  margin: 18px 18px 0;
+  color: #ef4444;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
 }
 
 .empty-state {
@@ -685,32 +503,9 @@ const visibleArticles = computed(() => {
     grid-template-columns: 1fr;
     padding-top: 18px;
   }
-
-  .article-card {
-    grid-template-columns: 1fr;
-  }
-
-  .article-desc {
-    max-width: 100%;
-  }
 }
 
 @media (max-width: 640px) {
-  .main-actions {
-    width: 100%;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .article-list__search {
-    padding: 6px 10px;
-  }
-
-  .article-list__search input {
-    width: 128px;
-    max-width: 42vw;
-  }
-
   .content {
     gap: 14px;
     padding: 12px 10px 16px;
@@ -724,27 +519,17 @@ const visibleArticles = computed(() => {
     font-size: 1.65rem;
   }
 
+  .article-list__search {
+    flex-basis: 154px;
+  }
+
+  .article-list__search input {
+    font-size: 0.9rem;
+  }
+
   .article-list {
     gap: 12px;
     padding: 14px 10px 12px;
-  }
-
-  .article-card {
-    padding: 14px;
-    gap: 18px;
-    border-radius: 16px;
-  }
-
-  .article-title {
-    font-size: 1.4rem;
-  }
-
-  .profile-card {
-    padding: 24px 18px 20px;
-  }
-
-  .stat-value {
-    font-size: 1.25rem;
   }
 }
 </style>
