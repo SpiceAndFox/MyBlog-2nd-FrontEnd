@@ -76,8 +76,8 @@ function stepYear(step) {
   <aside class="sidebar">
     <section class="panel profile-card">
       <img class="profile-avatar" :src="avatarUrl" alt="香辛料的小屋" :style="{ viewTransitionName: 'user-avatar' }" />
-      <div class="profile-name">香辛料的小屋</div>
-      <p class="profile-desc">在代码与文字间，记录思考、技术和生活。</p>
+      <div class="profile-name">Spice</div>
+      <p class="profile-desc">花店不开了，花还在开......</p>
       <div class="stats">
         <div class="stat">
           <div class="stat-label">文章</div>

@@ -50,7 +50,7 @@ function navigate() {
 <style scoped>
 .article-card {
   display: grid;
-  grid-template-columns: 328px minmax(0, 1fr);
+  grid-template-columns: minmax(340px, 40%) minmax(0, 1fr);
   align-items: stretch;
   gap: 0;
   padding: 0;
@@ -120,7 +120,7 @@ function navigate() {
 }
 
 .article-card--reverse {
-  grid-template-columns: minmax(0, 1fr) 328px;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 40%);
 }
 
 .article-card--reverse .thumb {
@@ -205,12 +205,12 @@ function navigate() {
 
 @media (max-width: 980px) {
   .article-card {
-    grid-template-columns: 286px minmax(0, 1fr);
+    grid-template-columns: minmax(286px, 40%) minmax(0, 1fr);
     height: 208px;
   }
 
   .article-card--reverse {
-    grid-template-columns: minmax(0, 1fr) 286px;
+    grid-template-columns: minmax(0, 1fr) minmax(286px, 40%);
   }
 
   .article-desc {

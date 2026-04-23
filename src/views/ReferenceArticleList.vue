@@ -257,7 +257,7 @@ watch(
   () => {
     updateFilterFromRoute(route);
     fetchArticles();
-  }
+  },
 );
 
 onMounted(async () => {
@@ -364,10 +364,8 @@ onMounted(async () => {
 }
 
 .panel {
-  background: var(--reference-panel);
-  border: 1px solid var(--reference-panel-border);
+  margin-top: 10px;
   border-radius: 8px;
-  box-shadow: var(--reference-shadow);
   backdrop-filter: blur(12px);
 }
 
@@ -435,7 +433,10 @@ onMounted(async () => {
   background: transparent;
   color: #5b5b5b;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.1s ease;
 }
 
 .article-list__search button:hover {
