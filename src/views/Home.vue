@@ -5,7 +5,6 @@ import RecentArticleSection from "@/components/Home/RecentArticleSection.vue";
 import RippleBackground from "@/components/Home/RippleBackground.vue";
 import { getPublishedArticles } from "@/api/articles";
 
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const articleListSectionTitle = ref("近期文章");
 const articlesData = ref([]);
 const loading = ref(false);
@@ -51,11 +50,6 @@ onMounted(fetchArticles);
     <UserInfo></UserInfo>
     <RecentArticleSection :title="articleListSectionTitle" :articles="articlesData"></RecentArticleSection>
   </main>
-  <div v-if="isIOS" class="bottom-ios-notice">
-    <span>出生Safari</span>
-    <span>因为弹簧机制</span>
-    <span>我得给它写个渐变</span>
-  </div>
 </template>
 
 <style scoped>
@@ -80,27 +74,4 @@ onMounted(fetchArticles);
   }
 }
 
-/* 脑残ios */
-.bottom-ios-notice {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 30px;
-  padding-bottom: 20px;
-  color: rgb(219, 202, 202);
-
-  background: linear-gradient(
-    to top,
-    rgb(238, 238, 238) 0%,
-    rgba(238, 238, 238, 0.9) 20%,
-    rgba(238, 238, 238, 0) 70%,
-    rgba(238, 238, 238, 0) 100%
-  );
-}
-.bottom-ios-notice span:nth-of-type(2) {
-  color: rgb(202, 192, 192);
-}
-.bottom-ios-notice span:nth-of-type(3) {
-  color: rgb(105, 100, 100);
-}
 </style>
