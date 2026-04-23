@@ -213,6 +213,7 @@ const iosBackgroundStyle = computed(() => {
 }
 
 .app-layout.layout--referenceArticleList {
+  background: linear-gradient(180deg, #f6f7f8 0%, #eef2f1 100%);
   overflow: auto;
 }
 </style>

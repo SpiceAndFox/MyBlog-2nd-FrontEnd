@@ -275,6 +275,26 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.navigation.layout--referenceArticleList {
+  background: transparent;
+}
+
+.navigation.layout--referenceArticleList .navigation-links,
+.navigation.layout--referenceArticleList .menu-toggle {
+  background: rgba(255, 255, 255, 0.64);
+  border-color: rgba(15, 23, 42, 0.07);
+}
+
+.navigation.layout--referenceArticleList .navigation-links::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(238, 245, 240, 0.88));
+  border-color: rgba(110, 163, 126, 0.16);
+}
+
+.navigation.layout--referenceArticleList .navigation-links a.is-active,
+.navigation.layout--referenceArticleList .navigation-links a:hover {
+  color: #5c7e69;
+}
+
 .menu-toggle:hover {
   border-color: rgba(15, 23, 42, 0.18);
   background-color: rgba(255, 255, 255, 0.92);
