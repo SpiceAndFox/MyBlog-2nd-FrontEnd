@@ -37,12 +37,12 @@ import avatar from "@/assets/images/icons/avatar.jpg";
   text-align: center;
 
   font-size: 40px;
-  color: rgba(56, 56, 56, 0.692);
+  color: rgba(255, 255, 255, 0.96);
   transition: color 0.3s ease;
 }
 
 .user-info__name:hover {
-  color: rgb(255, 255, 255);
+  color: rgba(255, 255, 255, 0.96);
 }
 
 @media (max-width: 1200px) {

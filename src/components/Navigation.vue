@@ -214,11 +214,6 @@ onBeforeUnmount(() => {
   transition: color 1s;
 }
 
-/* ios特化 */
-.navigation.layout--home.isIOS .logo-container .char {
-  color: #ffffff;
-}
-
 .navigation.layout--articleList .logo-container .char {
   color: rgba(255, 255, 255, 0.94);
   text-shadow: 0 2px 10px rgba(15, 23, 42, 0.24);
