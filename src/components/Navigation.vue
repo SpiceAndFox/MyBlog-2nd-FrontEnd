@@ -1,6 +1,6 @@
 <script setup>
 import myLogo from "@/assets/images/icons/logo.jpg";
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
@@ -18,6 +18,8 @@ const navLinks = [
   { label: "文章", link: "/articles" },
   { label: "Chat", link: "/chat" },
 ];
+const NAV_LINK_WIDTH = 76;
+const NAV_LINK_GAP = 4;
 
 // 是否是在ios环境
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -38,6 +40,7 @@ const router = useRouter();
 const route = useRoute();
 function linkToggled(link) {
   closeMenu();
+  if (route.path === link) return;
   if (!document.startViewTransition) {
     router.push(link);
     return;
@@ -51,6 +54,15 @@ function isNavLinkActive(link) {
   if (link === "/articles" && route.path.startsWith("/article/")) return true;
   return route.path === link || route.path.startsWith(`${link}/`);
 }
+
+const activeNavIndex = computed(() => navLinks.findIndex((item) => isNavLinkActive(item.link)));
+const hasActiveNavLink = computed(() => activeNavIndex.value >= 0);
+const activeNavOffset = computed(() => `${Math.max(activeNavIndex.value, 0) * (NAV_LINK_WIDTH + NAV_LINK_GAP)}px`);
+const navIndicatorStyle = computed(() => ({
+  "--active-offset": activeNavOffset.value,
+  "--nav-link-width": `${NAV_LINK_WIDTH}px`,
+  "--nav-link-gap": `${NAV_LINK_GAP}px`,
+}));
 
 // 监听鼠标、键盘操作，用于关闭菜单
 function onDocumentPointerDown(event) {
@@ -80,10 +92,10 @@ onBeforeUnmount(() => {
   <nav ref="navEl" class="navigation" :class="[layoutClass, isIOS ? 'isIOS' : '']">
     <a @click.prevent="linkToggled('/')" href="/" class="logo-container">
       <img
+        v-if="layoutClass !== 'layout--home'"
         :src="myLogo"
         alt="SpiceNest Logo"
         :style="{ viewTransitionName: 'user-avatar' }"
-        v-show="layoutClass !== 'layout--home'"
       />
       <div class="blog-name-container">
         <span v-for="(char, index) in blogNameChars" :key="index" class="char">
@@ -97,9 +109,9 @@ onBeforeUnmount(() => {
       class="navigation-links"
       :class="{
         'is-open': isMenuOpen,
-        'active-articles': isNavLinkActive('/articles'),
-        'active-chat': isNavLinkActive('/chat'),
+        'has-active': hasActiveNavLink,
       }"
+      :style="navIndicatorStyle"
     >
       <li v-for="item in navLinks" :key="item.link">
         <a
@@ -227,7 +239,6 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   z-index: 1001;
-  padding: 0;
 
   border: 1px solid rgba(15, 23, 42, 0.12);
   padding: 5px;
@@ -262,10 +273,6 @@ onBeforeUnmount(() => {
 }
 .navigation.layout--chat .navigation-links {
   background: rgba(255, 255, 255, 0.78);
-}
-.navigation.layout--chat .navigation-links a:hover,
-.navigation.layout--chat .navigation-links a.is-active {
-  color: #c44569;
 }
 
 .menu-toggle:hover {
@@ -342,18 +349,13 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.72));
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
   opacity: 0;
-  transform: translateX(0);
+  transform: translateX(var(--active-offset, 0px));
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
   pointer-events: none;
 }
 
-.navigation-links.active-articles::before,
-.navigation-links.active-chat::before {
+.navigation-links.has-active::before {
   opacity: 1;
-}
-
-.navigation-links.active-chat::before {
-  transform: translateX(calc(var(--nav-link-width) + var(--nav-link-gap)));
 }
 
 .navigation-links a {
