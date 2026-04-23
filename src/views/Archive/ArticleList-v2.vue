@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import ArticleListSection from "@/components/ArticleList/ArticleListSection.vue";
-import ArticleFilterPanel from "@/components/ArticleList/ArticleFilterPanel.vue";
+import ArticleListSection from "@/components/Archive/ArticleList-v2/ArticleListSection.vue";
+import ArticleFilterPanel from "@/components/Archive/ArticleList-v2/ArticleFilterPanel.vue";
 import { fetchAllTags } from "@/api/tags";
 import { getPublishedArticles } from "@/api/articles";
 import LoadingOverlay from "@/components/LoadingOverlay.vue";

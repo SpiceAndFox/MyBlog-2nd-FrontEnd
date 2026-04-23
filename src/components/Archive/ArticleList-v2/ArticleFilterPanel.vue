@@ -1,5 +1,5 @@
 <script setup>
-import MonthPicker from "@/components/ArticleList/MonthPicker.vue";
+import MonthPicker from "@/components/Archive/ArticleList-v2/MonthPicker.vue";
 
 // 定义参数
 defineProps({

@@ -186,10 +186,10 @@ function stepYear(step) {
 }
 
 .panel {
-  background: var(--reference-panel);
-  border: 1px solid var(--reference-panel-border);
+  background: var(--article-list-panel);
+  border: 1px solid var(--article-list-panel-border);
   border-radius: 8px;
-  box-shadow: var(--reference-shadow);
+  box-shadow: var(--article-list-shadow);
   backdrop-filter: blur(12px);
 }
 
@@ -225,7 +225,7 @@ function stepYear(step) {
 
 .profile-desc {
   margin: 0 8px 20px;
-  color: var(--reference-text-soft);
+  color: var(--article-list-text-soft);
   font-size: 14px;
   line-height: 1.8;
 }
@@ -246,7 +246,7 @@ function stepYear(step) {
 }
 
 .stat-label {
-  color: var(--reference-text-faint);
+  color: var(--article-list-text-faint);
   font-size: 12px;
 }
 
@@ -289,7 +289,7 @@ function stepYear(step) {
 }
 
 .menu-item:hover {
-  color: var(--reference-text);
+  color: var(--article-list-text);
   background: rgba(255, 255, 255, 0.7);
 }
 
@@ -339,7 +339,7 @@ function stepYear(step) {
 
 .tag:hover,
 .month-item:hover {
-  color: var(--reference-text);
+  color: var(--article-list-text);
   background: #e9efec;
 }
 
@@ -351,7 +351,7 @@ function stepYear(step) {
 
 .side-empty {
   margin: 0 8px;
-  color: var(--reference-text-faint);
+  color: var(--article-list-text-faint);
   font-size: 13px;
 }
 
@@ -380,7 +380,7 @@ function stepYear(step) {
 
 .year-btn:hover,
 .year-select:hover {
-  color: var(--reference-text);
+  color: var(--article-list-text);
   border-color: rgba(110, 163, 126, 0.35);
 }
 

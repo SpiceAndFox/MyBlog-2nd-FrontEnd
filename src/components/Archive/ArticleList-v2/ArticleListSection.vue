@@ -1,5 +1,5 @@
 <script setup>
-import ArticleCard from "@/components/ArticleList/ArticleCard.vue";
+import ArticleCard from "@/components/Archive/ArticleList-v2/ArticleCard.vue";
 import { vAutoAnimate } from "@formkit/auto-animate";
 import { ref, watch } from "vue";
 

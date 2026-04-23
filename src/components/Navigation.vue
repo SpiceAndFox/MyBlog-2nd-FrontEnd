@@ -59,7 +59,7 @@ const activeNavIndex = computed(() => navLinks.findIndex((item) => isNavLinkActi
 const hasActiveNavLink = computed(() => activeNavIndex.value >= 0);
 const activeNavOffset = computed(() => `${Math.max(activeNavIndex.value, 0) * (NAV_LINK_WIDTH + NAV_LINK_GAP)}px`);
 const showNavLogo = computed(() => {
-  return props.layoutClass !== "layout--home" && props.layoutClass !== "layout--referenceArticleList";
+  return props.layoutClass !== "layout--home" && props.layoutClass !== "layout--articleList";
 });
 const navIndicatorStyle = computed(() => ({
   "--active-offset": activeNavOffset.value,
@@ -171,15 +171,6 @@ onBeforeUnmount(() => {
     rgba(238, 238, 238, 0) 100%
   );
 }
-.navigation.layout--articleList.isIOS {
-  background: linear-gradient(
-    to bottom,
-    rgb(238, 238, 238) 0%,
-    rgb(238, 238, 238) 5%,
-    rgba(238, 238, 238, 0) 70%,
-    rgba(238, 238, 238, 0) 100%
-  );
-}
 .navigation.layout--article {
   position: absolute;
   top: 0;
@@ -227,10 +218,6 @@ onBeforeUnmount(() => {
 .navigation.layout--home.isIOS .logo-container .char {
   color: #ffffff;
 }
-.navigation.layout--articleList.isIOS .logo-container .char {
-  color: #ffffff;
-}
-
 .logo-container:hover .char {
   color: #c44569;
 }
@@ -278,23 +265,23 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.78);
 }
 
-.navigation.layout--referenceArticleList {
+.navigation.layout--articleList {
   background: transparent;
 }
 
-.navigation.layout--referenceArticleList .navigation-links,
-.navigation.layout--referenceArticleList .menu-toggle {
+.navigation.layout--articleList .navigation-links,
+.navigation.layout--articleList .menu-toggle {
   background: rgba(255, 255, 255, 0.64);
   border-color: rgba(15, 23, 42, 0.07);
 }
 
-.navigation.layout--referenceArticleList .navigation-links::before {
+.navigation.layout--articleList .navigation-links::before {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(238, 245, 240, 0.88));
   border-color: rgba(110, 163, 126, 0.16);
 }
 
-.navigation.layout--referenceArticleList .navigation-links a.is-active,
-.navigation.layout--referenceArticleList .navigation-links a:hover {
+.navigation.layout--articleList .navigation-links a.is-active,
+.navigation.layout--articleList .navigation-links a:hover {
   color: #5c7e69;
 }
 
