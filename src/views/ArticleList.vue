@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchAllTags } from "@/api/tags";
 import { getPublishedArticles } from "@/api/articles";
+import archiveHeroUrl from "@/assets/images/background-10.jpg";
 import LoadingOverlay from "@/components/LoadingOverlay.vue";
 import ArticleCard from "@/components/ArticleList/ArticleCard.vue";
 import ArticleSidebar from "@/components/ArticleList/ArticleSidebar.vue";
@@ -55,6 +56,31 @@ const subtitle = computed(() => {
   if (total) return `共 ${total} 篇文章`;
   if (loading.value && !hasFetchedOnce.value) return "正在加载文章";
   return "记录技术、动画与生活";
+});
+
+const heroSummary = computed(() => {
+  const { topTag, subTag, year, month, search } = currentFilter.value;
+
+  if (search) return `关于“${search}”的相关文章都整理在这里。`;
+  if (subTag) return `${topTag} / ${subTag} 分类下的内容归档。`;
+  if (topTag) return `${topTag} 分类下的内容归档。`;
+  if (year && month !== -1) return `${year} 年 ${month} 月发布的文章。`;
+  if (year) return `${year} 年发布的文章。`;
+  return "花店不开了，花还在开......";
+});
+
+const heroHighlights = computed(() => {
+  const items = [];
+  const { search, year, month } = currentFilter.value;
+
+  items.push(pagination.value.total ? `已发布 ${pagination.value.total} 篇` : "持续更新");
+  items.push(search ? `搜索：${search}` : articleListSectionTitle.value);
+
+  if (year) {
+    items.push(month !== -1 ? `${year}.${String(month).padStart(2, "0")}` : `${year} 年`);
+  }
+
+  return [...new Set(items)];
 });
 
 const emptyText = computed(() => {
@@ -269,8 +295,24 @@ onMounted(async () => {
 <template>
   <div class="article-list-page">
     <div class="page-shell">
+      <section class="hero-banner" :style="{ '--hero-image': `url(${archiveHeroUrl})` }">
+        <div class="hero-banner__content">
+          <div class="hero-copy">
+            <h2 class="hero-title">文章归档</h2>
+            <p class="hero-summary">{{ heroSummary }}</p>
+
+            <div class="hero-highlights">
+              <span v-for="highlight in heroHighlights" :key="highlight" class="hero-pill">
+                {{ highlight }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="content">
         <ArticleSidebar
+          class="article-list-sidebar"
           :tags="tags"
           :selectedTopTag="currentFilter.topTag"
           :selectedSubTag="currentFilter.subTag"
@@ -332,6 +374,8 @@ onMounted(async () => {
   --article-list-text-soft: #6b7280;
   --article-list-text-faint: #9ca3af;
   --article-list-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
+  --article-list-shell-top: rgb(248, 251, 249);
+  --article-list-shell-bottom: rgb(241, 245, 247);
   width: 100%;
   min-height: calc(100vh - 60px);
   min-height: calc(100dvh - 60px);
@@ -347,16 +391,107 @@ onMounted(async () => {
 .page-shell {
   width: 100%;
   min-height: inherit;
-  background: transparent;
+  padding-bottom: 26px;
+  background: linear-gradient(180deg, var(--article-list-shell-top), var(--article-list-shell-bottom));
+}
+
+.hero-banner {
+  position: relative;
+  min-height: 320px;
+  padding: 92px 0 72px;
+  overflow: hidden;
+  color: #ffffff;
+  background-image:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.78), rgba(24, 49, 57, 0.46) 48%, rgba(39, 74, 80, 0.24)),
+    var(--hero-image);
+  background-position: center 42%;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.hero-banner::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: 168px;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 251, 249, 0) 0%,
+    rgba(248, 251, 249, 0.08) 22%,
+    rgba(247, 250, 248, 0.3) 42%,
+    rgba(246, 250, 248, 0.62) 64%,
+    rgba(245, 249, 248, 0.9) 82%,
+    var(--article-list-shell-top) 100%
+  );
+  pointer-events: none;
+}
+
+.hero-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(9, 14, 24, 0.18) 54%, rgba(9, 14, 24, 0) 100%);
+  pointer-events: none;
+}
+
+.hero-banner__content {
+  position: relative;
+  z-index: 2;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 22px;
+}
+
+.hero-copy {
+  max-width: 640px;
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 3rem;
+  line-height: 1.04;
+  font-weight: 800;
+}
+
+.hero-summary {
+  max-width: 58ch;
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.hero-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  backdrop-filter: blur(10px);
 }
 
 .content {
   display: grid;
   grid-template-columns: 288px minmax(0, 1fr);
+  align-items: start;
   gap: 22px;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 24px 22px 32px;
+  padding: 18px 22px 32px;
 }
 
 .main {
@@ -364,14 +499,15 @@ onMounted(async () => {
 }
 
 .panel {
-  margin-top: 10px;
+  overflow: hidden;
   border-radius: 8px;
-  backdrop-filter: blur(12px);
+  background: transparent;
 }
 
 .main-header {
   padding: 30px 30px 20px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(248, 250, 248, 0.02));
 }
 
 .main-title-row {
@@ -383,9 +519,9 @@ onMounted(async () => {
 }
 
 .main-title-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(168px, 28vw, 260px);
+  align-items: flex-end;
   gap: 12px;
   min-width: 0;
   min-height: 46px;
@@ -394,8 +530,9 @@ onMounted(async () => {
 .main-title {
   margin: 0;
   font-size: 1.85rem;
-  line-height: 1;
+  line-height: 1.12;
   font-weight: 800;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -410,15 +547,16 @@ onMounted(async () => {
 .article-list__search {
   display: flex;
   align-items: center;
-  flex: 0 1 260px;
-  min-width: 132px;
+  width: 100%;
+  min-width: 0;
   min-height: 46px;
   gap: 10px;
   padding: 6px 12px;
   margin: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .article-list__search button {
@@ -501,13 +639,61 @@ onMounted(async () => {
 }
 
 @media (max-width: 980px) {
+  .article-list-sidebar {
+    display: none;
+  }
+
+  .hero-banner {
+    min-height: 288px;
+    padding: 84px 0 64px;
+    background-position: center;
+  }
+
+  .hero-banner::before {
+    height: 144px;
+  }
+
+  .hero-banner__content {
+    padding: 0 18px;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
   .content {
     grid-template-columns: 1fr;
-    padding-top: 18px;
+    padding: 16px 18px 24px;
   }
 }
 
 @media (max-width: 640px) {
+  .hero-banner {
+    min-height: 248px;
+    padding: 76px 0 52px;
+  }
+
+  .hero-banner::before {
+    height: 116px;
+  }
+
+  .hero-banner__content {
+    padding: 0 10px;
+  }
+
+  .hero-pill {
+    font-size: 12px;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-summary {
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
   .content {
     gap: 14px;
     padding: 12px 10px 16px;
@@ -518,11 +704,19 @@ onMounted(async () => {
   }
 
   .main-title {
-    font-size: 1.65rem;
+    font-size: 1.55rem;
+  }
+
+  .main-title-line {
+    grid-template-columns: minmax(0, 1fr) clamp(132px, 42vw, 172px);
+    align-items: center;
+    gap: 8px;
   }
 
   .article-list__search {
-    flex-basis: 154px;
+    min-height: 42px;
+    gap: 8px;
+    padding: 4px 10px;
   }
 
   .article-list__search input {

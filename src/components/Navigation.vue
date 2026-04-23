@@ -179,6 +179,15 @@ onBeforeUnmount(() => {
   z-index: 1001;
 }
 
+.navigation.layout--articleList {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  background: transparent;
+}
+
 .logo-container {
   height: 85%;
   display: flex;
@@ -218,6 +227,12 @@ onBeforeUnmount(() => {
 .navigation.layout--home.isIOS .logo-container .char {
   color: #ffffff;
 }
+
+.navigation.layout--articleList .logo-container .char {
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 2px 10px rgba(15, 23, 42, 0.24);
+}
+
 .logo-container:hover .char {
   color: #c44569;
 }
@@ -263,10 +278,6 @@ onBeforeUnmount(() => {
 }
 .navigation.layout--chat .navigation-links {
   background: rgba(255, 255, 255, 0.78);
-}
-
-.navigation.layout--articleList {
-  background: transparent;
 }
 
 .navigation.layout--articleList .navigation-links,
