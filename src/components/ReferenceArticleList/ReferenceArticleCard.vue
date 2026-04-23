@@ -145,12 +145,9 @@ function navigate() {
   line-height: 1.35;
   font-weight: 800;
   text-decoration: none;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .article-title:hover {
