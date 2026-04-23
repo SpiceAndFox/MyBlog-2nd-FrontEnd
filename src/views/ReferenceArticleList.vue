@@ -7,6 +7,7 @@ import LoadingOverlay from "@/components/LoadingOverlay.vue";
 import ReferenceArticleCard from "@/components/ReferenceArticleList/ReferenceArticleCard.vue";
 import ReferenceArticleSidebar from "@/components/ReferenceArticleList/ReferenceArticleSidebar.vue";
 import ReferencePagination from "@/components/ReferenceArticleList/ReferencePagination.vue";
+import { vAutoAnimate } from "@formkit/auto-animate";
 
 const DEFAULT_PAGE_SIZE = 6;
 
@@ -303,10 +304,10 @@ onMounted(async () => {
 
           <p v-if="errorMessage" class="article-error">{{ errorMessage }}</p>
 
-          <section v-if="hasArticles" class="article-list">
+          <section v-if="hasArticles" class="article-list" v-auto-animate>
             <ReferenceArticleCard
               v-for="(article, index) in articles"
-              :key="article.id"
+              :key="`${article.id}-${index % 2}`"
               :article="article"
               :index="index"
             />

@@ -54,7 +54,7 @@ function navigate() {
   align-items: stretch;
   gap: 0;
   padding: 0;
-  min-height: 208px;
+  height: 228px;
   overflow: hidden;
   border: 1px solid rgba(92, 126, 105, 0.1);
   border-radius: 8px;
@@ -73,7 +73,8 @@ function navigate() {
 .thumb {
   position: relative;
   overflow: hidden;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   margin-right: -26px;
   clip-path: polygon(0 0, 100% 0, calc(100% - 26px) 100%, 0 100%);
   background: linear-gradient(135deg, #9bc4cb, #5aa48f 44%, #2e615d 100%);
@@ -205,7 +206,7 @@ function navigate() {
 @media (max-width: 980px) {
   .article-card {
     grid-template-columns: 286px minmax(0, 1fr);
-    min-height: 196px;
+    height: 208px;
   }
 
   .article-card--reverse {
@@ -220,7 +221,7 @@ function navigate() {
 @media (max-width: 640px) {
   .article-card {
     grid-template-columns: 1fr;
-    min-height: 0;
+    height: auto;
   }
 
   .article-card--reverse {
@@ -234,6 +235,7 @@ function navigate() {
   .thumb {
     grid-column: auto;
     grid-row: auto;
+    height: auto;
     min-height: auto;
     margin-right: 0;
     margin-left: 0;
@@ -241,7 +243,21 @@ function navigate() {
     clip-path: none;
   }
 
+  .article-card--reverse .thumb {
+    grid-column: auto;
+    grid-row: auto;
+    margin-right: 0;
+    margin-left: 0;
+    clip-path: none;
+  }
+
   .article-body {
+    grid-column: auto;
+    grid-row: auto;
+    padding: 16px;
+  }
+
+  .article-card--reverse .article-body {
     grid-column: auto;
     grid-row: auto;
     padding: 16px;
