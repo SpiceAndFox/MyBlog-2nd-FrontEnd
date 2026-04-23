@@ -198,6 +198,11 @@ function stepYear(step) {
 }
 
 .profile-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
   padding: 32px 24px 24px;
   text-align: center;
 }
