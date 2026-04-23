@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
-defineProps({
+const props = defineProps({
   layoutClass: {
     type: String,
     default: null,
@@ -58,6 +58,9 @@ function isNavLinkActive(link) {
 const activeNavIndex = computed(() => navLinks.findIndex((item) => isNavLinkActive(item.link)));
 const hasActiveNavLink = computed(() => activeNavIndex.value >= 0);
 const activeNavOffset = computed(() => `${Math.max(activeNavIndex.value, 0) * (NAV_LINK_WIDTH + NAV_LINK_GAP)}px`);
+const showNavLogo = computed(() => {
+  return props.layoutClass !== "layout--home" && props.layoutClass !== "layout--referenceArticleList";
+});
 const navIndicatorStyle = computed(() => ({
   "--active-offset": activeNavOffset.value,
   "--nav-link-width": `${NAV_LINK_WIDTH}px`,
@@ -92,7 +95,7 @@ onBeforeUnmount(() => {
   <nav ref="navEl" class="navigation" :class="[layoutClass, isIOS ? 'isIOS' : '']">
     <a @click.prevent="linkToggled('/')" href="/" class="logo-container">
       <img
-        v-if="layoutClass !== 'layout--home'"
+        v-if="showNavLogo"
         :src="myLogo"
         alt="SpiceNest Logo"
         :style="{ viewTransitionName: 'user-avatar' }"
