@@ -334,7 +334,7 @@ onMounted(async () => {
   min-height: calc(100vh - 60px);
   min-height: calc(100dvh - 60px);
   color: var(--reference-text);
-  background: linear-gradient(180deg, #f6f7f8 0%, #eef2f1 100%);
+  background: transparent;
   font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
@@ -345,8 +345,7 @@ onMounted(async () => {
 .page-shell {
   width: 100%;
   min-height: inherit;
-  background: rgba(255, 255, 255, 0.34);
-  backdrop-filter: blur(12px);
+  background: transparent;
 }
 
 .content {

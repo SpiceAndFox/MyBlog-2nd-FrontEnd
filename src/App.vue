@@ -70,7 +70,7 @@ watch(
     clearIOSRootBg();
     applyIOSRootBg(isIOS && isHomeOrArticleList.value);
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 onBeforeUnmount(() => {
