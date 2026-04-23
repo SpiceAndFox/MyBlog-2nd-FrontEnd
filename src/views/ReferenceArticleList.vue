@@ -305,9 +305,10 @@ onMounted(async () => {
 
           <section v-if="hasArticles" class="article-list">
             <ReferenceArticleCard
-              v-for="article in articles"
+              v-for="(article, index) in articles"
               :key="article.id"
               :article="article"
+              :index="index"
             />
           </section>
 
