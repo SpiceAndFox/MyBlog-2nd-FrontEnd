@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Home from "@/views/Home.vue";
 import Article from "@/views/Article.vue";
-import ArticleList from "@/views/ArticleList.vue";
+import ReferenceArticleList from "@/views/ReferenceArticleList.vue";
 import LogIn from "@/views/LogIn.vue";
 import ArticleWrite from "@/views/Admin/ArticleWrite.vue";
 import AdminLayout from "@/views/AdminLayout.vue";
@@ -29,9 +29,10 @@ const routes = [
   {
     path: "/articles",
     name: "ArticleList",
-    component: ArticleList,
+    component: ReferenceArticleList,
     meta: {
-      layoutClass: "articleList",
+      layoutClass: "referenceArticleList",
+      hideNavigation: true,
     },
   },
   {

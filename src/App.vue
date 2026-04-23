@@ -14,6 +14,7 @@ const layoutMap = {
   home: "layout--home",
   article: "layout--article",
   articleList: "layout--articleList",
+  referenceArticleList: "layout--referenceArticleList",
   admin: "layout--admin",
   chat: "layout--chat",
 };
@@ -30,6 +31,7 @@ const isHomeOrArticleList = computed(() => {
 const showVideo = computed(() => {
   return isHomeOrArticleList.value && !isIOS;
 });
+const showNavigation = computed(() => !route.meta.hideNavigation);
 
 // 计算是否应该显示下雪效果：是IOS 且 (在首页 或 文章列表页)
 const showSnow = computed(() => isIOS && isHomeOrArticleList.value);
@@ -105,7 +107,7 @@ const iosBackgroundStyle = computed(() => {
     <div v-if="showVideo" class="video-overlay" :class="[layoutClass]"></div>
 
     <SnowEffect v-if="showSnow" />
-    <Navigation :layoutClass="layoutClass"></Navigation>
+    <Navigation v-if="showNavigation" :layoutClass="layoutClass"></Navigation>
     <router-view></router-view>
   </div>
 </template>
