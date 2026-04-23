@@ -1,7 +1,7 @@
 <script setup>
 import myLogo from "@/assets/images/icons/logo.jpg";
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { useRouter } from "vue-router"; // 引入 useRoute
+import { useRoute, useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
 defineProps({
@@ -14,6 +14,10 @@ defineProps({
 // 博客名称
 const blogName = "SPICE-NEST";
 const blogNameChars = blogName.split("");
+const navLinks = [
+  { label: "文章", link: "/articles" },
+  { label: "Chat", link: "/chat" },
+];
 
 // 是否是在ios环境
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -31,6 +35,7 @@ function closeMenu() {
 
 // 路由跳转
 const router = useRouter();
+const route = useRoute();
 function linkToggled(link) {
   closeMenu();
   if (!document.startViewTransition) {
@@ -40,6 +45,11 @@ function linkToggled(link) {
   document.startViewTransition(() => {
     router.push(link);
   });
+}
+
+function isNavLinkActive(link) {
+  if (link === "/articles" && route.path.startsWith("/article/")) return true;
+  return route.path === link || route.path.startsWith(`${link}/`);
 }
 
 // 监听鼠标、键盘操作，用于关闭菜单
@@ -82,12 +92,23 @@ onBeforeUnmount(() => {
       </div>
     </a>
 
-    <ul id="mobile-nav-links" class="navigation-links" :class="{ 'is-open': isMenuOpen }">
-      <li>
-        <a @click.prevent="linkToggled('/articles')" href="/articles">文章</a>
-      </li>
-      <li>
-        <a @click.prevent="linkToggled('/chat')" href="/chat">Chat</a>
+    <ul
+      id="mobile-nav-links"
+      class="navigation-links"
+      :class="{
+        'is-open': isMenuOpen,
+        'active-articles': isNavLinkActive('/articles'),
+        'active-chat': isNavLinkActive('/chat'),
+      }"
+    >
+      <li v-for="item in navLinks" :key="item.link">
+        <a
+          @click.prevent="linkToggled(item.link)"
+          :href="item.link"
+          :class="{ 'is-active': isNavLinkActive(item.link) }"
+        >
+          {{ item.label }}
+        </a>
       </li>
     </ul>
 
@@ -112,7 +133,8 @@ onBeforeUnmount(() => {
 }
 
 .navigation {
-  height: 50px;
+  box-sizing: border-box;
+  height: 60px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -202,15 +224,16 @@ onBeforeUnmount(() => {
   display: none;
   width: 40px;
   height: 30px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   z-index: 1001;
   padding: 0;
 
-  border: solid rgba(230, 230, 230, 0.87) 2px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   padding: 5px;
   border-radius: 15px;
-  transition: background-color 0.3s ease;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  transition: background-color 0.3s ease, transform 0.18s ease, border-color 0.18s ease;
 }
 
 /* admin页的特化 */
@@ -237,17 +260,21 @@ onBeforeUnmount(() => {
 .navigation.layout--chat {
   background-color: rgb(249, 250, 251);
 }
-.navigation.layout--chat .navigation-links a {
-  background-color: transparent;
-  transition: transform 0.1s ease-in-out;
+.navigation.layout--chat .navigation-links {
+  background: rgba(255, 255, 255, 0.78);
 }
-.navigation.layout--chat .navigation-links a:hover {
-  transform: translateY(-1px);
+.navigation.layout--chat .navigation-links a:hover,
+.navigation.layout--chat .navigation-links a.is-active {
   color: #c44569;
 }
 
+.menu-toggle:hover {
+  border-color: rgba(15, 23, 42, 0.18);
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
 .menu-toggle:active {
-  background-color: pink;
+  transform: translateY(1px);
 }
 
 .hamburger,
@@ -255,7 +282,7 @@ onBeforeUnmount(() => {
 .hamburger::after {
   content: "";
   display: block;
-  background-color: #eeeded;
+  background-color: #475569;
   height: 3px;
   width: 15px;
   border-radius: 3px;
@@ -283,36 +310,95 @@ onBeforeUnmount(() => {
 }
 
 .navigation-links {
+  --nav-link-width: 76px;
+  --nav-link-height: 36px;
+  --nav-link-gap: 4px;
+  position: relative;
   display: flex;
   flex-direction: row;
+  align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--nav-link-gap);
   list-style: none;
-  padding: 0;
-  margin: 0;
-  margin-right: 20px;
+  padding: 4px;
+  margin: 0 18px 0 0;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.navigation-links::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: var(--nav-link-width);
+  height: var(--nav-link-height);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.72));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+  opacity: 0;
+  transform: translateX(0);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.navigation-links.active-articles::before,
+.navigation-links.active-chat::before {
+  opacity: 1;
+}
+
+.navigation-links.active-chat::before {
+  transform: translateX(calc(var(--nav-link-width) + var(--nav-link-gap)));
 }
 
 .navigation-links a {
-  display: block;
-  width: 60px;
-  height: 30px;
-  line-height: 30px;
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--nav-link-width);
+  height: var(--nav-link-height);
+  padding: 0;
+  line-height: 1;
   text-align: center;
-
-  background-color: #ffffffb4;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
   text-decoration: none;
-  color: #535353;
-  font-weight: 500;
-  font-size: 16px;
-  transition: color 0.3s, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
-  border-radius: 15px;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.16s ease;
 }
 
 .navigation-links a:hover {
-  background-color: #ffffffb4;
-  color: #3b82f6;
+  color: #1f2937;
+  transform: translateY(-1px);
+}
+
+.navigation-links a.is-active {
   border-color: transparent;
+  background: transparent;
+  color: #1f2937;
+  box-shadow: none;
+}
+
+.navigation-links a:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.38);
+  outline-offset: 3px;
+}
+
+.navigation-links li {
+  display: flex;
 }
 
 @media (max-width: 768px) {
@@ -337,11 +423,13 @@ onBeforeUnmount(() => {
     right: 10px;
     margin: 0;
 
-    width: min(150px, calc(100vw - 30px));
-    padding: 10px;
+    width: auto;
+    min-width: 112px;
+    max-width: calc(100vw - 30px);
+    padding: 8px;
     border-radius: 16px;
 
-    background-color: rgba(255, 255, 255, 0.582);
+    background-color: rgba(255, 255, 255, 0.78);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(17, 24, 39, 0.08);
@@ -363,6 +451,10 @@ onBeforeUnmount(() => {
     z-index: 1002;
   }
 
+  .navigation-links::before {
+    display: none;
+  }
+
   /* 当菜单打开时，滑入视口 */
   .navigation-links.is-open {
     opacity: 1;
@@ -377,20 +469,33 @@ onBeforeUnmount(() => {
 
   /* 移动端菜单里的链接样式 */
   .navigation-links a {
-    width: 100%;
-    height: 44px;
-    line-height: 44px;
+    width: 96px;
+    min-width: 0;
+    flex: 0 0 auto;
+    height: 42px;
+    line-height: 1;
+    justify-content: flex-start;
+    padding: 0 14px;
 
     border-radius: 12px;
-    color: #111827;
-    font-size: 16px;
-    background-color: transparent;
+    color: #334155;
+    font-size: 15px;
+    background: transparent;
     border-color: transparent;
+    box-shadow: none;
   }
 
   .navigation-links a:hover {
-    background-color: rgba(17, 24, 39, 0.06);
+    background: rgba(15, 23, 42, 0.06);
     color: #111827;
+    transform: none;
+  }
+
+  .navigation-links a.is-active {
+    border-color: rgba(15, 23, 42, 0.06);
+    background: rgba(255, 255, 255, 0.86);
+    color: #111827;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   }
 
   .navigation-links a:active {

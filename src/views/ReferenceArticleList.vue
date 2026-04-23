@@ -1,6 +1,5 @@
 <script setup>
 import { computed, ref } from "vue";
-import Navigation from "@/components/Navigation.vue";
 import avatarUrl from "@/assets/images/icons/avatar.jpg";
 
 const searchText = ref("");
@@ -99,8 +98,6 @@ const visibleArticles = computed(() => {
   <div class="reference-page">
     <div class="page-shell">
       <div class="reference-app">
-        <Navigation layoutClass="layout--referenceArticleList" />
-
         <div class="content">
           <aside class="sidebar">
             <section class="panel profile-card">
@@ -224,7 +221,8 @@ const visibleArticles = computed(() => {
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
   --radius-xl: 24px;
   width: 100%;
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
+  min-height: calc(100dvh - 60px);
   color: var(--text);
   background: linear-gradient(180deg, #f3f4f6 0%, #f7f8fa 100%);
   font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -237,7 +235,7 @@ const visibleArticles = computed(() => {
 .page-shell,
 .reference-app {
   width: 100%;
-  min-height: 100vh;
+  min-height: inherit;
 }
 
 .page-shell {

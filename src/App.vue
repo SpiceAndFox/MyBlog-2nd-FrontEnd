@@ -211,4 +211,8 @@ const iosBackgroundStyle = computed(() => {
   min-height: 0;
   overflow: hidden;
 }
+
+.app-layout.layout--referenceArticleList {
+  overflow: auto;
+}
 </style>

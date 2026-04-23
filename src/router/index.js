@@ -32,7 +32,6 @@ const routes = [
     component: ReferenceArticleList,
     meta: {
       layoutClass: "referenceArticleList",
-      hideNavigation: true,
     },
   },
   {
