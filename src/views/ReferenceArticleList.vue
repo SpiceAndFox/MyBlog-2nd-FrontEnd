@@ -211,20 +211,23 @@ const visibleArticles = computed(() => {
 
 <style scoped>
 .reference-page {
-  --panel: rgba(255, 255, 255, 0.72);
-  --panel-border: rgba(15, 23, 42, 0.05);
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-border: rgba(15, 23, 42, 0.08);
   --text: #1f2937;
   --text-soft: #6b7280;
   --text-faint: #9ca3af;
   --green: #6ea37e;
   --green-soft: #eef5f0;
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
-  --radius-xl: 24px;
+  --shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
+  --radius-xl: 20px;
   width: 100%;
   min-height: calc(100vh - 60px);
   min-height: calc(100dvh - 60px);
   color: var(--text);
-  background: linear-gradient(180deg, #f3f4f6 0%, #f7f8fa 100%);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(110, 163, 126, 0.14), transparent 32%),
+    radial-gradient(circle at 92% 12%, rgba(125, 151, 190, 0.14), transparent 28%),
+    linear-gradient(180deg, #f6f7f8 0%, #eef2f1 100%);
   font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
@@ -239,7 +242,7 @@ const visibleArticles = computed(() => {
 }
 
 .page-shell {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.34);
   backdrop-filter: blur(12px);
 }
 
@@ -252,9 +255,11 @@ const visibleArticles = computed(() => {
 
 .content {
   display: grid;
-  grid-template-columns: 286px minmax(0, 1fr);
-  gap: 18px;
-  padding: 0 18px 24px;
+  grid-template-columns: 288px minmax(0, 1fr);
+  gap: 22px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 22px 32px;
 }
 
 .sidebar,
@@ -271,18 +276,20 @@ const visibleArticles = computed(() => {
 }
 
 .sidebar .panel + .panel {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .profile-card {
-  padding: 30px 24px 24px;
+  padding: 32px 24px 24px;
   text-align: center;
 }
 
 .profile-avatar {
-  width: 74px;
-  height: 74px;
-  margin: 0 auto 16px;
+  width: 78px;
+  height: 78px;
+  margin: 0 auto 18px;
+  border: 3px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
 }
 
 .profile-name {
@@ -327,7 +334,7 @@ const visibleArticles = computed(() => {
 .menu-panel,
 .tag-panel,
 .archive-panel {
-  padding: 18px 14px;
+  padding: 18px 16px;
 }
 
 .side-title {
@@ -342,14 +349,14 @@ const visibleArticles = computed(() => {
 }
 
 .menu-list {
-  gap: 6px;
+  gap: 8px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 11px 12px;
   border-radius: 12px;
   color: #68717c;
   text-decoration: none;
@@ -376,7 +383,7 @@ const visibleArticles = computed(() => {
   flex: 0 0 auto;
   border: 1px solid rgba(17, 24, 39, 0.08);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   font-size: 11px;
 }
 
@@ -427,7 +434,8 @@ const visibleArticles = computed(() => {
 }
 
 .main-header {
-  padding: 28px 28px 18px;
+  padding: 30px 30px 20px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
 }
 
 .main-title-row {
@@ -448,7 +456,7 @@ const visibleArticles = computed(() => {
 
 .main-title {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
@@ -463,8 +471,11 @@ const visibleArticles = computed(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 10px;
+  padding: 6px 12px;
   margin: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .article-list__search button {
@@ -514,34 +525,37 @@ const visibleArticles = computed(() => {
 
 .article-list {
   display: grid;
-  gap: 18px;
-  padding: 0 18px 18px;
+  gap: 16px;
+  padding: 20px 18px 20px;
 }
 
 .article-card {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   align-items: center;
-  gap: 26px;
-  padding: 22px;
+  gap: 24px;
+  padding: 18px;
   border: 1px solid rgba(17, 24, 39, 0.05);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: var(--shadow);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.045);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .article-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  border-color: rgba(110, 163, 126, 0.2);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
 }
 
 .thumb {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #9bc4cb, #5aa48f 40%, #2e615d 100%);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 34%),
+    linear-gradient(135deg, #9bc4cb, #5aa48f 40%, #2e615d 100%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
@@ -601,17 +615,17 @@ const visibleArticles = computed(() => {
 
 .article-title {
   margin: 0 0 12px;
-  font-size: 1.9rem;
+  font-size: 1.55rem;
   line-height: 1.35;
   font-weight: 800;
 }
 
 .article-desc {
-  max-width: 88%;
+  max-width: 72ch;
   margin: 0 0 18px;
   color: #7b8490;
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.75;
 }
 
 .meta-tags,
@@ -669,6 +683,7 @@ const visibleArticles = computed(() => {
 @media (max-width: 980px) {
   .content {
     grid-template-columns: 1fr;
+    padding-top: 18px;
   }
 
   .article-card {
@@ -688,7 +703,7 @@ const visibleArticles = computed(() => {
   }
 
   .article-list__search {
-    padding: 4px 0;
+    padding: 6px 10px;
   }
 
   .article-list__search input {
@@ -697,11 +712,12 @@ const visibleArticles = computed(() => {
   }
 
   .content {
-    padding: 0 10px 14px;
+    gap: 14px;
+    padding: 12px 10px 16px;
   }
 
   .main-header {
-    padding: 20px 18px 14px;
+    padding: 20px 18px 16px;
   }
 
   .main-title {
@@ -709,12 +725,14 @@ const visibleArticles = computed(() => {
   }
 
   .article-list {
-    padding: 0 10px 12px;
+    gap: 12px;
+    padding: 14px 10px 12px;
   }
 
   .article-card {
-    padding: 16px;
+    padding: 14px;
     gap: 18px;
+    border-radius: 16px;
   }
 
   .article-title {
