@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps({
@@ -22,7 +22,17 @@ const tagList = computed(() => {
 });
 
 function navigate() {
-  router.push({ name: "Article", params: { id: props.article.id } });
+  const target = { name: "Article", params: { id: props.article.id } };
+
+  if (!document.startViewTransition) {
+    router.push(target);
+    return;
+  }
+
+  document.startViewTransition(async () => {
+    await router.push(target);
+    await nextTick();
+  });
 }
 </script>
 
