@@ -1,6 +1,6 @@
 <script setup>
-import myLogo from "@/assets/images/icons/logo.jpg";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import navAvatar from "@/assets/images/icons/avatar.webp";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
@@ -45,8 +45,9 @@ function linkToggled(link) {
     router.push(link);
     return;
   }
-  document.startViewTransition(() => {
-    router.push(link);
+  document.startViewTransition(async () => {
+    await router.push(link);
+    await nextTick();
   });
 }
 
@@ -96,7 +97,7 @@ onBeforeUnmount(() => {
     <a @click.prevent="linkToggled('/')" href="/" class="logo-container">
       <img
         v-if="showNavLogo"
-        :src="myLogo"
+        :src="navAvatar"
         alt="SpiceNest Logo"
         :style="{ viewTransitionName: 'user-avatar' }"
       />
