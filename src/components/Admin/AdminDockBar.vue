@@ -9,6 +9,7 @@ import tagIcon from "@/assets/images/icons/tag.svg";
 const navItems = ref([
   { name: "articles", path: "/admin/articles", icon: articleIcon, text: "文章管理" },
   { name: "write", path: "/admin/write", icon: writeIcon, text: "发布文章" },
+  { name: "diary", path: "/admin/diary", icon: writeIcon, text: "写日记" },
   { name: "tags", path: "/admin/tags", icon: tagIcon, text: "标签管理" },
 ]);
 

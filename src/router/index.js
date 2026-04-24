@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from "vue-router";
 import Home from "@/views/Home.vue";
 import Article from "@/views/Article.vue";
 import ArticleList from "@/views/ArticleList.vue";
+import DiaryArticle from "@/views/DiaryArticle.vue";
+import DiaryList from "@/views/DiaryList.vue";
+import DiaryWrite from "@/views/Admin/DiaryWrite.vue";
 import LogIn from "@/views/LogIn.vue";
 import ArticleWrite from "@/views/Admin/ArticleWrite.vue";
 import AdminLayout from "@/views/AdminLayout.vue";
@@ -32,6 +35,31 @@ const routes = [
     component: ArticleList,
     meta: {
       layoutClass: "articleList",
+    },
+  },
+  {
+    path: "/diaries",
+    name: "DiaryList",
+    component: DiaryList,
+    meta: {
+      layoutClass: "articleList",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/diaries/write",
+    redirect: "/admin/diary",
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/diaries/:id",
+    name: "DiaryArticle",
+    component: DiaryArticle,
+    meta: {
+      layoutClass: "article",
+      requiresAuth: true,
     },
   },
   {
@@ -80,6 +108,11 @@ const routes = [
         path: "tags",
         name: "ArticleTagManage",
         component: ArticleTagManage,
+      },
+      {
+        path: "diary",
+        name: "DiaryWrite",
+        component: DiaryWrite,
       },
     ],
   },

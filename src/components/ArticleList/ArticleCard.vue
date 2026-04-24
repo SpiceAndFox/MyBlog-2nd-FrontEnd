@@ -11,10 +11,19 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  targetName: {
+    type: String,
+    default: "Article",
+  },
+  variant: {
+    type: String,
+    default: "list",
+  },
 });
 
 const router = useRouter();
 const isReversed = computed(() => props.index % 2 === 1);
+const isTile = computed(() => props.variant === "tile");
 
 const tagList = computed(() => {
   if (Array.isArray(props.article.tags) && props.article.tags.length) return props.article.tags;
@@ -22,7 +31,7 @@ const tagList = computed(() => {
 });
 
 function navigate() {
-  const target = { name: "Article", params: { id: props.article.id } };
+  const target = { name: props.targetName, params: { id: props.article.id } };
 
   if (!document.startViewTransition) {
     router.push(target);
@@ -37,7 +46,7 @@ function navigate() {
 </script>
 
 <template>
-  <article class="article-card" :class="{ 'article-card--reverse': isReversed }" @click="navigate">
+  <article class="article-card" :class="{ 'article-card--reverse': isReversed && !isTile, 'article-card--tile': isTile }" @click="navigate">
     <div class="thumb" :class="{ 'thumb--empty': !article.thumbnail }">
       <img v-if="article.thumbnail" class="thumb-img" :src="article.thumbnail" alt="文章头图" />
       <span v-else class="thumb-label">暂无头图</span>
@@ -278,5 +287,42 @@ function navigate() {
   .article-date {
     justify-self: start;
   }
+}
+
+.article-card.article-card--tile {
+  grid-template-columns: 1fr;
+  height: 100%;
+}
+
+.article-card.article-card--tile .thumb {
+  grid-column: auto;
+  grid-row: auto;
+  height: auto;
+  min-height: auto;
+  margin-right: 0;
+  margin-left: 0;
+  aspect-ratio: 16 / 9;
+  clip-path: none;
+}
+
+.article-card.article-card--tile .article-body {
+  grid-column: auto;
+  grid-row: auto;
+  min-height: 180px;
+  padding: 16px;
+}
+
+.article-card.article-card--tile .article-title {
+  font-size: 1.35rem;
+}
+
+.article-card.article-card--tile .article-meta {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.article-card.article-card--tile .article-date {
+  justify-self: start;
 }
 </style>

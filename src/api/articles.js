@@ -36,6 +36,63 @@ export function getAuthHeader() {
   return { Authorization: `Bearer ${token}` };
 }
 
+// 日记页：获取当前登录用户自己的已发布内容，仅支持日期分页筛选
+export async function getDiaryArticles({ year, month, page = 1, limit = 6 } = {}) {
+  const params = new URLSearchParams();
+  if (year) params.set("year", year);
+  if (month) params.set("month", month);
+  if (page) params.set("page", page);
+  if (limit) params.set("limit", limit);
+
+  const queryString = params.toString();
+  const url = queryString ? `/api/diaries?${queryString}` : "/api/diaries";
+
+  const res = await fetch(url, {
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || "日记加载失败");
+  return data;
+}
+
+export async function getDiaryById(id) {
+  const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+  if (!normalizedId) throw new Error("缺少日记ID");
+
+  const res = await fetch(`/api/diaries/${normalizedId}`, {
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || "日记加载失败");
+  return data;
+}
+
+export async function createDiary({ title, content, status = "published", contentImageKeys = [] }) {
+  const res = await fetch("/api/diaries", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({
+      title,
+      content,
+      status,
+      content_image_keys: contentImageKeys,
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || "创建日记失败");
+  return data;
+}
+
 // 创建文章（带 FormData）
 export async function createArticle(formData) {
   const res = await fetch("/api/admin/articles", {

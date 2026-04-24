@@ -1,6 +1,6 @@
 <script setup>
 import navAvatar from "@/assets/images/icons/avatar.webp";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router"; // 引入 useRoute
 
 // 定义导航栏是否透明
@@ -14,10 +14,19 @@ const props = defineProps({
 // 博客名称
 const blogName = "SPICE-NEST";
 const blogNameChars = blogName.split("");
-const navLinks = [
+const baseNavLinks = [
   { label: "文章", link: "/articles" },
   { label: "Chat", link: "/chat" },
 ];
+const isLoggedIn = ref(Boolean(localStorage.getItem("token")));
+const navLinks = computed(() => {
+  const links = [...baseNavLinks];
+  if (isLoggedIn.value) {
+    links.splice(1, 0, { label: "日记", link: "/diaries" });
+    links.splice(2, 0, { label: "Admin", link: "/admin" });
+  }
+  return links;
+});
 const NAV_LINK_WIDTH = 76;
 const NAV_LINK_GAP = 4;
 
@@ -53,10 +62,12 @@ function linkToggled(link) {
 
 function isNavLinkActive(link) {
   if (link === "/articles" && route.path.startsWith("/article/")) return true;
+  if (link === "/diaries" && route.path.startsWith("/diaries")) return true;
+  if (link === "/admin" && route.path.startsWith("/admin")) return true;
   return route.path === link || route.path.startsWith(`${link}/`);
 }
 
-const activeNavIndex = computed(() => navLinks.findIndex((item) => isNavLinkActive(item.link)));
+const activeNavIndex = computed(() => navLinks.value.findIndex((item) => isNavLinkActive(item.link)));
 const hasActiveNavLink = computed(() => activeNavIndex.value >= 0);
 const activeNavOffset = computed(() => `${Math.max(activeNavIndex.value, 0) * (NAV_LINK_WIDTH + NAV_LINK_GAP)}px`);
 const showNavLogo = computed(() => {
@@ -81,15 +92,29 @@ function onDocumentKeyDown(event) {
   if (event.key === "Escape") closeMenu();
 }
 
+function refreshAuthState() {
+  isLoggedIn.value = Boolean(localStorage.getItem("token"));
+}
+
 onMounted(() => {
+  refreshAuthState();
   document.addEventListener("pointerdown", onDocumentPointerDown);
   document.addEventListener("keydown", onDocumentKeyDown);
+  window.addEventListener("storage", refreshAuthState);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", onDocumentPointerDown);
   document.removeEventListener("keydown", onDocumentKeyDown);
+  window.removeEventListener("storage", refreshAuthState);
 });
+
+watch(
+  () => route.fullPath,
+  () => {
+    refreshAuthState();
+  },
+);
 </script>
 
 <template>
