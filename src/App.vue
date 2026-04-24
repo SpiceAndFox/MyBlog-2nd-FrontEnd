@@ -2,7 +2,7 @@
 import { useRoute } from "vue-router";
 import { watch, computed, onBeforeUnmount } from "vue";
 import Navigation from "@/components/Navigation.vue";
-import iosBg from "@/assets/images/background-mobile-01.webp";
+import iosBg from "@/assets/images/background-mobile-04.webp";
 
 // 获取路由信息
 const route = useRoute();
@@ -26,7 +26,7 @@ const showVideo = computed(() => {
 const showNavigation = computed(() => !route.meta.hideNavigation);
 
 // ios背景设置
-const IOS_HOME_BG_COLOR = "rgb(255, 255, 255)";
+const IOS_HOME_BG_COLOR = "rgb(245, 240, 224)";
 const applyIOSRootBg = (enable) => {
   if (!enable) return;
   const html = document.documentElement;
