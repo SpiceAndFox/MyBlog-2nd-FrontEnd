@@ -56,7 +56,7 @@ function stepYear(step) {
 <template>
   <aside class="diary-sidebar">
     <section class="panel profile-card">
-      <img class="profile-avatar" :src="avatarUrl" :alt="profileName" />
+      <img class="profile-avatar" :src="avatarUrl" :alt="profileName" :style="{ viewTransitionName: 'user-avatar' }" />
       <div class="profile-name">{{ profileName }}</div>
       <p class="profile-desc">花店不开了，花还在开</p>
       <div class="stats">

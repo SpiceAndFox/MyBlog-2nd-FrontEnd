@@ -5,8 +5,8 @@ import { getMeApi } from "@/api/auth";
 import { getDiaryArticles } from "@/api/articles";
 import diaryBackgroundUrl from "@/assets/images/diary-background.jpg";
 import LoadingOverlay from "@/components/LoadingOverlay.vue";
-import ArticleCard from "@/components/ArticleList/ArticleCard.vue";
 import ArticlePagination from "@/components/ArticleList/ArticlePagination.vue";
+import DiaryCard from "@/components/DiaryList/DiaryCard.vue";
 import DiarySidebar from "@/components/DiaryList/DiarySidebar.vue";
 import { vAutoAnimate } from "@formkit/auto-animate";
 
@@ -16,7 +16,7 @@ const route = useRoute();
 const router = useRouter();
 
 const currentUser = ref(null);
-const articles = ref([]);
+const diaries = ref([]);
 const loading = ref(false);
 const errorMessage = ref("");
 const hasFetchedOnce = ref(false);
@@ -36,8 +36,8 @@ const pagination = ref({
 });
 
 const hasPagination = computed(() => pagination.value.totalPages > 1);
-const hasArticles = computed(() => articles.value.length > 0);
-const showEmpty = computed(() => hasFetchedOnce.value && !loading.value && !hasArticles.value);
+const hasDiaries = computed(() => diaries.value.length > 0);
+const showEmpty = computed(() => hasFetchedOnce.value && !loading.value && !hasDiaries.value);
 
 const diaryListSectionTitle = computed(() => {
   const { year, month } = currentFilter.value;
@@ -84,18 +84,14 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function mapArticleFromApi(article) {
+function mapDiaryFromApi(diary) {
   return {
-    id: article.id,
-    link: `/diaries/${article.id}`,
-    headImgUrl: article.header_image_url || "",
+    id: diary.id,
+    link: `/diaries/${diary.id}`,
     thumbnail: diaryBackgroundUrl,
-    title: article.title,
-    topTag: "",
-    subTag: "",
-    tags: [],
-    datetime: article.published_at ? article.published_at.slice(0, 10) : "",
-    summary: article.summary || "",
+    title: diary.title,
+    datetime: diary.published_at ? diary.published_at.slice(0, 10) : "",
+    summary: diary.summary || "",
   };
 }
 
@@ -156,7 +152,7 @@ async function fetchDiaries() {
       limit,
     });
 
-    articles.value = (res.articles || []).map(mapArticleFromApi);
+    diaries.value = (res.articles || []).map(mapDiaryFromApi);
 
     const serverPagination = res.pagination || {};
     const total = serverPagination.total ?? 0;
@@ -174,7 +170,7 @@ async function fetchDiaries() {
     currentFilter.value.limit = limitFromServer;
   } catch (err) {
     errorMessage.value = err.message || "日记加载失败";
-    articles.value = [];
+    diaries.value = [];
     pagination.value = {
       total: 0,
       page: currentFilter.value.page,
@@ -268,15 +264,8 @@ onMounted(async () => {
 
           <p v-if="errorMessage" class="diary-error">{{ errorMessage }}</p>
 
-          <section v-if="hasArticles" class="diary-list" v-auto-animate>
-            <ArticleCard
-              v-for="(article, index) in articles"
-              :key="`${article.id}-${index % 2}`"
-              :article="article"
-              :index="index"
-              targetName="DiaryArticle"
-              variant="tile"
-            />
+          <section v-if="hasDiaries" class="diary-list" v-auto-animate>
+            <DiaryCard v-for="(diary, index) in diaries" :key="diary.id" :diary="diary" :index="index" />
           </section>
 
           <div v-else-if="showEmpty" class="empty-state">{{ emptyText }}</div>
@@ -326,8 +315,7 @@ onMounted(async () => {
   overflow: hidden;
   color: #ffffff;
   background-image:
-    linear-gradient(90deg, rgba(15, 23, 42, 0.78), rgba(46, 56, 74, 0.5) 48%, rgba(66, 94, 98, 0.22)),
-    var(--hero-image);
+    linear-gradient(90deg, rgba(15, 23, 42, 0.78), rgba(46, 56, 74, 0.5) 48%, rgba(66, 94, 98, 0.22)), var(--hero-image);
   background-position: center 44%;
   background-repeat: no-repeat;
   background-size: cover;
@@ -455,9 +443,7 @@ onMounted(async () => {
 
 .diary-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 340px));
-  justify-content: center;
-  align-items: stretch;
+  grid-template-columns: 1fr;
   gap: 16px;
   padding: 20px 18px;
 }
@@ -544,7 +530,6 @@ onMounted(async () => {
   }
 
   .diary-list {
-    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     padding: 14px 10px 12px;
   }
