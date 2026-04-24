@@ -69,21 +69,15 @@ defineProps({
 }
 
 /* 移动端适配 */
-@container article-list-section (max-width: 500px) {
+@media (max-width: 500px) {
   .recent-article-section {
-    max-width: 100%;
+    max-width: 90%;
     padding: 15px;
     margin-bottom: 20px;
   }
-
-  .article-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 15px;
-  }
 }
 
-@container article-list-section (max-width: 425px) {
+@container recent-article-section (max-width: 400px) {
   .article-list {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }

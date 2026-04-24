@@ -1,5 +1,5 @@
 <script setup>
-import avatar from "@/assets/images/icons/avatar.jpg";
+import avatar from "@/assets/images/icons/avatar.webp";
 </script>
 
 <template>
@@ -17,12 +17,14 @@ import avatar from "@/assets/images/icons/avatar.jpg";
 }
 
 .user-info__avatar {
-  width: 150px;
+  width: 180px;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 50%;
 
-  transition: box-shadow 0.4s, transform 0.3s ease-out;
+  transition:
+    box-shadow 0.4s,
+    transform 0.3s ease-out;
 }
 
 .user-info__avatar:hover {
@@ -37,7 +39,7 @@ import avatar from "@/assets/images/icons/avatar.jpg";
   text-align: center;
 
   font-size: 40px;
-  color: rgba(255, 255, 255, 0.96);
+  color: rgba(95, 95, 95, 0.96);
   transition: color 0.3s ease;
 }
 
@@ -52,7 +54,7 @@ import avatar from "@/assets/images/icons/avatar.jpg";
   }
 
   .user-info__avatar {
-    width: 120px;
+    width: 150px;
   }
   .user-info__name {
     margin-left: 0;

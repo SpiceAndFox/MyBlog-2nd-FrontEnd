@@ -37,7 +37,9 @@ function navigate() {
   padding: 15px;
   padding-left: 10px;
   border-radius: 15px;
-  transition: box-shadow 0.3s, transform 0.3s ease;
+  transition:
+    box-shadow 0.3s,
+    transform 0.3s ease;
   cursor: pointer;
 
   container-type: inline-size;
@@ -102,7 +104,7 @@ function navigate() {
 }
 
 /* --- 移动端适配 */
-@container recent-article-section (max-width: 500px) {
+@container recent-article-section (max-width: 400px) {
   .article-card {
     flex-direction: column;
   }

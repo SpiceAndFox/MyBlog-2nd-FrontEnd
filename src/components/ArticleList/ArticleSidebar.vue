@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import avatarUrl from "@/assets/images/icons/avatar.jpg";
+import avatarUrl from "@/assets/images/icons/avatar.webp";
 
 const props = defineProps({
   tags: {
@@ -208,8 +208,8 @@ function stepYear(step) {
 }
 
 .profile-avatar {
-  width: 78px;
-  height: 78px;
+  width: 150px;
+  height: 150px;
   margin: 0 auto 18px;
   object-fit: cover;
   border: 3px solid rgba(255, 255, 255, 0.78);
