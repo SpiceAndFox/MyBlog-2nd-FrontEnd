@@ -370,6 +370,7 @@ watch(
   --nav-link-width: 76px;
   --nav-link-height: 36px;
   --nav-link-gap: 4px;
+  box-sizing: border-box;
   position: relative;
   display: flex;
   flex-direction: row;
@@ -388,6 +389,7 @@ watch(
 }
 
 .navigation-links::before {
+  box-sizing: border-box;
   content: "";
   position: absolute;
   top: 4px;
@@ -409,12 +411,14 @@ watch(
 }
 
 .navigation-links a {
+  box-sizing: border-box;
   position: relative;
   z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 var(--nav-link-width);
+  flex: 0 0 auto;
+  width: 100%;
   height: var(--nav-link-height);
   padding: 0;
   line-height: 1;
@@ -450,7 +454,10 @@ watch(
 }
 
 .navigation-links li {
+  box-sizing: border-box;
   display: flex;
+  flex: 0 0 var(--nav-link-width);
+  width: var(--nav-link-width);
 }
 
 @media (max-width: 768px) {
