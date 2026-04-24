@@ -49,6 +49,7 @@ import avatar from "@/assets/images/icons/avatar.webp";
 
 @media (max-width: 1200px) {
   .user-info__base {
+    margin-top: 20px;
     flex-direction: column;
     gap: 15px;
   }

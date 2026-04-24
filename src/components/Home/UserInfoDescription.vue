@@ -50,4 +50,10 @@
   display: flex;
   align-items: end;
 }
+
+@media (max-width: 1200px) {
+  .user_info__description {
+    margin-top: 10px;
+  }
+}
 </style>
