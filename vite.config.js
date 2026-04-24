@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
       }),
       VitePWA({
         registerType: "autoUpdate",
+        workbox: {
+          navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/uploads(?:\/|$)/],
+        },
         manifest: {
           name: "Spice Nest",
           short_name: "Spice",
