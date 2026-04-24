@@ -28,6 +28,8 @@ const navLinks = computed(() => {
   }
   return links;
 });
+const NAV_LINK_WIDTH = 76;
+const NAV_LINK_GAP = 4;
 let authCheckId = 0;
 
 // 是否是在ios环境
@@ -67,9 +69,17 @@ function isNavLinkActive(link) {
   return route.path === link || route.path.startsWith(`${link}/`);
 }
 
+const activeNavIndex = computed(() => navLinks.value.findIndex((item) => isNavLinkActive(item.link)));
+const hasActiveNavLink = computed(() => activeNavIndex.value >= 0);
+const activeNavOffset = computed(() => `${Math.max(activeNavIndex.value, 0) * (NAV_LINK_WIDTH + NAV_LINK_GAP)}px`);
 const showNavLogo = computed(() => {
   return props.layoutClass !== "layout--home" && props.layoutClass !== "layout--articleList";
 });
+const navIndicatorStyle = computed(() => ({
+  "--active-offset": activeNavOffset.value,
+  "--nav-link-width": `${NAV_LINK_WIDTH}px`,
+  "--nav-link-gap": `${NAV_LINK_GAP}px`,
+}));
 
 // 监听鼠标、键盘操作，用于关闭菜单
 function onDocumentPointerDown(event) {
@@ -145,7 +155,9 @@ watch(
       class="navigation-links"
       :class="{
         'is-open': isMenuOpen,
+        'has-active': hasActiveNavLink,
       }"
+      :style="navIndicatorStyle"
     >
       <li v-for="item in navLinks" :key="item.link">
         <a
@@ -376,7 +388,24 @@ watch(
 }
 
 .navigation-links::before {
-  display: none;
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: var(--nav-link-width);
+  height: var(--nav-link-height);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.72));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+  opacity: 0;
+  transform: translateX(var(--active-offset, 0px));
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.navigation-links.has-active::before {
+  opacity: 1;
 }
 
 .navigation-links a {
@@ -409,10 +438,10 @@ watch(
 }
 
 .navigation-links a.is-active {
-  border-color: rgba(255, 255, 255, 0.82);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.72));
+  border-color: transparent;
+  background: transparent;
   color: #1f2937;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+  box-shadow: none;
 }
 
 .navigation-links a:focus-visible {
