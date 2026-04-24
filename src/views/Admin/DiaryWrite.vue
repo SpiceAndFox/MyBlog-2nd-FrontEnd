@@ -96,12 +96,7 @@ async function submitDiary() {
 <template>
   <section class="diary-write-page">
     <div class="diary-write-shell">
-      <header class="page-header">
-        <div>
-          <RouterLink class="back-link" to="/diaries">返回日记</RouterLink>
-          <h1>写日记</h1>
-        </div>
-      </header>
+      <RouterLink class="back-link" to="/diaries">返回日记</RouterLink>
 
       <div class="diary-editor">
         <div class="diary-editor__title">
@@ -130,32 +125,24 @@ async function submitDiary() {
 <style scoped>
 .diary-write-page {
   width: 100%;
-  min-height: calc(100vh - 60px);
+  min-height: 100%;
   background: rgb(238, 238, 238);
   color: #1f2937;
 }
 
 .diary-write-shell {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 96px 20px 86px;
-}
-
-.page-header {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  margin: 10px 0 0;
-  font-size: 2.3rem;
-  line-height: 1.15;
+  flex-direction: column;
+  max-width: 750px;
+  width: 85%;
+  margin: 40px auto 120px;
 }
 
 .back-link {
+  position: absolute;
+  top: -26px;
+  right: 0;
   color: #64748b;
   font-size: 14px;
   text-decoration: none;
@@ -168,39 +155,41 @@ async function submitDiary() {
 .diary-editor {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 30px;
 }
 
 .diary-editor__title {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: 10px;
+  padding: 10px;
+  padding-left: 20px;
   background-color: #fff;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .field-label {
   flex: 0 0 auto;
   color: #1c1d20;
-  font-size: 1.08rem;
-  font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-right: 20px;
   white-space: nowrap;
 }
 
 .title-input {
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   outline: none;
   background-color: #f9fafb;
   color: #3c4964;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.5;
   transition:
@@ -211,8 +200,8 @@ async function submitDiary() {
 
 .title-input:focus {
   background-color: #ffffff;
-  border-color: #6ea37e;
-  box-shadow: 0 0 0 3px rgba(110, 163, 126, 0.16);
+  border-color: #4574da;
+  box-shadow: 0 0 0 3px rgba(69, 116, 218, 0.15);
 }
 
 .title-input::placeholder {
@@ -223,19 +212,17 @@ async function submitDiary() {
 .diary-editor__main {
   display: flex;
   flex-direction: column;
-  min-height: 460px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background-color: #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
 .diary-editor__content {
-  flex: 1;
-  min-height: 400px;
   padding: 20px;
   overflow-y: auto;
+  min-height: 400px;
 }
 
 .submit-wrapper {
@@ -344,22 +331,29 @@ async function submitDiary() {
 
 @media (max-width: 640px) {
   .diary-write-shell {
-    padding: 82px 12px 72px;
-  }
-
-  .page-header h1 {
-    font-size: 1.8rem;
+    width: 100%;
+    margin: 20px auto 80px;
+    padding: 0 12px;
+    box-sizing: border-box;
   }
 
   .diary-editor__title {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 12px;
     padding: 12px;
   }
 
   .field-label {
+    margin: 0;
+    font-size: 1.1rem;
     white-space: normal;
+  }
+
+  .title-input {
+    width: 100%;
+    font-size: 1rem;
+    padding: 10px 12px;
   }
 
   .diary-editor__content {

@@ -83,7 +83,7 @@ const routes = [
     path: "/admin",
     name: "AdminLayout",
     component: AdminLayout,
-    redirect: "/admin/write",
+    redirect: "/admin/diary",
     meta: {
       layoutClass: "admin",
       requiresAuth: true,

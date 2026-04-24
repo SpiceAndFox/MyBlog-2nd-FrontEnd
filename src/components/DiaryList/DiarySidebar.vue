@@ -25,7 +25,7 @@ const emit = defineEmits(["update"]);
 const currentYear = new Date().getFullYear();
 
 const profileName = computed(() => props.user?.username || "我的日记");
-const avatarUrl = computed(() => props.user?.avatar_url || fallbackAvatarUrl);
+const avatarUrl = computed(() => fallbackAvatarUrl); // props.user?.avatar_url || fallbackAvatarUrl
 
 const yearOptions = computed(() => {
   const baseYears = Array.from({ length: 5 }, (_, index) => currentYear - index);
@@ -58,7 +58,7 @@ function stepYear(step) {
     <section class="panel profile-card">
       <img class="profile-avatar" :src="avatarUrl" :alt="profileName" />
       <div class="profile-name">{{ profileName }}</div>
-      <p class="profile-desc">这里只展示当前登录账号匹配的内容。</p>
+      <p class="profile-desc">花店不开了，花还在开</p>
       <div class="stats">
         <div class="stat">
           <div class="stat-label">日记</div>
@@ -74,12 +74,7 @@ function stepYear(step) {
     <section class="panel date-panel">
       <div class="date-panel__header">
         <div class="side-title">日期范围</div>
-        <button
-          type="button"
-          class="reset-btn"
-          :disabled="!selectedYear && selectedMonth === -1"
-          @click="resetFilters"
-        >
+        <button type="button" class="reset-btn" :disabled="!selectedYear && selectedMonth === -1" @click="resetFilters">
           重置
         </button>
       </div>
