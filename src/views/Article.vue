@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute } from "vue-router";
 import { getPublishedArticleById } from "@/api/articles";
 import LoadingOverlay from "@/components/LoadingOverlay.vue";
+import ArticleImagePreview from "@/components/ArticleImagePreview.vue";
 
 const route = useRoute();
 const articleId = computed(() => {
@@ -13,6 +14,7 @@ const articleId = computed(() => {
 const loading = ref(false);
 const errorMessage = ref("");
 const contentRef = ref(null);
+const imagePreviewRef = ref(null);
 const tocItems = ref([]);
 const activeHeadingId = ref("");
 let activeHeadingFrame = 0;
@@ -147,6 +149,17 @@ const scrollToHeading = (id) => {
   activeHeadingId.value = id;
 };
 
+const openArticleImagePreview = (event) => {
+  const image = event.target?.closest?.("img");
+
+  if (!image || !contentRef.value?.contains(image)) return;
+
+  imagePreviewRef.value?.open({
+    src: image.currentSrc || image.src,
+    alt: image.alt || articleData.value.title || "文章图片",
+  });
+};
+
 const fetchArticle = async () => {
   if (!articleId.value) {
     errorMessage.value = "缺少文章 ID";
@@ -235,7 +248,13 @@ onBeforeUnmount(() => {
         <section class="article-card">
           <p v-if="errorMessage" class="article__error">{{ errorMessage }}</p>
           <p v-else-if="!articleData.content" class="article__loading-text">内容加载中...</p>
-          <div v-else ref="contentRef" class="article__content" v-html="articleData.content"></div>
+          <div
+            v-else
+            ref="contentRef"
+            class="article__content"
+            v-html="articleData.content"
+            @click="openArticleImagePreview"
+          ></div>
         </section>
 
         <aside v-if="tocItems.length" class="article-aside">
@@ -269,6 +288,7 @@ onBeforeUnmount(() => {
   </article>
 
   <LoadingOverlay :show="loading" />
+  <ArticleImagePreview ref="imagePreviewRef" />
 </template>
 
 <style scoped>
@@ -678,6 +698,15 @@ onBeforeUnmount(() => {
   max-height: 400px;
   margin: 28px auto;
   border-radius: 8px;
+  cursor: zoom-in;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.article__content :deep(img:hover) {
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
+  transform: translateY(-2px);
 }
 
 .article__error,
