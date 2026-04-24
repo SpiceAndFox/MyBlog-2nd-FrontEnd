@@ -1,5 +1,7 @@
 <script setup>
 import { computed } from "vue";
+import DateArchivePicker from "@/components/DateArchivePicker.vue";
+import ProfileStatsCard from "@/components/ProfileStatsCard.vue";
 import avatarUrl from "@/assets/images/icons/avatar.webp";
 
 const props = defineProps({
@@ -31,16 +33,6 @@ const props = defineProps({
 
 const emit = defineEmits(["update"]);
 
-const currentYear = new Date().getFullYear();
-
-const yearOptions = computed(() => {
-  const baseYears = Array.from({ length: 5 }, (_, index) => currentYear - index);
-  if (props.selectedYear && !baseYears.includes(props.selectedYear)) {
-    baseYears.push(props.selectedYear);
-  }
-  return baseYears.sort((a, b) => b - a);
-});
-
 const subTagsForSelectedTopTag = computed(() => {
   if (!props.selectedTopTag) return [];
   return props.tags.subTags?.[props.selectedTopTag] || [];
@@ -54,6 +46,12 @@ const totalTagCount = computed(() => {
   return topTags.length + subTagCount;
 });
 
+const profileStats = computed(() => [
+  { label: "文章", value: props.totalArticles },
+  { label: "分类", value: props.tags.topTags?.length || 0 },
+  { label: "标签", value: totalTagCount.value },
+]);
+
 function update(type, value) {
   emit("update", { type, value });
 }
@@ -62,37 +60,22 @@ function resetFilters() {
   emit("update", { type: "reset" });
 }
 
-function changeYear(event) {
-  const value = event.target.value ? Number(event.target.value) : null;
-  update("year", value);
-}
-
-function stepYear(step) {
-  update("year", (props.selectedYear || currentYear) + step);
+function handleDateUpdate(payload) {
+  emit("update", payload);
 }
 </script>
 
 <template>
   <aside class="sidebar">
-    <section class="panel profile-card">
-      <img class="profile-avatar" :src="avatarUrl" alt="香辛料的小屋" :style="{ viewTransitionName: 'user-avatar' }" />
-      <div class="profile-name">Spice</div>
-      <p class="profile-desc">花店不开了，花还在开......</p>
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-label">文章</div>
-          <div class="stat-value">{{ totalArticles }}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">分类</div>
-          <div class="stat-value">{{ tags.topTags?.length || 0 }}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">标签</div>
-          <div class="stat-value">{{ totalTagCount }}</div>
-        </div>
-      </div>
-    </section>
+    <ProfileStatsCard
+      class="panel profile-card"
+      :avatar-url="avatarUrl"
+      avatar-alt="香辛料的小屋"
+      :avatar-size="150"
+      name="Spice"
+      description="花店不开了，花还在开......"
+      :stats="profileStats"
+    />
 
     <section class="panel menu-panel">
       <button
@@ -137,45 +120,7 @@ function stepYear(step) {
 
     <section class="panel archive-panel">
       <div class="side-title">日期范围</div>
-      <div class="year-picker">
-        <button type="button" class="year-btn" aria-label="上一年" @click="stepYear(-1)">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-
-        <select class="year-select" :value="selectedYear || ''" aria-label="选择年份" @change="changeYear">
-          <option value="">全部年份</option>
-          <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
-        </select>
-
-        <button type="button" class="year-btn" aria-label="下一年" @click="stepYear(1)">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="month-list">
-        <button
-          type="button"
-          class="month-item month-item--all"
-          :class="{ active: selectedMonth === -1 }"
-          @click="update('month', -1)"
-        >
-          All
-        </button>
-        <button
-          v-for="month in 12"
-          :key="month"
-          type="button"
-          class="month-item"
-          :class="{ active: selectedMonth === month }"
-          @click="update('month', month)"
-        >
-          {{ month }}
-        </button>
-      </div>
+      <DateArchivePicker :selected-year="selectedYear" :selected-month="selectedMonth" @update="handleDateUpdate" />
     </section>
   </aside>
 </template>
@@ -183,6 +128,10 @@ function stepYear(step) {
 <style scoped>
 .sidebar {
   min-width: 0;
+  --archive-picker-text: var(--article-list-text);
+  --profile-text-soft: var(--article-list-text-soft);
+  --profile-text-faint: var(--article-list-text-faint);
+  --profile-name-size: 1.45rem;
 }
 
 .panel {
@@ -203,57 +152,6 @@ function stepYear(step) {
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: none;
-  padding: 32px 24px 24px;
-  text-align: center;
-}
-
-.profile-avatar {
-  width: 150px;
-  height: 150px;
-  margin: 0 auto 18px;
-  object-fit: cover;
-  border: 3px solid rgba(255, 255, 255, 0.78);
-  border-radius: 50%;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-}
-
-.profile-name {
-  margin-bottom: 10px;
-  font-size: 1.45rem;
-  font-weight: 700;
-}
-
-.profile-desc {
-  margin: 0 8px 20px;
-  color: var(--article-list-text-soft);
-  font-size: 14px;
-  line-height: 1.8;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding-top: 10px;
-}
-
-.stat {
-  border-right: 1px solid rgba(17, 24, 39, 0.06);
-}
-
-.stat:last-child {
-  border-right: 0;
-}
-
-.stat-label {
-  color: var(--article-list-text-faint);
-  font-size: 12px;
-}
-
-.stat-value {
-  margin-top: 8px;
-  font-size: 1.5rem;
-  font-weight: 700;
 }
 
 .menu-panel,
@@ -312,39 +210,32 @@ function stepYear(step) {
   font-size: 11px;
 }
 
-.tags,
-.month-list {
+.tags {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   padding: 0 8px 6px;
 }
 
-.tag,
-.month-item {
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 13px;
   border: 1px solid rgba(17, 24, 39, 0.04);
   border-radius: 999px;
   color: #6b7280;
   background: rgba(245, 247, 249, 0.95);
   cursor: pointer;
+  font-size: 13px;
   transition: 0.2s ease;
 }
 
-.tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 13px;
-  font-size: 13px;
-}
-
-.tag:hover,
-.month-item:hover {
+.tag:hover {
   color: var(--article-list-text);
   background: #e9efec;
 }
 
-.tag.active,
-.month-item.active {
+.tag.active {
   color: #ffffff;
   background: #6ea37e;
 }
@@ -353,62 +244,6 @@ function stepYear(step) {
   margin: 0 8px;
   color: var(--article-list-text-faint);
   font-size: 13px;
-}
-
-.year-picker {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 32px;
-  gap: 8px;
-  padding: 0 8px 14px;
-}
-
-.year-btn,
-.year-select {
-  height: 32px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #68717c;
-}
-
-.year-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.year-btn:hover,
-.year-select:hover {
-  color: var(--article-list-text);
-  border-color: rgba(110, 163, 126, 0.35);
-}
-
-.year-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.year-select {
-  width: 100%;
-  padding: 0 10px;
-  outline: none;
-}
-
-.month-item {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.month-item--all {
-  min-width: 52px;
 }
 
 @media (max-width: 980px) {
@@ -426,16 +261,6 @@ function stepYear(step) {
   .tag-panel,
   .archive-panel {
     display: none;
-  }
-}
-
-@media (max-width: 640px) {
-  .profile-card {
-    padding: 24px 18px 20px;
-  }
-
-  .stat-value {
-    font-size: 1.25rem;
   }
 }
 </style>
