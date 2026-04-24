@@ -1,13 +1,10 @@
 <script setup>
 import { ref } from "vue";
-import { uploadArticleImage } from "@/api/articles";
 import imageIcon from "@/assets/images/icons/image.svg";
 import LoadingOverlay from "@/components/LoadingOverlay.vue";
+import { uploadAndInsertImages } from "@/utils/editorContentImages";
 
-// 上传图片状态
 const uploadStatus = ref({ loading: false, error: "" });
-
-// 传给父组件的信息
 const emit = defineEmits(["uploading-content-image"]);
 
 const props = defineProps({
@@ -17,25 +14,28 @@ const props = defineProps({
   },
 });
 
+function setUploadState({ loading = uploadStatus.value.loading, error = uploadStatus.value.error } = {}) {
+  uploadStatus.value = { loading, error };
+  emit("uploading-content-image", loading);
+}
+
 const addImage = () => {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
-  input.onchange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    uploadStatus.value = { loading: true, error: "" };
-    emit("uploading-content-image", true);
+  input.multiple = true;
+  input.onchange = async (event) => {
+    const files = event.target.files;
+    if (!files?.length) return;
+
     try {
-      const { url } = await uploadArticleImage(file);
-      props.editor.chain().focus().setImage({ src: url }).run();
-    } catch (err) {
-      uploadStatus.value = { loading: false, error: err.message || "图片上传失败" };
-      emit("uploading-content-image", false);
-      return;
+      await uploadAndInsertImages(props.editor, files, {
+        setUploading: (loading) => setUploadState({ loading }),
+        setError: (error) => setUploadState({ error }),
+      });
+    } catch (error) {
+      setUploadState({ loading: false, error: error.message || "图片上传失败" });
     }
-    uploadStatus.value = { loading: false, error: "" };
-    emit("uploading-content-image", false);
   };
   input.click();
 };

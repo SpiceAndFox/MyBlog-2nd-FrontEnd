@@ -120,7 +120,7 @@ function mapArticleFromApi(article) {
     id: article.id,
     link: `/article/${article.id}`,
     headImgUrl: article.header_image_url || "",
-    thumbnail: article.thumbnail_url || article.header_image_url || "",
+    thumbnail: article.thumbnail_url || "",
     title: article.title,
     topTag,
     subTag,

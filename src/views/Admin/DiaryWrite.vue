@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import EditorToolBar from "@/components/Admin/EditorToolBar.vue";
 import { createDiary } from "@/api/articles";
+import { BlockquoteIndent, handlePastedImages } from "@/utils/editorContentImages";
 
 const title = ref("");
 const submitting = ref(false);
@@ -14,7 +15,19 @@ const successMsg = ref("");
 
 const editor = useEditor({
   content: "",
-  extensions: [StarterKit, Image],
+  extensions: [StarterKit, Image, BlockquoteIndent],
+  editorProps: {
+    handlePaste(_view, event) {
+      return handlePastedImages(editor.value, event, {
+        setUploading: (value) => {
+          uploadingContentImage.value = value;
+        },
+        setError: (message) => {
+          errorMsg.value = message;
+        },
+      });
+    },
+  },
 });
 
 onBeforeUnmount(() => {

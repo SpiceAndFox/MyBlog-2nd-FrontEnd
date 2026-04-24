@@ -8,6 +8,7 @@ import CustomSelect from "@/components/CustomSelect.vue";
 import { useRoute } from "vue-router";
 import { createArticle, getArticleByIdAdmin, updateArticle } from "@/api/articles";
 import { fetchAllTags } from "@/api/tags";
+import { BlockquoteIndent, handlePastedImages } from "@/utils/editorContentImages";
 
 // 文章标题
 const title = ref("");
@@ -28,7 +29,7 @@ const tagsErrorMsg = ref("");
 
 // 选中的标签
 const selectedTopTag = ref("");
-const selectedSubTags = ref([]);
+const selectedSubTagIds = ref([]);
 
 // 顶层标签列表
 const topTagList = computed(() => rawTags.value.map((t) => t.name));
@@ -49,7 +50,7 @@ const uploadingContentImage = ref(false);
 const subTagList = computed(() => {
   const parent = rawTags.value.find((t) => t.name === selectedTopTag.value);
   if (!parent || !Array.isArray(parent.subTags)) return [];
-  return parent.subTags.map((s) => s.name);
+  return parent.subTags;
 });
 
 // 头图选择变化
@@ -75,7 +76,19 @@ const onHeadImgChange = (event) => {
 // 初始化编辑器
 const editor = useEditor({
   content: ``,
-  extensions: [StarterKit, Image],
+  extensions: [StarterKit, Image, BlockquoteIndent],
+  editorProps: {
+    handlePaste(_view, event) {
+      return handlePastedImages(editor.value, event, {
+        setUploading: (value) => {
+          uploadingContentImage.value = value;
+        },
+        setError: (message) => {
+          errorMsg.value = message;
+        },
+      });
+    },
+  },
 });
 
 // 在组件卸载前销毁编辑器实例、预览头图Url，防止内存泄漏
@@ -113,14 +126,10 @@ const fetchTags = async () => {
 // 编辑模式下加载文章；与标签加载合并：
 const mapTagIdsToNames = (ids) => {
   const top = rawTags.value.find((t) => ids.includes(t.id));
-  if (top) selectedTopTag.value = top.name;
-  const subs = [];
-  rawTags.value.forEach((t) => {
-    (t.subTags || []).forEach((s) => {
-      if (ids.includes(s.id)) subs.push(s.name);
-    });
-  });
-  selectedSubTags.value = subs;
+  const parentFromSub = rawTags.value.find((t) => (t.subTags || []).some((s) => ids.includes(s.id)));
+  const selectedParent = top || parentFromSub;
+  if (selectedParent) selectedTopTag.value = selectedParent.name;
+  selectedSubTagIds.value = (selectedParent?.subTags || []).filter((s) => ids.includes(s.id)).map((s) => s.id);
 };
 
 const loadArticleIfEdit = async () => {
@@ -148,40 +157,31 @@ onMounted(async () => {
 });
 
 // 子标签选中/取消
-const toggleSubTag = (tagName) => {
-  if (selectedSubTags.value.includes(tagName)) {
-    selectedSubTags.value = selectedSubTags.value.filter((t) => t !== tagName);
-  } else {
-    selectedSubTags.value.push(tagName);
-  }
+const handleTopTagChange = (tagName) => {
+  if (selectedTopTag.value === tagName) return;
+  selectedTopTag.value = tagName;
+  selectedSubTagIds.value = [];
 };
 
-// name -> id 映射（包含顶层 + 子标签）
-const tagNameToIdMap = computed(() => {
-  const map = {};
-  rawTags.value.forEach((top) => {
-    map[top.name] = top.id;
-    if (Array.isArray(top.subTags)) {
-      top.subTags.forEach((sub) => {
-        map[sub.name] = sub.id;
-      });
-    }
-  });
-  return map;
-});
+const toggleSubTag = (tagId) => {
+  if (selectedSubTagIds.value.includes(tagId)) {
+    selectedSubTagIds.value = selectedSubTagIds.value.filter((id) => id !== tagId);
+  } else {
+    selectedSubTagIds.value.push(tagId);
+  }
+};
 
 // 根据当前选择生成 tag_ids 数组
 const buildTagIds = () => {
   const ids = [];
-  const map = tagNameToIdMap.value;
+  const parent = rawTags.value.find((t) => t.name === selectedTopTag.value);
 
   // 顶层标签也可以算成一个 tag
-  if (selectedTopTag.value && map[selectedTopTag.value]) {
-    ids.push(map[selectedTopTag.value]);
+  if (parent?.id) {
+    ids.push(parent.id);
   }
 
-  selectedSubTags.value.forEach((name) => {
-    const id = map[name];
+  selectedSubTagIds.value.forEach((id) => {
     if (id && !ids.includes(id)) {
       ids.push(id);
     }
@@ -262,7 +262,7 @@ const submitArticle = async (status) => {
         URL.revokeObjectURL(headImgPreviewUrl.value);
       }
       headImgPreviewUrl.value = "";
-      selectedSubTags.value = [];
+      selectedSubTagIds.value = [];
     } else {
       const formData = new FormData();
       formData.append("title", title.value.trim());
@@ -335,10 +335,11 @@ const submitArticle = async (status) => {
       <div class="tag-field">
         <span class="tag-field-label">主标签</span>
         <CustomSelect
-          v-model="selectedTopTag"
+          :model-value="selectedTopTag"
           :options="topTagList"
           placeholder="请选择主标签"
           customClass="top-tag-select"
+          @update:modelValue="handleTopTagChange"
         />
       </div>
 
@@ -346,9 +347,9 @@ const submitArticle = async (status) => {
       <div class="tag-field" v-if="selectedTopTag && subTagList.length">
         <span class="tag-field-label">副标签</span>
         <ul class="sub-tags">
-          <li v-for="subTag in subTagList" :key="subTag">
-            <button class="sub-tag" :class="{ active: selectedSubTags.includes(subTag) }" @click="toggleSubTag(subTag)">
-              {{ subTag }}
+          <li v-for="subTag in subTagList" :key="subTag.id">
+            <button class="sub-tag" :class="{ active: selectedSubTagIds.includes(subTag.id) }" @click="toggleSubTag(subTag.id)">
+              {{ subTag.name }}
             </button>
           </li>
           <li key="add-sub-tag">
