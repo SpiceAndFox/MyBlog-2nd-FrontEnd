@@ -2,6 +2,7 @@
 import navAvatar from "@/assets/images/icons/avatar.webp";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router"; // 引入 useRoute
+import { getMeApi } from "@/api/auth";
 
 // 定义导航栏是否透明
 const props = defineProps({
@@ -18,7 +19,7 @@ const baseNavLinks = [
   { label: "文章", link: "/articles" },
   { label: "Chat", link: "/chat" },
 ];
-const isLoggedIn = ref(Boolean(localStorage.getItem("token")));
+const isLoggedIn = ref(false);
 const navLinks = computed(() => {
   const links = [...baseNavLinks];
   if (isLoggedIn.value) {
@@ -27,8 +28,7 @@ const navLinks = computed(() => {
   }
   return links;
 });
-const NAV_LINK_WIDTH = 76;
-const NAV_LINK_GAP = 4;
+let authCheckId = 0;
 
 // 是否是在ios环境
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -67,17 +67,9 @@ function isNavLinkActive(link) {
   return route.path === link || route.path.startsWith(`${link}/`);
 }
 
-const activeNavIndex = computed(() => navLinks.value.findIndex((item) => isNavLinkActive(item.link)));
-const hasActiveNavLink = computed(() => activeNavIndex.value >= 0);
-const activeNavOffset = computed(() => `${Math.max(activeNavIndex.value, 0) * (NAV_LINK_WIDTH + NAV_LINK_GAP)}px`);
 const showNavLogo = computed(() => {
   return props.layoutClass !== "layout--home" && props.layoutClass !== "layout--articleList";
 });
-const navIndicatorStyle = computed(() => ({
-  "--active-offset": activeNavOffset.value,
-  "--nav-link-width": `${NAV_LINK_WIDTH}px`,
-  "--nav-link-gap": `${NAV_LINK_GAP}px`,
-}));
 
 // 监听鼠标、键盘操作，用于关闭菜单
 function onDocumentPointerDown(event) {
@@ -92,8 +84,23 @@ function onDocumentKeyDown(event) {
   if (event.key === "Escape") closeMenu();
 }
 
-function refreshAuthState() {
-  isLoggedIn.value = Boolean(localStorage.getItem("token"));
+async function refreshAuthState() {
+  const token = localStorage.getItem("token");
+  const checkId = ++authCheckId;
+
+  if (!token) {
+    isLoggedIn.value = false;
+    return;
+  }
+
+  try {
+    await getMeApi();
+    if (checkId === authCheckId) isLoggedIn.value = true;
+  } catch {
+    if (checkId !== authCheckId) return;
+    localStorage.removeItem("token");
+    isLoggedIn.value = false;
+  }
 }
 
 onMounted(() => {
@@ -138,9 +145,7 @@ watch(
       class="navigation-links"
       :class="{
         'is-open': isMenuOpen,
-        'has-active': hasActiveNavLink,
       }"
-      :style="navIndicatorStyle"
     >
       <li v-for="item in navLinks" :key="item.link">
         <a
@@ -371,24 +376,7 @@ watch(
 }
 
 .navigation-links::before {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: var(--nav-link-width);
-  height: var(--nav-link-height);
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.72));
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
-  opacity: 0;
-  transform: translateX(var(--active-offset, 0px));
-  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
-  pointer-events: none;
-}
-
-.navigation-links.has-active::before {
-  opacity: 1;
+  display: none;
 }
 
 .navigation-links a {
@@ -421,10 +409,10 @@ watch(
 }
 
 .navigation-links a.is-active {
-  border-color: transparent;
-  background: transparent;
+  border-color: rgba(255, 255, 255, 0.82);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.72));
   color: #1f2937;
-  box-shadow: none;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
 }
 
 .navigation-links a:focus-visible {

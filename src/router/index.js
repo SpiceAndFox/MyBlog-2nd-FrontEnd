@@ -11,6 +11,7 @@ import AdminLayout from "@/views/AdminLayout.vue";
 import ArticleManage from "@/views/Admin/ArticleManage.vue";
 import ArticleTagManage from "@/views/Admin/ArticleTagManage.vue";
 import Chat from "@/views/Chat.vue";
+import { getMeApi } from "@/api/auth";
 
 const routes = [
   {
@@ -123,12 +124,19 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const requiresAuth = to.matched.some((route) => route.meta?.requiresAuth);
   if (!requiresAuth) return true;
 
   const token = localStorage.getItem("token");
-  if (token) return true;
+  if (token) {
+    try {
+      await getMeApi();
+      return true;
+    } catch {
+      localStorage.removeItem("token");
+    }
+  }
 
   return {
     name: "LogIn",
