@@ -131,11 +131,34 @@ export function mapSession(raw) {
 export function mapMessage(raw) {
   if (!raw) return null;
   const id = String(raw.id ?? "");
+  const rawSources = Array.isArray(raw.rag_sources) ? raw.rag_sources : Array.isArray(raw.ragSources) ? raw.ragSources : [];
+  const rawDebug = isPlainObject(raw.rag_debug) ? raw.rag_debug : isPlainObject(raw.ragDebug) ? raw.ragDebug : null;
+  const ragSources = rawSources
+    .filter(isPlainObject)
+    .map((source) => ({
+      id: source.id ?? "",
+      sessionId: source.sessionId ?? source.session_id ?? "",
+      firstMessageId: source.firstMessageId ?? source.first_message_id ?? "",
+      lastMessageId: source.lastMessageId ?? source.last_message_id ?? "",
+      chunkIndex: source.chunkIndex ?? source.chunk_index ?? "",
+      sourceKind: source.sourceKind ?? source.source_kind ?? "",
+      similarity: Number(source.similarity),
+      createdAt: source.createdAt || source.created_at || "",
+      content: typeof source.content === "string" ? source.content : "",
+    }));
+  const ragDebug = rawDebug
+    ? {
+        enabled: Boolean(rawDebug.enabled),
+        stats: isPlainObject(rawDebug.stats) ? rawDebug.stats : null,
+      }
+    : null;
   return {
     id,
     clientId: id || createId("msg"),
     role: raw.role,
     content: raw.content || "",
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
+    ragSources,
+    ragDebug,
   };
 }

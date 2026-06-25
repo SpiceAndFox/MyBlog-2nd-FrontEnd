@@ -16,6 +16,44 @@ const emit = defineEmits(["request-edit", "cancel-edit", "commit-edit", "update:
 
 const isUser = computed(() => props.message?.role === "user");
 const renderedAssistantHtml = computed(() => renderChatMarkdown(props.message?.content ?? ""));
+const ragDebug = computed(() => {
+  const value = props.message?.ragDebug;
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+});
+const ragDebugStats = computed(() => {
+  const value = ragDebug.value?.stats;
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+});
+const debugRagSources = computed(() => {
+  if (isUser.value) return [];
+  const sources = Array.isArray(props.message?.ragSources) ? props.message.ragSources : [];
+  return sources
+    .map((source, index) => ({
+      ...source,
+      displayIndex: index + 1,
+      similarityLabel: Number.isFinite(Number(source?.similarity))
+        ? Number(source.similarity).toFixed(3)
+        : "",
+      content: typeof source?.content === "string" ? source.content.trim() : "",
+    }))
+    .filter((source) => source.content);
+});
+const showRagDebug = computed(() => !isUser.value && (Boolean(ragDebug.value) || debugRagSources.value.length > 0));
+const ragDebugReason = computed(() => String(ragDebugStats.value?.reason || "").trim());
+const ragDebugSummary = computed(() => {
+  if (debugRagSources.value.length) return `RAG debug (${debugRagSources.value.length})`;
+  return `RAG debug (${ragDebugReason.value || "no sources"})`;
+});
+const ragReranker = computed(() => {
+  const value = ragDebugStats.value?.reranker;
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+});
+const ragRerankerNotice = computed(() => {
+  const reranker = ragReranker.value;
+  if (!reranker) return "";
+  if (reranker.fallback) return "Reranker unavailable, fell back to vector retrieval.";
+  return "";
+});
 
 const displayName = computed(() => {
   if (isUser.value) return String(props.userProfile?.username || props.userProfile?.name || "User");
@@ -160,6 +198,33 @@ function onEditKeydown(event) {
         <div v-if="isUser" class="plain">{{ message.content }}</div>
         <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
       </div>
+
+      <details v-if="showRagDebug" class="rag-debug">
+        <summary class="rag-debug-summary">{{ ragDebugSummary }}</summary>
+        <div v-if="ragDebugStats" class="rag-debug-stats">
+          <span v-if="ragDebugReason">reason {{ ragDebugReason }}</span>
+          <span v-if="ragDebugStats.queryChars !== undefined">query {{ ragDebugStats.queryChars }} chars</span>
+          <span v-if="ragDebugStats.minQueryChars !== undefined">min query {{ ragDebugStats.minQueryChars }}</span>
+          <span v-if="ragDebugStats.minSimilarity !== undefined">min sim {{ ragDebugStats.minSimilarity }}</span>
+          <span v-if="ragDebugStats.matches !== undefined">matches {{ ragDebugStats.matches }}</span>
+          <span v-if="ragDebugStats.used !== undefined">used {{ ragDebugStats.used }}</span>
+          <span v-if="ragReranker">reranker {{ ragReranker.used ? "used" : "skipped" }}{{ ragReranker.fallback ? " · fallback" : "" }}{{ ragReranker.scored !== undefined ? ` · scored ${ragReranker.scored}` : "" }}</span>
+        </div>
+        <div v-if="ragRerankerNotice" class="rag-debug-notice rag-debug-notice--warn">{{ ragRerankerNotice }}</div>
+        <div class="rag-debug-list">
+          <article v-for="source in debugRagSources" :key="`${source.id || source.displayIndex}-${source.chunkIndex}`" class="rag-debug-item">
+            <div class="rag-debug-meta">
+              <span>#{{ source.displayIndex }}</span>
+              <span v-if="source.similarityLabel">sim {{ source.similarityLabel }}</span>
+              <span v-if="source.firstMessageId || source.lastMessageId">
+                msg {{ source.firstMessageId }}-{{ source.lastMessageId }}
+              </span>
+            </div>
+            <pre class="rag-debug-content">{{ source.content }}</pre>
+          </article>
+          <div v-if="!debugRagSources.length" class="rag-debug-empty">No RAG source content was attached.</div>
+        </div>
+      </details>
     </div>
   </div>
 </template>
@@ -367,6 +432,84 @@ function onEditKeydown(event) {
   color: rgba(15, 23, 42, 0.75);
   background: rgba(15, 23, 42, 0.03);
   border-radius: 10px;
+}
+
+.rag-debug {
+  margin-top: 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding-top: 8px;
+}
+
+.rag-debug-summary {
+  cursor: pointer;
+  user-select: none;
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.rag-debug-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rag-debug-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  color: rgba(15, 23, 42, 0.58);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rag-debug-item {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.rag-debug-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: rgba(15, 23, 42, 0.58);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rag-debug-content {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(17, 24, 39, 0.78);
+  font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.rag-debug-empty {
+  color: rgba(15, 23, 42, 0.52);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.rag-debug-notice {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rag-debug-notice--warn {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
 }
 
 .edit-shell {

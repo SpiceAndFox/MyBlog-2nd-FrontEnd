@@ -124,6 +124,8 @@ export function useChatMessaging({
         optimisticAssistantMessage.id = mapped.id;
         optimisticAssistantMessage.createdAt = mapped.createdAt;
         optimisticAssistantMessage.content = mapped.content || optimisticAssistantMessage.content;
+        optimisticAssistantMessage.ragSources = mapped.ragSources || [];
+        optimisticAssistantMessage.ragDebug = mapped.ragDebug || null;
         return;
       }
 
