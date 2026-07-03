@@ -92,13 +92,33 @@ const timeLabel = computed(() => {
 
 const editInputRef = ref(null);
 
+function resizeEditInput() {
+  const input = editInputRef.value;
+  if (!input) return;
+  input.style.height = "auto";
+  const maxHeight = Math.max(160, Math.floor(window.innerHeight * 0.45));
+  input.style.height = `${Math.min(input.scrollHeight, maxHeight)}px`;
+}
+
 watch(
   () => props.isEditing,
   async (editing) => {
     if (!editing) return;
     await nextTick();
-    editInputRef.value?.focus?.();
-    editInputRef.value?.select?.();
+    resizeEditInput();
+    const input = editInputRef.value;
+    input?.focus?.();
+    const cursorPosition = String(input?.value || "").length;
+    input?.setSelectionRange?.(cursorPosition, cursorPosition);
+  }
+);
+
+watch(
+  () => props.editDraft,
+  async () => {
+    if (!props.isEditing) return;
+    await nextTick();
+    resizeEditInput();
   }
 );
 
@@ -121,6 +141,12 @@ function cancelEdit() {
 function commitEdit() {
   if (!canCommitEditing.value) return;
   emit("commit-edit", String(props.message?.id ?? ""));
+}
+
+async function onEditInput(event) {
+  emit("update:editDraft", event.target.value);
+  await nextTick();
+  resizeEditInput();
 }
 
 function onEditKeydown(event) {
@@ -185,8 +211,8 @@ function onEditKeydown(event) {
           class="edit-input"
           :value="editDraft"
           :disabled="processing"
-          rows="1"
-          @input="emit('update:editDraft', $event.target.value)"
+          rows="4"
+          @input="onEditInput"
           @keydown="onEditKeydown"
         ></textarea>
         <div class="edit-hint">
@@ -530,7 +556,9 @@ function onEditKeydown(event) {
   outline: none;
   font-family: inherit;
   color: var(--chat-text, rgba(17, 24, 39, 0.9));
-  min-height: 42px;
+  min-height: 118px;
+  max-height: 45vh;
+  overflow-y: auto;
   box-sizing: border-box;
 }
 

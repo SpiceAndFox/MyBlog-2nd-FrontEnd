@@ -102,23 +102,42 @@ export function useChatMessaging({
     resetEditingState();
   }
 
+  function applyUserMessagePayload(optimisticUserMessage, rawMessage) {
+    if (!rawMessage || !optimisticUserMessage) return null;
+    const mapped = mapMessage(rawMessage);
+    if (!mapped) return null;
+    optimisticUserMessage.id = mapped.id;
+    optimisticUserMessage.role = mapped.role;
+    optimisticUserMessage.content = mapped.content;
+    optimisticUserMessage.createdAt = mapped.createdAt;
+    optimisticUserMessage.ragSources = mapped.ragSources || [];
+    optimisticUserMessage.ragDebug = mapped.ragDebug || null;
+    return mapped;
+  }
+
+  function removeOptimisticTurn(sessionId, optimisticUserMessage, optimisticAssistantMessage) {
+    if (!sessionId) return;
+    messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
+      (m) => m !== optimisticUserMessage && m !== optimisticAssistantMessage
+    );
+  }
+
   function applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage } = {}) {
+    const applied = { userMessage: null, assistantMessage: null };
+
     if (payload?.session) {
       upsertSession(payload.session);
       bringSessionToTop(sessionId);
     }
 
     if (payload?.user_message && optimisticUserMessage) {
-      const mapped = mapMessage(payload.user_message);
-      if (mapped) {
-        optimisticUserMessage.id = mapped.id;
-        optimisticUserMessage.createdAt = mapped.createdAt;
-      }
+      applied.userMessage = applyUserMessagePayload(optimisticUserMessage, payload.user_message);
     }
 
     if (payload?.assistant_message) {
       const mapped = mapMessage(payload.assistant_message);
-      if (!mapped) return;
+      if (!mapped) return applied;
+      applied.assistantMessage = mapped;
 
       if (optimisticAssistantMessage) {
         optimisticAssistantMessage.id = mapped.id;
@@ -126,11 +145,13 @@ export function useChatMessaging({
         optimisticAssistantMessage.content = mapped.content || optimisticAssistantMessage.content;
         optimisticAssistantMessage.ragSources = mapped.ragSources || [];
         optimisticAssistantMessage.ragDebug = mapped.ragDebug || null;
-        return;
+        return applied;
       }
 
       messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), mapped];
     }
+
+    return applied;
   }
 
   async function ensureWritableSessionId() {
@@ -213,6 +234,9 @@ export function useChatMessaging({
             truncate: true,
             settings: outgoingSettings,
             signal: abortController.signal,
+            onStart: (payload) => {
+              applyServerPayload(sessionId, payload, { optimisticUserMessage: targetMessage });
+            },
             onDelta: (delta) => {
               optimisticAssistantMessage.content += delta;
             },
@@ -240,6 +264,7 @@ export function useChatMessaging({
               );
             }
           } else if (!handleApiError(error, { silent: true })) {
+            applyServerPayload(sessionId, error?.data, { optimisticUserMessage: targetMessage });
             optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
           }
         } finally {
@@ -333,6 +358,9 @@ export function useChatMessaging({
             content,
             settings: outgoingSettings,
             signal: abortController.signal,
+            onStart: (payload) => {
+              applyServerPayload(sessionId, payload, { optimisticUserMessage });
+            },
             onDelta: (delta) => {
               optimisticAssistantMessage.content += delta;
             },
@@ -361,6 +389,13 @@ export function useChatMessaging({
             }
             return;
           }
+          const applied = applyServerPayload(sessionId, error?.data, { optimisticUserMessage });
+          if (!applied.userMessage) {
+            restoreComposerDraftIfIdle(content);
+            removeOptimisticTurn(sessionId, optimisticUserMessage, optimisticAssistantMessage);
+            handleApiError(error);
+            return;
+          }
           if (handleApiError(error, { silent: true })) return;
           optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
         } finally {
@@ -386,9 +421,17 @@ export function useChatMessaging({
         handleApiError(error, { silent: true });
         return;
       }
-      const redirected = handleApiError(error, { silent: Boolean(sessionId) });
+      const applied = applyServerPayload(sessionId, error?.data, { optimisticUserMessage });
+      const hasPersistedUserMessage = Boolean(applied.userMessage);
+      const redirected = handleApiError(error, { silent: Boolean(sessionId && hasPersistedUserMessage) });
 
       if (!redirected && sessionId) {
+        if (!hasPersistedUserMessage) {
+          restoreComposerDraftIfIdle(content);
+          removeOptimisticTurn(sessionId, optimisticUserMessage, optimisticAssistantMessage);
+          return;
+        }
+
         messagesBySessionId[sessionId] = [
           ...(messagesBySessionId[sessionId] || []),
           {

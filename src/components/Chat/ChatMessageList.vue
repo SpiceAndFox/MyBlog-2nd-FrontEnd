@@ -69,7 +69,7 @@ watch(
     if (!allowAutoScroll) return;
     scrollToBottom();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const lastMessageContent = computed(() => props.messages[props.messages.length - 1]?.content || "");
@@ -89,7 +89,8 @@ watch(lastMessageId, async () => {
 <template>
   <div ref="listRef" class="list">
     <div v-if="messages.length === 0" class="empty">
-      <h3 class="empty-title">开始一轮新对话</h3>
+      <img class="empty-gif" src="/chat-default.gif" alt="" aria-hidden="true" />
+      <p class="empty-caption">开始新的一天 ...</p>
     </div>
 
     <transition-group v-else name="chat-message" tag="div" class="messages">
@@ -156,7 +157,9 @@ watch(lastMessageId, async () => {
 }
 
 .chat-message-enter-active {
-  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.2, 1);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 .chat-message-enter-from {
@@ -173,7 +176,9 @@ watch(lastMessageId, async () => {
 }
 
 .chat-message-leave-active {
-  transition: opacity 0.14s ease, transform 0.14s ease;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
   position: absolute;
   width: 100%;
 }
@@ -206,15 +211,25 @@ watch(lastMessageId, async () => {
 .empty {
   height: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 14px;
   padding: 24px 8px;
 }
 
-.empty-title {
+.empty-gif {
+  display: block;
+  width: min(320px, 72vw);
+  max-height: min(340px, 58vh);
+  object-fit: contain;
+}
+
+.empty-caption {
   margin: 0;
-  font-size: 2rem;
-  color: #414040;
+  color: rgba(17, 24, 39, 0.68);
+  font-size: 1.8rem;
+  font-weight: 750;
 }
 
 @media (max-width: 900px) {
@@ -222,7 +237,8 @@ watch(lastMessageId, async () => {
     padding: 14px 14px 18px;
   }
 
-  .empty-title {
+  .empty-caption {
+    font-size: 1.16rem;
     text-align: center;
   }
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -12,10 +12,100 @@ const submitting = ref(false);
 const uploadingContentImage = ref(false);
 const errorMsg = ref("");
 const successMsg = ref("");
+const DRAFT_STORAGE_KEY = "blog.diaryWrite.draft.v1";
+const DRAFT_PERSIST_DELAY_MS = 500;
+let isApplyingStoredDraft = true;
+let hasStoredDraftChanges = false;
+let draftPersistTimer = 0;
+
+function isBlankEditorHtml(html) {
+  const normalized = String(html || "").trim();
+  return !normalized || normalized === "<p></p>";
+}
+
+function readStoredDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasStoredDraftContent(draft) {
+  return Boolean(String(draft?.title || "").trim() || !isBlankEditorHtml(draft?.content));
+}
+
+function clearStoredDraft() {
+  try {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function discardStoredDraft() {
+  clearDraftPersistTimer();
+  clearStoredDraft();
+  hasStoredDraftChanges = false;
+}
+
+function clearDraftPersistTimer() {
+  if (!draftPersistTimer) return;
+  window.clearTimeout(draftPersistTimer);
+  draftPersistTimer = 0;
+}
+
+function persistStoredDraft() {
+  clearDraftPersistTimer();
+  if (isApplyingStoredDraft) return;
+  if (!hasStoredDraftChanges) return;
+  const content = editor.value?.getHTML?.() || "";
+  if (!String(title.value || "").trim() && isBlankEditorHtml(content)) {
+    clearStoredDraft();
+    return;
+  }
+
+  try {
+    localStorage.setItem(
+      DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        title: title.value,
+        content,
+        savedAt: Date.now(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+function scheduleStoredDraftPersist() {
+  if (isApplyingStoredDraft) return;
+  clearDraftPersistTimer();
+  draftPersistTimer = window.setTimeout(() => {
+    draftPersistTimer = 0;
+    persistStoredDraft();
+  }, DRAFT_PERSIST_DELAY_MS);
+}
+
+function applyStoredDraft() {
+  const draft = readStoredDraft();
+  if (!hasStoredDraftContent(draft)) return;
+  title.value = String(draft.title || "");
+  if (editor.value) editor.value.commands.setContent(String(draft.content || ""));
+}
 
 const editor = useEditor({
   content: "",
   extensions: [StarterKit, Image, BlockquoteIndent],
+  onUpdate() {
+    if (isApplyingStoredDraft) return;
+    hasStoredDraftChanges = true;
+    scheduleStoredDraftPersist();
+  },
   editorProps: {
     handlePaste(_view, event) {
       return handlePastedImages(editor.value, event, {
@@ -30,10 +120,29 @@ const editor = useEditor({
   },
 });
 
+onMounted(() => {
+  isApplyingStoredDraft = true;
+  try {
+    applyStoredDraft();
+  } finally {
+    isApplyingStoredDraft = false;
+  }
+  window.addEventListener("beforeunload", persistStoredDraft);
+});
+
 onBeforeUnmount(() => {
+  if (hasStoredDraftChanges) persistStoredDraft();
+  window.removeEventListener("beforeunload", persistStoredDraft);
+
   if (editor.value) {
     editor.value.destroy();
   }
+});
+
+watch(title, () => {
+  if (isApplyingStoredDraft) return;
+  hasStoredDraftChanges = true;
+  scheduleStoredDraftPersist();
 });
 
 function extractTempContentImageKeys(html) {
@@ -79,7 +188,7 @@ async function submitDiary() {
   }
 
   const contentHtml = editor.value.getHTML();
-  if (!contentHtml || contentHtml === "<p></p>") {
+  if (isBlankEditorHtml(contentHtml)) {
     errorMsg.value = "日记内容不能为空";
     return;
   }
@@ -95,8 +204,11 @@ async function submitDiary() {
     });
 
     successMsg.value = "日记发布成功";
+    isApplyingStoredDraft = true;
     title.value = "";
     editor.value.commands.setContent("");
+    isApplyingStoredDraft = false;
+    discardStoredDraft();
   } catch (err) {
     console.error(err);
     errorMsg.value = err.message || "提交失败";

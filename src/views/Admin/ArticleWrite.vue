@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, computed } from "vue";
+import { onBeforeUnmount, onMounted, ref, computed, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -42,9 +42,94 @@ const articleLoading = ref(false);
 const existingHeaderUrl = ref("");
 const existingThumbUrl = ref("");
 const prefillTagIds = ref([]);
+const draftStorageKey = computed(() => `blog.articleWrite.draft.v1:${isEditMode.value ? `edit:${articleId.value}` : "new"}`);
+const DRAFT_PERSIST_DELAY_MS = 500;
+let isApplyingStoredDraft = true;
+let hasStoredDraftChanges = false;
+let draftPersistTimer = 0;
 
 // 检测文章内容图是否正在上传
 const uploadingContentImage = ref(false);
+
+function isBlankEditorHtml(html) {
+  const normalized = String(html || "").trim();
+  return !normalized || normalized === "<p></p>";
+}
+
+function readStoredDraft() {
+  try {
+    const raw = localStorage.getItem(draftStorageKey.value);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasStoredDraftContent(draft) {
+  return Boolean(String(draft?.title || "").trim() || !isBlankEditorHtml(draft?.content));
+}
+
+function clearStoredDraft() {
+  try {
+    localStorage.removeItem(draftStorageKey.value);
+  } catch {
+    // ignore
+  }
+}
+
+function discardStoredDraft() {
+  clearDraftPersistTimer();
+  clearStoredDraft();
+  hasStoredDraftChanges = false;
+}
+
+function clearDraftPersistTimer() {
+  if (!draftPersistTimer) return;
+  window.clearTimeout(draftPersistTimer);
+  draftPersistTimer = 0;
+}
+
+function persistStoredDraft() {
+  clearDraftPersistTimer();
+  if (isApplyingStoredDraft) return;
+  if (!hasStoredDraftChanges) return;
+  const content = editor.value?.getHTML?.() || "";
+  if (!String(title.value || "").trim() && isBlankEditorHtml(content)) {
+    clearStoredDraft();
+    return;
+  }
+
+  try {
+    localStorage.setItem(
+      draftStorageKey.value,
+      JSON.stringify({
+        title: title.value,
+        content,
+        savedAt: Date.now(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+function scheduleStoredDraftPersist() {
+  if (isApplyingStoredDraft) return;
+  clearDraftPersistTimer();
+  draftPersistTimer = window.setTimeout(() => {
+    draftPersistTimer = 0;
+    persistStoredDraft();
+  }, DRAFT_PERSIST_DELAY_MS);
+}
+
+function applyStoredDraft() {
+  const draft = readStoredDraft();
+  if (!hasStoredDraftContent(draft)) return;
+  title.value = String(draft.title || "");
+  if (editor.value) editor.value.commands.setContent(String(draft.content || ""));
+}
 
 // 当前选中子标签列表（名称数组）
 const subTagList = computed(() => {
@@ -77,6 +162,11 @@ const onHeadImgChange = (event) => {
 const editor = useEditor({
   content: ``,
   extensions: [StarterKit, Image, BlockquoteIndent],
+  onUpdate() {
+    if (isApplyingStoredDraft) return;
+    hasStoredDraftChanges = true;
+    scheduleStoredDraftPersist();
+  },
   editorProps: {
     handlePaste(_view, event) {
       return handlePastedImages(editor.value, event, {
@@ -93,6 +183,9 @@ const editor = useEditor({
 
 // 在组件卸载前销毁编辑器实例、预览头图Url，防止内存泄漏
 onBeforeUnmount(() => {
+  if (hasStoredDraftChanges) persistStoredDraft();
+  window.removeEventListener("beforeunload", persistStoredDraft);
+
   if (editor.value) {
     editor.value.destroy();
   }
@@ -151,9 +244,22 @@ const loadArticleIfEdit = async () => {
 };
 
 onMounted(async () => {
-  await fetchTags();
-  await loadArticleIfEdit();
-  if (prefillTagIds.value.length) mapTagIdsToNames(prefillTagIds.value);
+  isApplyingStoredDraft = true;
+  try {
+    await fetchTags();
+    await loadArticleIfEdit();
+    if (prefillTagIds.value.length) mapTagIdsToNames(prefillTagIds.value);
+    applyStoredDraft();
+  } finally {
+    isApplyingStoredDraft = false;
+  }
+  window.addEventListener("beforeunload", persistStoredDraft);
+});
+
+watch(title, () => {
+  if (isApplyingStoredDraft) return;
+  hasStoredDraftChanges = true;
+  scheduleStoredDraftPersist();
 });
 
 // 子标签选中/取消
@@ -235,7 +341,7 @@ const submitArticle = async (status) => {
 
   const contentHtml = editor.value.getHTML();
   const tempContentImageKeys = extractTempContentImageKeys(contentHtml);
-  if (!contentHtml || contentHtml === "<p></p>") {
+  if (isBlankEditorHtml(contentHtml)) {
     errorMsg.value = "文章内容不能为空";
     return;
   }
@@ -255,6 +361,7 @@ const submitArticle = async (status) => {
       successMsg.value = status === "published" ? "文章发布成功" : "草稿保存成功";
 
       // 发布成功后清除数据
+      isApplyingStoredDraft = true;
       title.value = "";
       editor.value.commands.setContent("");
       headImgFile.value = null;
@@ -263,6 +370,8 @@ const submitArticle = async (status) => {
       }
       headImgPreviewUrl.value = "";
       selectedSubTagIds.value = [];
+      isApplyingStoredDraft = false;
+      discardStoredDraft();
     } else {
       const formData = new FormData();
       formData.append("title", title.value.trim());
@@ -276,6 +385,7 @@ const submitArticle = async (status) => {
       if (existingHeaderUrl.value) formData.append("header_image_url", existingHeaderUrl.value);
       if (existingThumbUrl.value) formData.append("thumbnail_url", existingThumbUrl.value);
       await updateArticle(articleId.value, formData);
+      discardStoredDraft();
 
       successMsg.value = status === "published" ? "文章更新成功" : "草稿更新成功";
     }
