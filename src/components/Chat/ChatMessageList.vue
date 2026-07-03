@@ -87,7 +87,7 @@ watch(lastMessageId, async () => {
 </script>
 
 <template>
-  <div ref="listRef" class="list">
+  <div ref="listRef" class="list" :class="{ 'is-empty': messages.length === 0 }">
     <div v-if="messages.length === 0" class="empty">
       <img class="empty-gif" src="/chat-default.gif" alt="" aria-hidden="true" />
       <p class="empty-caption">开始新的一天 ...</p>
@@ -144,6 +144,11 @@ watch(lastMessageId, async () => {
 
 .list::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 23, 42, 0.32);
+}
+
+.list.is-empty {
+  overflow: hidden;
+  scrollbar-gutter: auto;
 }
 
 .messages {
@@ -215,13 +220,15 @@ watch(lastMessageId, async () => {
   justify-content: center;
   align-items: center;
   gap: 14px;
-  padding: 24px 8px;
+  padding: 12px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .empty-gif {
   display: block;
   width: min(320px, 72vw);
-  max-height: min(340px, 58vh);
+  max-height: min(280px, 42vh);
   object-fit: contain;
 }
 
@@ -235,6 +242,11 @@ watch(lastMessageId, async () => {
 @media (max-width: 900px) {
   .list {
     padding: 14px 14px 18px;
+  }
+
+  .empty-gif {
+    width: min(280px, 72vw);
+    max-height: min(240px, 38vh);
   }
 
   .empty-caption {
