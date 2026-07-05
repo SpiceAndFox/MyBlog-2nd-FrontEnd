@@ -29,6 +29,13 @@ function mapSettingOption(raw) {
   return { value, label };
 }
 
+function mapSettingCondition(raw) {
+  if (!isPlainObject(raw)) return null;
+  const key = String(raw.key ?? "").trim();
+  if (!key) return null;
+  return { key, value: raw.value };
+}
+
 function mapSettingsSchemaControl(raw) {
   if (!isPlainObject(raw)) return null;
   const key = String(raw.key ?? "").trim();
@@ -49,6 +56,7 @@ function mapSettingsSchemaControl(raw) {
 
   const options = (Array.isArray(raw.options) ? raw.options : []).map(mapSettingOption).filter(Boolean);
   const defaultValue = raw.default;
+  const disabledWhen = mapSettingCondition(raw.disabledWhen);
 
   return {
     key,
@@ -62,6 +70,7 @@ function mapSettingsSchemaControl(raw) {
     modelBlocklist,
     options,
     default: defaultValue,
+    disabledWhen,
   };
 }
 

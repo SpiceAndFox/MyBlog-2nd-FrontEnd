@@ -112,6 +112,17 @@ function setDraftValue(path, value) {
   setValueByPath(draft, path, value);
 }
 
+function matchesControlCondition(condition) {
+  if (!isPlainObject(condition)) return false;
+  const key = String(condition.key || "").trim();
+  if (!key) return false;
+  return Object.is(getDraftValue(key), condition.value);
+}
+
+function isControlDisabled(control) {
+  return matchesControlCondition(control?.disabledWhen);
+}
+
 function formatControlValue(control, rawValue) {
   const decimals = Number(control?.decimals);
   const number = Number(rawValue);
@@ -386,6 +397,7 @@ function save() {
                     :max="control.max"
                     :step="control.step"
                     :value="Number(getDraftValue(control.key) ?? 0)"
+                    :disabled="isControlDisabled(control)"
                     @input="onRangeInput(control, $event)"
                   />
                 </label>
@@ -399,6 +411,7 @@ function save() {
                     :max="control.max"
                     :step="control.step"
                     :value="Number(getDraftValue(control.key) ?? 0)"
+                    :disabled="isControlDisabled(control)"
                     @input="onNumberInput(control, $event)"
                   />
                 </label>
@@ -408,6 +421,7 @@ function save() {
                   <select
                     class="control"
                     :value="String(getDraftValue(control.key) ?? '')"
+                    :disabled="isControlDisabled(control)"
                     @change="onSelectChange(control, $event)"
                   >
                     <option v-for="option in control.options" :key="option.value" :value="option.value">
@@ -570,6 +584,12 @@ function save() {
   box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
 }
 
+.control:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  background: rgba(243, 244, 246, 0.85);
+}
+
 .textarea {
   font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
   resize: vertical;
@@ -582,6 +602,11 @@ function save() {
   width: 100%;
   accent-color: var(--chat-accent, #3b82f6);
   margin: 0;
+}
+
+.range:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .toggles {
