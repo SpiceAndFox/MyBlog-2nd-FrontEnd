@@ -12,6 +12,7 @@ const props = defineProps({
   createPreset: { type: Function, default: null },
   updatePreset: { type: Function, default: null },
   deletePreset: { type: Function, default: null },
+  rebuildPresetMemory: { type: Function, default: null },
   uploadPresetAvatar: { type: Function, default: null },
 });
 
@@ -86,6 +87,7 @@ const presetEditor = reactive({
 
 const allowPresetIdEdit = false;
 const showPresetIdInput = computed(() => presetEditor.mode === "create" || allowPresetIdEdit);
+const rebuildingMemoryPresetIds = reactive({});
 
 function resetPresetEditor() {
   presetEditor.open = false;
@@ -209,6 +211,30 @@ async function removePreset(preset) {
     }
   } catch (error) {
     window.alert(error?.message || "删除预设失败");
+  }
+}
+
+function isRebuildingPresetMemory(preset) {
+  const presetId = String(preset?.id || "").trim();
+  return Boolean(presetId && rebuildingMemoryPresetIds[presetId]);
+}
+
+async function rebuildMemoryForPreset(preset) {
+  const presetId = String(preset?.id || "").trim();
+  if (!presetId || !props.rebuildPresetMemory || isRebuildingPresetMemory(preset)) return;
+
+  const title = preset?.name ? `“${preset.name}”` : `“${presetId}”`;
+  const confirmed = window.confirm(`确定要从头生成预设 ${title} 的记忆吗？完成前这个预设会暂时不能发送消息。`);
+  if (!confirmed) return;
+
+  rebuildingMemoryPresetIds[presetId] = true;
+  try {
+    await props.rebuildPresetMemory(presetId);
+    window.alert("已开始从头生成记忆，完成前这个预设会暂时不能发送消息。");
+  } catch (error) {
+    window.alert(error?.message || "从头生成记忆失败");
+  } finally {
+    delete rebuildingMemoryPresetIds[presetId];
   }
 }
 
@@ -337,6 +363,14 @@ watch(
                   </div>
 
                   <div class="preset-actions">
+                    <button
+                      class="mini-button"
+                      type="button"
+                      :disabled="!props.rebuildPresetMemory || isRebuildingPresetMemory(preset)"
+                      @click="rebuildMemoryForPreset(preset)"
+                    >
+                      {{ isRebuildingPresetMemory(preset) ? "生成中..." : "重建记忆" }}
+                    </button>
                     <button v-if="preset.isBuiltin" class="mini-button" type="button" @click="beginEditPreset(preset)">
                       基于此创建
                     </button>
@@ -724,7 +758,9 @@ watch(
 .preset-actions {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
   flex: 0 0 auto;
 }
 

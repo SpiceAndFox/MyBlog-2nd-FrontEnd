@@ -4,6 +4,7 @@ import {
   deleteChatPreset,
   getChatMeta,
   listChatPresets,
+  rebuildChatPresetMemory,
   updateChatPreset,
   uploadChatPresetAvatar,
 } from "@/api/chat";
@@ -276,6 +277,15 @@ export function useChatSettings({ handleApiError }) {
     }
   }
 
+  async function rebuildPromptPresetMemory(presetId) {
+    try {
+      return await rebuildChatPresetMemory(presetId);
+    } catch (error) {
+      handleApiError(error, { silent: true });
+      throw error;
+    }
+  }
+
   async function uploadPromptPresetAvatar(presetId, file) {
     try {
       const preset = await uploadChatPresetAvatar(presetId, file);
@@ -299,6 +309,7 @@ export function useChatSettings({ handleApiError }) {
     createPromptPreset,
     updatePromptPreset,
     deletePromptPreset,
+    rebuildPromptPresetMemory,
     uploadPromptPresetAvatar,
   };
 }

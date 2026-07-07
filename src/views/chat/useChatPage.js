@@ -415,6 +415,7 @@ export function useChatPage({ router }) {
     createPromptPreset: chatSettings.createPromptPreset,
     updatePromptPreset,
     deletePromptPreset,
+    rebuildPromptPresetMemory: chatSettings.rebuildPromptPresetMemory,
     uploadPromptPresetAvatar: chatSettings.uploadPromptPresetAvatar,
     refreshPromptPresets: chatSettings.refreshPromptPresets,
 

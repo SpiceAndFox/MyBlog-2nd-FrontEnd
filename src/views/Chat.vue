@@ -49,6 +49,7 @@ const {
   createPromptPreset,
   updatePromptPreset,
   deletePromptPreset,
+  rebuildPromptPresetMemory,
   uploadPromptPresetAvatar,
   openMobileSidebar,
   closeMobileSidebar,
@@ -170,6 +171,7 @@ useChatComposerSlashFocus({
       :createPreset="createPromptPreset"
       :updatePreset="updatePromptPreset"
       :deletePreset="deletePromptPreset"
+      :rebuildPresetMemory="rebuildPromptPresetMemory"
       :uploadPresetAvatar="uploadPromptPresetAvatar"
       @close="closePresets"
       @save="savePresetSelection"

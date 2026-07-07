@@ -112,6 +112,18 @@ export async function updateChatPreset(presetId, { name, systemPrompt } = {}) {
   return data.preset;
 }
 
+export async function rebuildChatPresetMemory(presetId) {
+  const normalizedId = String(presetId ?? "").trim();
+  if (!normalizedId) throw new Error("缺少预设ID");
+  const res = await fetch(`/api/chat/presets/${encodeURIComponent(normalizedId)}/memory/rebuild`, {
+    method: "POST",
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw createApiError(res, data, "从头生成记忆失败");
+  return data;
+}
+
 export async function deleteChatPreset(presetId) {
   const normalizedId = String(presetId ?? "").trim();
   if (!normalizedId) throw new Error("缺少预设ID");
