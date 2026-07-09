@@ -18,7 +18,12 @@ function mapModel(raw) {
   const id = String(raw.id ?? "").trim();
   if (!id) return null;
   const name = String(raw.name ?? id).trim() || id;
-  return { id, name };
+  const entry = { id, name };
+  if (isPlainObject(raw.defaults)) entry.defaults = raw.defaults;
+  if (Array.isArray(raw.reasoningEfforts) && raw.reasoningEfforts.length) {
+    entry.reasoningEfforts = raw.reasoningEfforts.map((v) => String(v ?? "").trim()).filter(Boolean);
+  }
+  return entry;
 }
 
 function mapSettingOption(raw) {
@@ -33,7 +38,10 @@ function mapSettingCondition(raw) {
   if (!isPlainObject(raw)) return null;
   const key = String(raw.key ?? "").trim();
   if (!key) return null;
-  return { key, value: raw.value };
+  const modelBlocklist = (Array.isArray(raw.modelBlocklist) ? raw.modelBlocklist : [])
+    .map((entry) => String(entry ?? "").trim())
+    .filter(Boolean);
+  return { key, value: raw.value, modelBlocklist };
 }
 
 function mapSettingsSchemaControl(raw) {
@@ -55,6 +63,7 @@ function mapSettingsSchemaControl(raw) {
     .filter(Boolean);
 
   const options = (Array.isArray(raw.options) ? raw.options : []).map(mapSettingOption).filter(Boolean);
+  const optionsFrom = typeof raw.optionsFrom === "string" ? raw.optionsFrom.trim() : "";
   const defaultValue = raw.default;
   const disabledWhen = mapSettingCondition(raw.disabledWhen);
 
@@ -69,6 +78,7 @@ function mapSettingsSchemaControl(raw) {
     decimals: Number.isFinite(decimals) ? decimals : undefined,
     modelBlocklist,
     options,
+    optionsFrom: optionsFrom || undefined,
     default: defaultValue,
     disabledWhen,
   };

@@ -63,13 +63,44 @@ function getProviderSettingsSchema(provider) {
   return Array.isArray(provider?.settingsSchema) ? provider.settingsSchema : [];
 }
 
-function coerceControlValue(control, rawValue) {
+// 按当前模型过滤控件的 options。
+// 控件可通过 optionsFrom 声明"可选项由 model 的该字段决定"，
+// 例如 reasoningEffort 控件声明 optionsFrom: "reasoningEfforts"，
+// 则只保留 model.reasoningEfforts 中列出的 option。
+// 未声明 optionsFrom 或 model 缺少该字段时，返回全集（向后兼容）。
+function resolveControlOptions(control, model) {
+  const options = Array.isArray(control?.options) ? control.options : [];
+  const sourceField = String(control?.optionsFrom || "").trim();
+  if (!sourceField) return options;
+  const allowed = Array.isArray(model?.[sourceField]) ? model[sourceField] : null;
+  if (!allowed) return options;
+  const allowedSet = new Set(allowed.map((v) => String(v ?? "").trim()).filter(Boolean));
+  return options.filter((option) => allowedSet.has(String(option?.value ?? "").trim()));
+}
+
+// 若 select 控件当前值在指定模型的可用 options 中不合法，则重置为合法回退值。
+// 重置时优先取 model.defaults，其次 control.default/options[0]。
+// 用于 modelId 变化（含同 provider 内换模型）后校正残留的非法值。
+function resetSelectIfInvalid(control, model) {
+  if (!control || control.type !== "select") return;
+  const normalized = String(getDraftValue(control.key) ?? "");
+  if (!normalized) return;
+  const options = resolveControlOptions(control, model);
+  const allowed = new Set(options.map((option) => String(option?.value ?? "")));
+  if (!allowed.has(normalized)) {
+    const modelDefaults = isPlainObject(model?.defaults) ? model.defaults : {};
+    setDraftValue(control.key, resolveDefaultValue(control, [modelDefaults], model));
+  }
+}
+
+// 纯验证：值合法则返回规范化后的值，非法/空返回 undefined。
+// 返回 undefined 是让优先级链继续向下一层 source 查找的关键。
+function validateControlValue(control, rawValue, model) {
   if (!control) return undefined;
   const type = String(control.type || "").trim();
 
   if (type === "toggle") {
-    if (typeof rawValue === "boolean") return rawValue;
-    return undefined;
+    return typeof rawValue === "boolean" ? rawValue : undefined;
   }
 
   if (type === "range" || type === "number") {
@@ -78,19 +109,52 @@ function coerceControlValue(control, rawValue) {
   }
 
   if (type === "select") {
-    const options = Array.isArray(control.options) ? control.options : [];
+    const options = resolveControlOptions(control, model);
     const allowed = new Set(options.map((option) => String(option?.value ?? "")));
     const normalized = rawValue === undefined || rawValue === null ? "" : String(rawValue);
-    if (normalized && allowed.has(normalized)) return normalized;
+    return normalized && allowed.has(normalized) ? normalized : undefined;
+  }
 
+  return undefined;
+}
+
+// 回退值：控件在该模型下的兜底默认值。
+// select: control.default 若在可用 options 中则用它，否则取 options[0]。
+// range/number/toggle: control.default（若类型匹配）。
+function resolveControlFallback(control, model) {
+  if (!control) return undefined;
+  const type = String(control.type || "").trim();
+
+  if (type === "toggle") {
+    return typeof control.default === "boolean" ? control.default : undefined;
+  }
+
+  if (type === "range" || type === "number") {
+    const number = Number(control.default);
+    return Number.isFinite(number) ? number : undefined;
+  }
+
+  if (type === "select") {
+    const options = resolveControlOptions(control, model);
+    const allowed = new Set(options.map((option) => String(option?.value ?? "")));
     const fallbackDefault = control.default === undefined || control.default === null ? "" : String(control.default);
     if (fallbackDefault && allowed.has(fallbackDefault)) return fallbackDefault;
-
     const first = options[0]?.value;
     return first === undefined || first === null ? "" : String(first);
   }
 
   return undefined;
+}
+
+// 按优先级链解析默认值：依次从 sourceList 中验证控件的值，
+// 首个合法值胜出；全部失败则回退到 resolveControlFallback。
+function resolveDefaultValue(control, sourceList, model) {
+  const sources = Array.isArray(sourceList) ? sourceList : [];
+  for (const source of sources) {
+    const value = validateControlValue(control, getValueByPath(source, control.key), model);
+    if (value !== undefined) return value;
+  }
+  return resolveControlFallback(control, model);
 }
 
 function isControlVisible(control, provider, modelId) {
@@ -120,7 +184,14 @@ function matchesControlCondition(condition) {
 }
 
 function isControlDisabled(control) {
-  return matchesControlCondition(control?.disabledWhen);
+  const condition = control?.disabledWhen;
+  if (!isPlainObject(condition)) return false;
+  // 若当前模型在条件的 modelBlocklist 中，则不应用此禁用条件
+  // （例如 grok-4.5 隐藏了 reasoningEnabled 开关，effort 不应再受其联动禁用）
+  const modelId = String(draft.modelId || "").trim();
+  const blocklist = Array.isArray(condition.modelBlocklist) ? condition.modelBlocklist : [];
+  if (modelId && blocklist.includes(modelId)) return false;
+  return matchesControlCondition(condition);
 }
 
 function formatControlValue(control, rawValue) {
@@ -181,17 +252,20 @@ function applyFromCurrentSettings() {
 
   const providerSupportsWebSearch = provider?.capabilities?.webSearch !== false;
 
+  const activeModel = provider?.models?.find((m) => m.id === modelId) || null;
+  const modelDefaults = activeModel && isPlainObject(activeModel.defaults) ? activeModel.defaults : {};
+
   const controls = getProviderSettingsSchema(provider).filter((control) =>
     isControlVisible(control, provider, modelId)
   );
   for (const control of controls) {
     if (!control?.key) continue;
 
-    let nextValue = coerceControlValue(control, getValueByPath(source, control.key));
-    if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
-    if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-    if (nextValue === undefined && control.default !== undefined)
-      nextValue = coerceControlValue(control, control.default);
+    let nextValue = resolveDefaultValue(
+      control,
+      [source, modelDefaults, providerDefaults, defaults],
+      activeModel
+    );
 
     if (control.key === "enableWebSearch" && !providerSupportsWebSearch) {
       nextValue = false;
@@ -213,6 +287,9 @@ function applyFromCurrentSettings() {
 
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
 const modelsForSelectedProvider = computed(() => selectedProvider.value?.models || []);
+const selectedModel = computed(
+  () => modelsForSelectedProvider.value.find((m) => m.id === draft.modelId) || null
+);
 
 const visibleSettingsSchema = computed(() => {
   const provider = selectedProvider.value;
@@ -278,6 +355,8 @@ watch(
     }
 
     const modelId = draft.modelId;
+    const activeModel = provider?.models?.find((m) => m.id === modelId) || null;
+    const modelDefaults = activeModel && isPlainObject(activeModel.defaults) ? activeModel.defaults : {};
     const controls = getProviderSettingsSchema(provider).filter((control) =>
       isControlVisible(control, provider, modelId)
     );
@@ -285,37 +364,55 @@ watch(
       if (!control?.key) continue;
       if (control.type === "toggle" && control.key === "enableWebSearch") continue;
 
-      const previousDefaultValue = coerceControlValue(control, getValueByPath(previousDefaults, control.key));
-      const currentValue = coerceControlValue(control, getDraftValue(control.key));
+      const previousDefaultValue = validateControlValue(
+        control,
+        getValueByPath(previousDefaults, control.key),
+        activeModel
+      );
+      const currentValue = validateControlValue(control, getDraftValue(control.key), activeModel);
 
       if (currentValue === undefined) {
-        let nextDefaultValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
-        if (nextDefaultValue === undefined)
-          nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-        if (nextDefaultValue === undefined && control.default !== undefined)
-          nextDefaultValue = coerceControlValue(control, control.default);
+        const nextDefaultValue = resolveDefaultValue(
+          control,
+          [modelDefaults, providerDefaults, defaults],
+          activeModel
+        );
         if (nextDefaultValue !== undefined) setDraftValue(control.key, nextDefaultValue);
         continue;
       }
 
       if (previousDefaultValue !== undefined && currentValue === previousDefaultValue) {
-        let nextDefaultValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
-        if (nextDefaultValue === undefined)
-          nextDefaultValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-        if (nextDefaultValue === undefined && control.default !== undefined)
-          nextDefaultValue = coerceControlValue(control, control.default);
+        const nextDefaultValue = resolveDefaultValue(
+          control,
+          [modelDefaults, providerDefaults, defaults],
+          activeModel
+        );
         if (nextDefaultValue !== undefined) setDraftValue(control.key, nextDefaultValue);
         continue;
       }
 
       if (control.type === "select") {
-        const normalized = String(getDraftValue(control.key) ?? "");
-        const options = Array.isArray(control.options) ? control.options : [];
-        const allowed = new Set(options.map((option) => String(option?.value ?? "")));
-        if (normalized && !allowed.has(normalized)) {
-          setDraftValue(control.key, coerceControlValue(control, normalized));
-        }
+        resetSelectIfInvalid(control, activeModel);
       }
+    }
+  }
+);
+
+// 同 provider 内切换模型时，校正 select 控件残留的非法值。
+// provider 切换由上面的 providerId watcher 处理；此处仅覆盖 modelId 变化。
+watch(
+  () => draft.modelId,
+  (modelId, previousModelId) => {
+    if (!modelId || modelId === previousModelId) return;
+    const provider = selectedProvider.value;
+    if (!provider) return;
+    const model = provider.models?.find((m) => m.id === modelId) || null;
+    const controls = getProviderSettingsSchema(provider).filter((control) =>
+      isControlVisible(control, provider, modelId)
+    );
+    for (const control of controls) {
+      if (!control?.key) continue;
+      resetSelectIfInvalid(control, model);
     }
   }
 );
@@ -424,7 +521,11 @@ function save() {
                     :disabled="isControlDisabled(control)"
                     @change="onSelectChange(control, $event)"
                   >
-                    <option v-for="option in control.options" :key="option.value" :value="option.value">
+                    <option
+                      v-for="option in resolveControlOptions(control, selectedModel)"
+                      :key="option.value"
+                      :value="option.value"
+                    >
                       {{ option.label }}
                     </option>
                   </select>

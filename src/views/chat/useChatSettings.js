@@ -65,7 +65,17 @@ export function useChatSettings({ handleApiError }) {
     return Math.min(normalizedMax, Math.max(normalizedMin, number));
   }
 
-  function coerceControlValue(control, rawValue) {
+  function resolveControlOptions(control, model) {
+    const options = Array.isArray(control?.options) ? control.options : [];
+    const sourceField = String(control?.optionsFrom || "").trim();
+    if (!sourceField) return options;
+    const allowed = Array.isArray(model?.[sourceField]) ? model[sourceField] : null;
+    if (!allowed) return options;
+    const allowedSet = new Set(allowed.map((value) => String(value ?? "").trim()).filter(Boolean));
+    return options.filter((option) => allowedSet.has(String(option?.value ?? "").trim()));
+  }
+
+  function coerceControlValue(control, rawValue, model) {
     if (!control) return undefined;
     const type = String(control.type || "").trim();
 
@@ -79,16 +89,35 @@ export function useChatSettings({ handleApiError }) {
     }
 
     if (type === "select") {
-      const options = Array.isArray(control.options) ? control.options : [];
+      const options = resolveControlOptions(control, model);
       const allowed = new Set(options.map((option) => String(option?.value ?? "")));
       const normalized = rawValue === undefined || rawValue === null ? "" : String(rawValue);
-      if (normalized && allowed.has(normalized)) return normalized;
+      return normalized && allowed.has(normalized) ? normalized : undefined;
+    }
 
+    return undefined;
+  }
+
+  function resolveControlFallback(control, model) {
+    if (!control) return undefined;
+    const type = String(control.type || "").trim();
+
+    if (type === "toggle") {
+      return typeof control.default === "boolean" ? control.default : undefined;
+    }
+
+    if (type === "range" || type === "number") {
+      return clampNumber(control.default, control);
+    }
+
+    if (type === "select") {
+      const options = resolveControlOptions(control, model);
+      const allowed = new Set(options.map((option) => String(option?.value ?? "")));
       const fallbackDefault = control.default === undefined || control.default === null ? "" : String(control.default);
       if (fallbackDefault && allowed.has(fallbackDefault)) return fallbackDefault;
 
       const first = options[0]?.value;
-      return first === undefined || first === null ? "" : String(first);
+      return first === undefined || first === null ? undefined : String(first);
     }
 
     return undefined;
@@ -137,6 +166,7 @@ export function useChatSettings({ handleApiError }) {
       null;
 
     const modelId = model?.id ? model.id : "";
+    const modelDefaults = isPlainObject(model?.defaults) ? model.defaults : {};
 
     const normalized = {
       providerId: providerId || "",
@@ -148,14 +178,14 @@ export function useChatSettings({ handleApiError }) {
       if (!control?.key) continue;
       if (!isControlSupportedByProvider(control, provider)) continue;
       const isAllowedForModel = isControlAllowedForModel(control, modelId);
+      if (!isAllowedForModel) continue;
 
-      let nextValue = coerceControlValue(control, getValueByPath(base, control.key));
-      if (nextValue === undefined && isAllowedForModel)
-        nextValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key));
-      if (nextValue === undefined && isAllowedForModel)
-        nextValue = coerceControlValue(control, getValueByPath(defaults, control.key));
-      if (nextValue === undefined && isAllowedForModel && control.default !== undefined)
-        nextValue = coerceControlValue(control, control.default);
+      let nextValue = coerceControlValue(control, getValueByPath(base, control.key), model);
+      if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(modelDefaults, control.key), model);
+      if (nextValue === undefined)
+        nextValue = coerceControlValue(control, getValueByPath(providerDefaults, control.key), model);
+      if (nextValue === undefined) nextValue = coerceControlValue(control, getValueByPath(defaults, control.key), model);
+      if (nextValue === undefined) nextValue = resolveControlFallback(control, model);
 
       if (nextValue !== undefined) setValueByPath(normalized, control.key, nextValue);
     }
