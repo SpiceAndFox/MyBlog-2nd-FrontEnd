@@ -24,7 +24,8 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: "Spice Nest",
           short_name: "Spice",
-          start_url: "/",
+          start_url: "/chat",
+          scope: "/",
           display: "standalone",
           background_color: "rgb(238, 238, 238)",
           theme_color: "rgb(238, 238, 238)",
