@@ -1,5 +1,5 @@
 import { nextTick, reactive, ref, watch } from "vue";
-import { editChatMessage, sendChatMessage, streamChatMessage, streamEditChatMessage } from "@/api/chat";
+import { editChatMessage, getChatPrivacyOperation, sendChatMessage, streamChatMessage } from "@/api/chat";
 import { createId, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 
@@ -31,7 +31,7 @@ export function useChatMessaging({
   const memoryLockMessage = ref("");
 
   function isMemoryRebuildingError(error) {
-    return error?.code === "CHAT_MEMORY_REBUILDING" || error?.status === 423;
+    return ["CHAT_MEMORY_REBUILDING", "CHAT_PRIVACY_PENDING"].includes(error?.code) || error?.status === 423;
   }
 
   function restoreComposerDraftIfIdle(value) {
@@ -47,7 +47,9 @@ export function useChatMessaging({
   }
 
   function setMemoryLocked(error) {
-    memoryLockMessage.value = String(error?.message || "记忆重建中，请稍后再试");
+    memoryLockMessage.value = error?.code === "CHAT_PRIVACY_PENDING"
+      ? "记忆正在重建，完成前暂时无法发送新消息"
+      : String(error?.message || "记忆重建中，请稍后再试");
   }
 
   function clearMemoryLocked() {
@@ -120,6 +122,64 @@ export function useChatMessaging({
     messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
       (m) => m !== optimisticUserMessage && m !== optimisticAssistantMessage
     );
+  }
+
+  async function waitForPrivacyOperation(operationId, targetStatus, signal) {
+    const intervalMs = 1000;
+    while (true) {
+      if (signal?.aborted) throw new Error("aborted");
+      const { privacy } = await getChatPrivacyOperation(operationId);
+      if (String(privacy?.status) === String(targetStatus)) return;
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  async function resumeRegeneration(sessionId, {
+    content,
+    settings,
+    regeneration,
+    privacy,
+    optimisticUserMessage,
+    optimisticAssistantMessage,
+    signal,
+    onError,
+  }) {
+    if (regeneration?.status === "blocked_until_privacy_completed") {
+      const operationId = privacy?.operationId;
+      if (!operationId) throw new Error("缺少隐私操作ID，无法恢复生成");
+      memoryLockMessage.value = "记忆正在后台重建，完成后将自动继续生成；长对话可能需要较长时间…";
+      try {
+        await waitForPrivacyOperation(operationId, regeneration.resumeAfterStatus || "completed", signal);
+      } finally {
+        clearMemoryLocked();
+      }
+    }
+    const idempotencyKey = regeneration?.idempotencyKey;
+    if (!idempotencyKey) throw new Error("缺少幂等键，无法恢复生成");
+    if (settings?.stream) {
+      await streamChatMessage(sessionId, {
+        content,
+        settings,
+        idempotencyKey,
+        signal,
+        onStart: (payload) => {
+          applyServerPayload(sessionId, payload, { optimisticUserMessage });
+        },
+        onDelta: (delta) => {
+          if (optimisticAssistantMessage) optimisticAssistantMessage.content += delta;
+        },
+        onDone: (payload) => {
+          applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage });
+        },
+        onError: (message) => {
+          if (optimisticAssistantMessage) optimisticAssistantMessage.content = `（请求失败）${message}`;
+          onError?.(message);
+        },
+      });
+    } else {
+      const result = await sendChatMessage(sessionId, { content, settings, idempotencyKey });
+      applyServerPayload(sessionId, result, { optimisticUserMessage, optimisticAssistantMessage });
+    }
   }
 
   function applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage } = {}) {
@@ -229,27 +289,32 @@ export function useChatMessaging({
         messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticAssistantMessage];
 
         try {
-          await streamEditChatMessage(sessionId, targetMessageId, {
+          const editResult = await editChatMessage(sessionId, targetMessageId, {
             content: normalizedContent,
             truncate: true,
+            regenerate: true,
             settings: outgoingSettings,
             signal: abortController.signal,
-            onStart: (payload) => {
-              applyServerPayload(sessionId, payload, { optimisticUserMessage: targetMessage });
-            },
-            onDelta: (delta) => {
-              optimisticAssistantMessage.content += delta;
-            },
-            onDone: (payload) => {
-              applyServerPayload(sessionId, payload, {
-                optimisticUserMessage: targetMessage,
-                optimisticAssistantMessage,
-              });
-            },
-            onError: (message) => {
-              optimisticAssistantMessage.content = `（请求失败）${message}`;
-            },
           });
+
+          if (editResult.kind === "regeneration_required" || editResult.kind === "privacy_pending") {
+            if (editResult.kind === "privacy_pending") {
+              applyServerPayload(sessionId, { session: editResult.session, user_message: editResult.user_message }, { optimisticUserMessage: targetMessage });
+            }
+            await resumeRegeneration(sessionId, {
+              content: normalizedContent,
+              settings: outgoingSettings,
+              regeneration: editResult.regeneration,
+              privacy: editResult.privacy,
+              optimisticUserMessage: targetMessage,
+              optimisticAssistantMessage,
+              signal: abortController.signal,
+            });
+            clearMemoryLocked();
+          } else {
+            applyServerPayload(sessionId, editResult, { optimisticUserMessage: targetMessage });
+            clearMemoryLocked();
+          }
         } catch (error) {
           if (isMemoryRebuildingError(error)) {
             messagesBySessionId[sessionId] = snapshot;
@@ -275,15 +340,26 @@ export function useChatMessaging({
         return;
       }
 
-      const result = await editChatMessage(sessionId, targetMessageId, {
+      const editResult = await editChatMessage(sessionId, targetMessageId, {
         content: normalizedContent,
         truncate: true,
         regenerate: true,
         settings: outgoingSettings,
       });
 
-      applyServerPayload(sessionId, result, { optimisticUserMessage: targetMessage });
-      clearMemoryLocked();
+      if (editResult.kind === "regeneration_required" || editResult.kind === "privacy_pending") {
+        await resumeRegeneration(sessionId, {
+          content: normalizedContent,
+          settings: outgoingSettings,
+          regeneration: editResult.regeneration,
+          privacy: editResult.privacy,
+          optimisticUserMessage: targetMessage,
+        });
+        clearMemoryLocked();
+      } else {
+        applyServerPayload(sessionId, editResult, { optimisticUserMessage: targetMessage });
+        clearMemoryLocked();
+      }
     } catch (error) {
       messagesBySessionId[sessionId] = snapshot;
       if (isMemoryRebuildingError(error)) {

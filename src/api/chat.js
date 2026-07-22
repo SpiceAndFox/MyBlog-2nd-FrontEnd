@@ -232,29 +232,52 @@ export async function listChatMessages(sessionId) {
   return data.messages || [];
 }
 
-export async function sendChatMessage(sessionId, { content, settings } = {}) {
+export async function sendChatMessage(sessionId, { content, settings, idempotencyKey } = {}) {
   const normalizedId = normalizeSessionId(sessionId);
+  const key = idempotencyKey || crypto.randomUUID();
   const res = await fetch(`/api/chat/sessions/${normalizedId}/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    headers: { "Content-Type": "application/json", "Idempotency-Key": key, ...getAuthHeader() },
     body: JSON.stringify({ content, settings }),
   });
   const data = await readJsonSafe(res);
   if (!res.ok) throw createApiError(res, data, "发送消息失败");
-  return data; // { session, user_message, assistant_message }
+  return data;
 }
 
-export async function editChatMessage(sessionId, messageId, { content, settings, truncate = false, regenerate = false } = {}) {
+export async function editChatMessage(
+  sessionId,
+  messageId,
+  { content, settings, truncate = false, regenerate = false, signal } = {}
+) {
   const normalizedSessionId = normalizeSessionId(sessionId);
   const normalizedMessageId = normalizeMessageId(messageId);
   const res = await fetch(`/api/chat/sessions/${normalizedSessionId}/messages/${normalizedMessageId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify({ content, settings, truncate, regenerate }),
+    signal,
   });
   const data = await readJsonSafe(res);
+  if (res.status === 202) {
+    return { kind: "privacy_pending", session: data.session, user_message: data.user_message, privacy: data.privacy, regeneration: data.regeneration };
+  }
+  if (res.status === 409 && data?.regeneration) {
+    return { kind: "regeneration_required", regeneration: data.regeneration };
+  }
   if (!res.ok) throw createApiError(res, data, "修改对话失败");
-  return data; // { session, user_message, assistant_message? }
+  return { kind: "updated", session: data.session, user_message: data.user_message };
+}
+
+export async function getChatPrivacyOperation(operationId) {
+  const normalizedId = String(operationId ?? "").trim();
+  if (!normalizedId) throw new Error("缺少隐私操作ID");
+  const res = await fetch(`/api/chat/privacy-operations/${encodeURIComponent(normalizedId)}`, {
+    headers: { ...getAuthHeader() },
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw createApiError(res, data, "查询隐私操作状态失败");
+  return data; // { privacy: { ..., status, statusUrl } }
 }
 
 function parseSseFrames(chunkText, state) {
@@ -280,12 +303,13 @@ function parseSseFrames(chunkText, state) {
 
 export async function streamChatMessage(
   sessionId,
-  { content, settings, onDelta, onStart, onDone, onError, signal } = {}
+  { content, settings, idempotencyKey, onDelta, onStart, onDone, onError, signal } = {}
 ) {
   const normalizedId = normalizeSessionId(sessionId);
+  const key = idempotencyKey || crypto.randomUUID();
   const res = await fetch(`/api/chat/sessions/${normalizedId}/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    headers: { "Content-Type": "application/json", "Idempotency-Key": key, ...getAuthHeader() },
     body: JSON.stringify({ content, settings: { ...(settings || {}), stream: true } }),
     signal,
   });
@@ -293,69 +317,6 @@ export async function streamChatMessage(
   if (!res.ok) {
     const data = await readJsonSafe(res);
     throw createApiError(res, data, "发送消息失败");
-  }
-
-  if (!res.body) throw new Error("响应流不可用");
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-
-  const state = {
-    buffer: "",
-    onData: (dataPart) => {
-      let payload;
-      try {
-        payload = JSON.parse(dataPart);
-      } catch {
-        return;
-      }
-
-      if (payload?.type === "start") {
-        onStart?.(payload);
-        return;
-      }
-
-      if (payload?.type === "delta") {
-        const delta = typeof payload.delta === "string" ? payload.delta : "";
-        if (delta) onDelta?.(delta);
-        return;
-      }
-
-      if (payload?.type === "done") {
-        onDone?.(payload);
-        return;
-      }
-
-      if (payload?.type === "error") {
-        onError?.(payload.error || "未知错误");
-      }
-    },
-  };
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    parseSseFrames(decoder.decode(value, { stream: true }), state);
-  }
-}
-
-export async function streamEditChatMessage(
-  sessionId,
-  messageId,
-  { content, settings, truncate = true, onDelta, onStart, onDone, onError, signal } = {}
-) {
-  const normalizedSessionId = normalizeSessionId(sessionId);
-  const normalizedMessageId = normalizeMessageId(messageId);
-  const res = await fetch(`/api/chat/sessions/${normalizedSessionId}/messages/${normalizedMessageId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    body: JSON.stringify({ content, truncate, regenerate: true, settings: { ...(settings || {}), stream: true } }),
-    signal,
-  });
-
-  if (!res.ok) {
-    const data = await readJsonSafe(res);
-    throw createApiError(res, data, "修改对话失败");
   }
 
   if (!res.body) throw new Error("响应流不可用");
