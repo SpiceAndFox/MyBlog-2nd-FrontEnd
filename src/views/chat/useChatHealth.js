@@ -33,7 +33,7 @@ export function useChatHealth({ activePresetId, handleApiError } = {}) {
   const health = ref(null);
   const loadError = ref("");
   const isLoading = ref(false);
-  const retrying = reactive({ memory: false, embedding: false });
+  const retrying = reactive({ memory: false });
   let requestVersion = 0;
   let refreshTimer = null;
 
@@ -44,7 +44,7 @@ export function useChatHealth({ activePresetId, handleApiError } = {}) {
       rows.unshift({
         component: "health",
         status: "degraded",
-        message: "暂时无法确认长期记忆和历史对话检索是否可用",
+        message: "暂时无法确认长期记忆是否可用",
         nextRetryAt: null,
         retryMode: "manual",
       });
@@ -62,9 +62,6 @@ export function useChatHealth({ activePresetId, handleApiError } = {}) {
       health.value?.memory?.provider?.status === "needs_attention"
     ) {
       components.add("memory");
-    }
-    if (health.value?.rag?.embeddingProvider?.status === "needs_attention") {
-      components.add("embedding");
     }
     return [...components];
   });
@@ -111,7 +108,7 @@ export function useChatHealth({ activePresetId, handleApiError } = {}) {
   async function retry(component) {
     const normalizedComponent = String(component || "").trim();
     const presetId = String(activePresetId?.value || "").trim();
-    if (!["memory", "embedding"].includes(normalizedComponent) || !presetId) return null;
+    if (normalizedComponent !== "memory" || !presetId) return null;
     if (retrying[normalizedComponent]) return null;
     retrying[normalizedComponent] = true;
     try {

@@ -112,8 +112,6 @@ export function useChatMessaging({
     optimisticUserMessage.role = mapped.role;
     optimisticUserMessage.content = mapped.content;
     optimisticUserMessage.createdAt = mapped.createdAt;
-    optimisticUserMessage.ragSources = mapped.ragSources || [];
-    optimisticUserMessage.ragDebug = mapped.ragDebug || null;
     return mapped;
   }
 
@@ -203,8 +201,6 @@ export function useChatMessaging({
         optimisticAssistantMessage.id = mapped.id;
         optimisticAssistantMessage.createdAt = mapped.createdAt;
         optimisticAssistantMessage.content = mapped.content || optimisticAssistantMessage.content;
-        optimisticAssistantMessage.ragSources = mapped.ragSources || [];
-        optimisticAssistantMessage.ragDebug = mapped.ragDebug || null;
         return applied;
       }
 

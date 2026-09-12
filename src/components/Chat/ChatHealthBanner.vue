@@ -11,11 +11,9 @@ const props = defineProps({
 const emit = defineEmits(["refresh", "retry"]);
 
 const canRetryMemory = computed(() => props.retryableComponents.includes("memory"));
-const canRetryEmbedding = computed(() => props.retryableComponents.includes("embedding"));
 const hasHealthReadError = computed(() => props.warnings.some((warning) => warning?.component === "health"));
 
 function componentLabel(component) {
-  if (component === "embedding") return "历史对话检索";
   if (component === "health") return "状态检查";
   return "长期记忆";
 }
@@ -55,15 +53,6 @@ function statusText(warning) {
         @click="emit('retry', 'memory')"
       >
         {{ retrying.memory ? "重试中…" : "重试长期记忆" }}
-      </button>
-      <button
-        v-if="canRetryEmbedding"
-        class="health-action"
-        type="button"
-        :disabled="retrying.embedding"
-        @click="emit('retry', 'embedding')"
-      >
-        {{ retrying.embedding ? "重试中…" : "重试历史检索" }}
       </button>
       <button
         v-if="hasHealthReadError"
