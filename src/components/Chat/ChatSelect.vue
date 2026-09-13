@@ -8,6 +8,7 @@ defineProps({
   modelValue: { type: [String, Number], default: "" },
   options: { type: Array, default: () => [] },
   label: { type: String, required: true },
+  descriptionId: { type: String, default: undefined },
   disabled: { type: Boolean, default: false },
   searchable: { type: Boolean, default: false },
 });
@@ -67,6 +68,7 @@ function mapKeydown(handlers) {
         <input
           v-bind="attributes"
           :aria-label="label"
+          :aria-describedby="descriptionId"
           :aria-labelledby="undefined"
           class="vs__search"
           v-on="events"
@@ -106,11 +108,11 @@ function mapKeydown(handlers) {
   z-index: 2;
 }
 .chat-select :deep(.vs__dropdown-toggle) {
-  min-height: 46px;
+  min-height: var(--chat-select-height, 46px);
   padding: 4px 12px;
-  background: var(--chat-surface-2);
+  background: var(--chat-select-background, var(--chat-surface-2));
   border: 1px solid var(--chat-border);
-  border-radius: var(--chat-radius-md);
+  border-radius: var(--chat-select-radius, var(--chat-radius-md));
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .chat-select :deep(.vs__dropdown-toggle:hover) {
@@ -142,7 +144,7 @@ function mapKeydown(handlers) {
   white-space: nowrap;
 }
 .chat-select :deep(.vs__search) {
-  min-height: 32px;
+  min-height: calc(var(--chat-select-height, 46px) - 14px);
   min-width: 0;
   margin: 0;
   padding: 0;
