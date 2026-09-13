@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
 import { renderChatMarkdown } from "@/views/chat/markdown";
+import ChatAvatar from "./ChatAvatar.vue";
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -20,6 +21,9 @@ const emit = defineEmits([
 ]);
 
 const isUser = computed(() => props.message?.role === "user");
+const avatarUrl = computed(() =>
+  (isUser.value ? props.userProfile : props.assistantProfile)?.avatarUrl || "",
+);
 const renderedAssistantHtml = computed(() =>
   renderChatMarkdown(props.message?.content ?? ""),
 );
@@ -129,6 +133,7 @@ function onEditKeydown(event) {
     :class="{ user: isUser, editing: isEditing }"
     :aria-label="displayName"
   >
+    <ChatAvatar class="message-avatar" :src="avatarUrl" :name="displayName" />
     <div class="bubble" :class="{ user: isUser }">
       <div class="meta">
         <div class="meta-right">
@@ -189,22 +194,34 @@ function onEditKeydown(event) {
 
 <style scoped>
 .row {
+  --message-avatar-size: 32px;
+  --message-gap: 12px;
   display: flex;
   align-items: flex-start;
+  gap: var(--message-gap);
   min-width: 0;
 }
 .row.user {
-  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+.message-avatar {
+  width: var(--message-avatar-size);
+  height: var(--message-avatar-size);
+  margin-top: 3px;
+}
+.user .message-avatar {
+  --chat-avatar-bg: var(--chat-avatar-user-bg);
+  --chat-avatar-text: var(--chat-avatar-user-text);
 }
 .bubble {
+  box-sizing: border-box;
   position: relative;
   min-width: 0;
-  max-width: 100%;
+  max-width: calc(100% - var(--message-avatar-size) - var(--message-gap));
   padding: 4px 0;
   background: var(--chat-bubble-bg);
 }
 .bubble.user {
-  max-width: 90%;
   padding: 10px 15px;
   border-radius: 16px 16px 5px 16px;
   background: var(--chat-bubble-user-bg);
@@ -387,6 +404,10 @@ function onEditKeydown(event) {
 }
 
 @media (max-width: 900px), (pointer: coarse) {
+  .row {
+    --message-avatar-size: 28px;
+    --message-gap: 9px;
+  }
   .meta {
     opacity: 1;
     pointer-events: auto;

@@ -176,7 +176,6 @@ useChatComposerSlashFocus({
       :mobileOpen="isMobileSidebarOpen"
       :todayKey="todayKey"
       @select-session="selectSession"
-      @go-today="handleGoToToday"
       @toggle-collapse="toggleSidebarCollapsed"
       @request-close="closeMobileSidebar"
       @request-delete-session="requestDeleteSession"
@@ -294,7 +293,7 @@ useChatComposerSlashFocus({
   --chat-sidebar-text: #393934;
   --chat-sidebar-muted: #74746c;
   --chat-sidebar-hover: #eeede8;
-  --chat-sidebar-active: #f0e7e9;
+  --chat-sidebar-active: var(--chat-accent-soft);
   --chat-sidebar-actions-bg: #f7f6f3;
 
   --chat-surface: #fffefd;
@@ -306,6 +305,9 @@ useChatComposerSlashFocus({
 
   --chat-accent: #996a77;
   --chat-accent-strong: #825563;
+  --chat-accent-soft: #f0e7e9;
+  --chat-focus-ring: #e5d4da;
+  --chat-overlay: rgba(53, 48, 45, 0.32);
 
   --chat-topbar-bg: #fffefd;
   --chat-topbar-hover: #eeede8;

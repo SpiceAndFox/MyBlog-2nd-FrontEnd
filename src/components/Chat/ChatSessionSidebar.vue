@@ -17,7 +17,6 @@ const props = defineProps({
 });
 const emit = defineEmits([
   "select-session",
-  "go-today",
   "toggle-collapse",
   "request-close",
   "request-delete-session",
@@ -184,16 +183,6 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
           </button>
         </header>
 
-        <button
-          class="today-button"
-          type="button"
-          title="回到今天"
-          aria-label="回到今天"
-          @click="emit('go-today')"
-        >
-          <span class="rail-icon"><ChatIcon name="calendar" /></span>
-          <span class="expanded-label" aria-hidden="true">回到今天</span>
-        </button>
         <nav class="session-list" aria-label="历史对话">
           <div
             v-if="sessions.length"
@@ -353,12 +342,10 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
     calc((var(--sidebar-toggle-width) - var(--sidebar-icon-width)) / 2)
   );
 }
-.sidebar-toggle:hover,
-.today-button:hover {
+.sidebar-toggle:hover {
   background: var(--chat-sidebar-hover);
 }
-.sidebar-toggle:focus-visible,
-.today-button:focus-visible {
+.sidebar-toggle:focus-visible {
   outline: 2px solid var(--chat-accent);
   outline-offset: -2px;
 }
@@ -370,22 +357,6 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   flex: 0 0 var(--sidebar-icon-width);
   color: var(--chat-muted);
 }
-.today-button {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  flex: 0 0 auto;
-  padding: 0;
-  margin-bottom: 18px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--chat-text);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
 .session-list {
   flex: 1;
   min-height: 0;
@@ -393,6 +364,13 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--chat-scrollbar) transparent;
+}
+/* Keep wheel and keyboard scrolling available in the desktop rail. */
+.compact .session-list {
+  scrollbar-width: none;
+}
+.compact .session-list::-webkit-scrollbar {
+  display: none;
 }
 .section-label {
   height: 16px;

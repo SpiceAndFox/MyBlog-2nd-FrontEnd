@@ -1,5 +1,7 @@
 <script setup>
 import { computed, reactive, watch } from "vue";
+import ChatIcon from "./ChatIcon.vue";
+import ChatSelect from "./ChatSelect.vue";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -202,6 +204,14 @@ function formatControlValue(control, rawValue) {
   return String(number);
 }
 
+function rangeProgress(control) {
+  const min = Number(control.min ?? 0);
+  const max = Number(control.max ?? 100);
+  const value = Number(getDraftValue(control.key) ?? min);
+  if (!Number.isFinite(value) || max <= min) return "0%";
+  return `${Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))}%`;
+}
+
 function onRangeInput(control, event) {
   const raw = event?.target?.value;
   const number = Number(raw);
@@ -219,10 +229,6 @@ function onNumberInput(control, event) {
 
 function onToggleChange(control, event) {
   setDraftValue(control.key, Boolean(event?.target?.checked));
-}
-
-function onSelectChange(control, event) {
-  setDraftValue(control.key, String(event?.target?.value ?? ""));
 }
 
 function applyFromCurrentSettings() {
@@ -287,6 +293,8 @@ function applyFromCurrentSettings() {
 
 const selectedProvider = computed(() => props.providers.find((p) => p.id === draft.providerId) || null);
 const modelsForSelectedProvider = computed(() => selectedProvider.value?.models || []);
+const providerOptions = computed(() => props.providers.map(p => ({ value: p.id, label: p.name })));
+const modelOptions = computed(() => modelsForSelectedProvider.value.map(m => ({ value: m.id, label: m.name })));
 const selectedModel = computed(
   () => modelsForSelectedProvider.value.find((m) => m.id === draft.modelId) || null
 );
@@ -306,7 +314,8 @@ watch(
   (open) => {
     if (!open) return;
     applyFromCurrentSettings();
-  }
+  },
+  { immediate: true },
 );
 
 watch(
@@ -441,20 +450,26 @@ function save() {
 
 <template>
   <transition name="chat-dialog-fade">
-    <div v-if="open" class="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      v-if="open"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chat-settings-title"
+      aria-describedby="chat-settings-description"
+    >
       <div class="modal">
         <header class="modal-header">
           <div class="header-left">
-            <h3 class="modal-title">设置</h3>
+            <span class="header-icon"><ChatIcon name="settings" :size="22" /></span>
+            <div>
+              <h3 id="chat-settings-title" class="modal-title">聊天设置</h3>
+              <p id="chat-settings-description" class="description">选择模型，调整适合你的对话节奏。</p>
+            </div>
           </div>
 
           <button class="icon-button" type="button" @click="close" aria-label="关闭">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path
-                d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.42L12 13.41l4.89 4.9a1 1 0 0 0 1.42-1.41L13.41 12l4.9-4.89a1 1 0 0 0-.01-1.4Z"
-                fill="currentColor"
-              />
-            </svg>
+            <ChatIcon name="x" :size="20" />
           </button>
         </header>
 
@@ -462,23 +477,19 @@ function save() {
           <section class="section">
             <h4 class="section-title">提供方与模型</h4>
             <div class="grid">
-              <label class="field">
-                <span class="label">Provider</span>
-                <select v-model="draft.providerId" class="control">
-                  <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.name }}</option>
-                </select>
-              </label>
+              <div class="field">
+                <span class="label">提供方</span>
+                <ChatSelect v-model="draft.providerId" :options="providerOptions" label="提供方" searchable />
+              </div>
 
-              <label class="field">
-                <span class="label">Model</span>
-                <select v-model="draft.modelId" class="control">
-                  <option v-for="m in modelsForSelectedProvider" :key="m.id" :value="m.id">{{ m.name }}</option>
-                </select>
-              </label>
+              <div class="field">
+                <span class="label">模型</span>
+                <ChatSelect v-model="draft.modelId" :options="modelOptions" label="模型" searchable />
+              </div>
             </div>
           </section>
 
-          <section class="section">
+          <section v-if="visibleSettingsSchema.length" class="section">
             <h4 class="section-title">生成参数</h4>
             <div class="grid">
               <template v-for="control in fieldControls" :key="control.key">
@@ -495,6 +506,7 @@ function save() {
                     :step="control.step"
                     :value="Number(getDraftValue(control.key) ?? 0)"
                     :disabled="isControlDisabled(control)"
+                    :style="{ '--range-progress': rangeProgress(control) }"
                     @input="onRangeInput(control, $event)"
                   />
                 </label>
@@ -513,23 +525,16 @@ function save() {
                   />
                 </label>
 
-                <label v-else-if="control.type === 'select'" class="field">
+                <div v-else-if="control.type === 'select'" class="field">
                   <span class="label">{{ control.label }}</span>
-                  <select
-                    class="control"
-                    :value="String(getDraftValue(control.key) ?? '')"
+                  <ChatSelect
+                    :label="control.label"
+                    :model-value="String(getDraftValue(control.key) ?? '')"
+                    :options="resolveControlOptions(control, selectedModel)"
                     :disabled="isControlDisabled(control)"
-                    @change="onSelectChange(control, $event)"
-                  >
-                    <option
-                      v-for="option in resolveControlOptions(control, selectedModel)"
-                      :key="option.value"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </label>
+                    @update:model-value="setDraftValue(control.key, $event)"
+                  />
+                </div>
               </template>
 
               <div v-if="toggleControls.length" class="field toggles">
@@ -537,6 +542,7 @@ function save() {
                   <input
                     type="checkbox"
                     :checked="Boolean(getDraftValue(control.key))"
+                    :disabled="isControlDisabled(control)"
                     @change="onToggleChange(control, $event)"
                   />
                   <span>{{ control.label }}</span>
@@ -548,7 +554,7 @@ function save() {
 
         <footer class="modal-footer">
           <button class="button button-secondary" type="button" @click="close">取消</button>
-          <button class="button button-primary" type="button" @click="save">保存</button>
+          <button class="button button-primary" type="button" @click="save">保存设置</button>
         </footer>
       </div>
     </div>
@@ -562,19 +568,22 @@ function save() {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 22px;
-  background: rgba(17, 24, 39, 0.42);
-  backdrop-filter: blur(8px);
+  box-sizing: border-box;
+  padding: 24px;
+  background: var(--chat-overlay);
+  backdrop-filter: blur(6px);
   z-index: 40;
 }
 
 .modal {
-  width: min(860px, 100%);
-  height: min(550px, 70vh);
-  border-radius: var(--chat-radius-lg, 14px);
-  background: var(--chat-surface-2, #fff);
-  border: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  width: min(760px, 100%);
+  max-height: 100%;
+  border-radius: 20px;
+  background: var(--chat-surface-2);
+  color: var(--chat-text);
+  color-scheme: light;
+  border: 1px solid var(--chat-border);
+  box-shadow: var(--chat-card-shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -587,82 +596,120 @@ function save() {
 
 .modal-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--chat-border);
+  background: var(--chat-surface);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
   gap: 14px;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
+  min-width: 0;
+}
+
+.header-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  background: var(--chat-accent-soft);
+  color: var(--chat-accent);
 }
 
 .modal-title {
   margin: 0;
-  font-size: 1.05rem;
-  color: var(--chat-text, #111827);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.description {
+  margin: 6px 0 0;
+  color: var(--chat-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .icon-button {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: var(--chat-radius-md);
+  border: 0;
   background: transparent;
   cursor: pointer;
-  color: var(--chat-muted, rgba(17, 24, 39, 0.62));
+  color: var(--chat-muted);
   display: grid;
   place-items: center;
-  transition: background-color 0.18s ease, color 0.18s ease;
 }
 
 .icon-button:hover {
-  background: rgba(17, 24, 39, 0.05);
-  color: var(--chat-text, #111827);
+  background: var(--chat-sidebar-hover);
+  color: var(--chat-text);
 }
 
 .modal-body {
-  padding: 14px 16px 16px;
-  overflow: auto;
-  overflow-x: hidden;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--chat-scrollbar) transparent;
+  scrollbar-gutter: stable;
+}
+
+.section {
+  padding: 20px;
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-lg);
+  background: var(--chat-surface);
 }
 
 .section + .section {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .section-title {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  color: var(--chat-text, #111827);
+  margin: 0 0 18px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 20px 18px;
+  align-items: start;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
 }
 
-.field.full {
-  grid-column: 1 / -1;
-}
-
 .label {
-  font-size: 0.82rem;
-  color: rgba(17, 24, 39, 0.72);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--chat-muted);
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .value {
-  color: rgba(17, 24, 39, 0.5);
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--chat-accent-soft);
+  color: var(--chat-accent-strong);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -671,107 +718,185 @@ function save() {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  border-radius: 12px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
+  min-height: 44px;
+  border-radius: var(--chat-radius-md);
+  border: 1px solid var(--chat-border);
   padding: 10px 12px;
-  font-size: 0.95rem;
-  outline: none;
-  background: rgba(249, 250, 251, 0.9);
-  color: rgba(17, 24, 39, 0.92);
+  font: inherit;
+  font-size: 14px;
+  background: var(--chat-surface-2);
+  color: var(--chat-text);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.control:hover:not(:disabled) {
+  border-color: var(--chat-scrollbar);
 }
 
 .control:focus {
-  border-color: rgba(16, 163, 127, 0.65);
-  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
+  outline: none;
+  border-color: var(--chat-accent);
+  box-shadow: 0 0 0 3px var(--chat-focus-ring);
 }
 
-.control:disabled {
+.control:disabled,
+.range:disabled,
+.toggle input:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
-  background: rgba(243, 244, 246, 0.85);
-}
-
-.textarea {
-  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
-  resize: vertical;
-  max-width: 100%;
-  min-height: 140px;
-  line-height: 1.55;
+  opacity: 0.5;
 }
 
 .range {
+  appearance: none;
   width: 100%;
-  accent-color: var(--chat-accent, #3b82f6);
+  height: 28px;
   margin: 0;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--chat-accent);
 }
 
-.range:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
+.range::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--chat-accent) var(--range-progress), var(--chat-border) var(--range-progress));
+}
+
+.range::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--chat-border);
+}
+
+.range::-moz-range-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--chat-accent);
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  border: 3px solid var(--chat-surface);
+  background: var(--chat-accent);
+  box-shadow: 0 0 0 1px var(--chat-accent);
+}
+
+.range::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid var(--chat-surface);
+  background: var(--chat-accent);
+  box-shadow: 0 0 0 1px var(--chat-accent);
 }
 
 .toggles {
   grid-column: 1 / -1;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px dashed rgba(17, 24, 39, 0.18);
-  background: rgba(249, 250, 251, 0.75);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--chat-border);
 }
 
 .toggle {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: rgba(17, 24, 39, 0.82);
-  font-size: 0.92rem;
-  user-select: none;
-  min-width: 220px;
+  min-height: 44px;
+  color: var(--chat-text);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.toggle input {
+  appearance: none;
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--chat-scrollbar);
+  border-radius: 999px;
+  background: var(--chat-scrollbar);
+  cursor: pointer;
+  transition: background-color 0.18s ease;
+}
+
+.toggle input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--chat-surface);
+  transition: transform 0.18s ease;
+}
+
+.toggle input:checked {
+  background: var(--chat-accent);
+  border-color: var(--chat-accent);
+}
+
+.toggle input:checked::after {
+  transform: translateX(14px);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 12px 16px 14px;
-  border-top: 1px solid var(--chat-border, rgba(17, 24, 39, 0.12));
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
+  flex: 0 0 auto;
+  padding: 16px 24px;
+  border-top: 1px solid var(--chat-border);
+  background: var(--chat-surface);
 }
 
 .button {
+  min-height: 44px;
+  min-width: 80px;
   border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-weight: 700;
+  border-radius: var(--chat-radius-md);
+  padding: 10px 18px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.06s ease;
-}
-
-.button:active {
-  transform: translateY(1px);
 }
 
 .button-secondary {
-  background: transparent;
-  color: var(--chat-text, #111827);
-  border-color: rgba(17, 24, 39, 0.14);
+  background: var(--chat-surface);
+  color: var(--chat-text);
+  border-color: var(--chat-border);
 }
 
 .button-secondary:hover {
-  background: rgba(17, 24, 39, 0.04);
+  background: var(--chat-sidebar-hover);
 }
 
 .button-primary {
-  background: var(--chat-accent, #3b82f6);
-  color: #fff;
+  background: var(--chat-accent);
+  color: var(--chat-avatar-user-text);
 }
 
 .button-primary:hover {
-  background: var(--chat-accent-strong, #2563eb);
+  background: var(--chat-accent-strong);
+}
+
+.icon-button:focus-visible,
+.button:focus-visible,
+.range:focus-visible,
+.toggle input:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 4px;
 }
 
 .chat-dialog-fade-enter-active,
@@ -784,7 +909,7 @@ function save() {
   opacity: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .modal-overlay {
     padding: 0;
     align-items: stretch;
@@ -796,17 +921,42 @@ function save() {
     border-radius: 0;
   }
 
-  .grid {
+  .modal-header {
+    padding: max(16px, env(safe-area-inset-top)) 16px 16px;
+  }
+
+  .header-icon {
+    display: none;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .section {
+    padding: 16px;
+  }
+
+  .grid,
+  .toggles {
     grid-template-columns: 1fr;
   }
 
-  .toggles {
-    flex-direction: column;
-    align-items: flex-start;
+  .control {
+    font-size: 16px;
   }
 
-  .toggle {
-    min-width: 0;
+  .modal-footer {
+    padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal *,
+  .toggle input::after,
+  .chat-dialog-fade-enter-active,
+  .chat-dialog-fade-leave-active {
+    transition: none;
   }
 }
 </style>

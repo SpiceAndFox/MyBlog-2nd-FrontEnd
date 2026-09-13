@@ -14,7 +14,7 @@ before(async () => {
     mode: "test",
     logLevel: "error",
     optimizeDeps: { noDiscovery: true, include: [] },
-    server: { middlewareMode: true, hmr: false, watch: null },
+    server: { middlewareMode: true, hmr: false, ws: false, watch: null },
   });
   Sidebar = (
     await server.ssrLoadModule("/src/components/Chat/ChatSessionSidebar.vue")
@@ -56,11 +56,11 @@ test("collapsed desktop renders a visible rail with accessible session and navig
   assert.doesNotMatch(wrapper, /display:\s*none|\binert\b/);
   assert.match(html, /aria-label="展开会话侧栏"/);
   assert.match(html, /aria-label="昨天（2026-08-31）"/);
-  assert.match(html, /aria-label="回到今天"/);
+  assert.doesNotMatch(html, /回到今天/);
   assert.match(html, /<details[^>]*brand-dropdown[^>]*aria-hidden="true"/);
   assert.match(html, /<details[^>]*brand-dropdown[^>]*\binert\b/);
   assert.match(html, /aria-label="设置"/);
-  assert.match(html, />\s*8\/31\s*</);
+  assert.match(html, /class="session-thumbnail"[^>]*>\s*昨天\s*</);
 });
 
 test("closed mobile drawer is hidden and excluded from keyboard interaction", async () => {

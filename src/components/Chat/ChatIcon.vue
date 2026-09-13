@@ -5,6 +5,7 @@ defineProps({
 });
 
 const paths = {
+  x: ["m6 6 12 12M6 18 18 6"],
   panel: [
     "M9 3v18",
     "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2",

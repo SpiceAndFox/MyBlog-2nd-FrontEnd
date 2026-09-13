@@ -18,6 +18,7 @@ const label = computed(() =>
   formatSessionDateLabel(dateKey.value, props.todayKey),
 );
 const compactLabel = computed(() => {
+  if (label.value === "今天" || label.value === "昨天") return label.value;
   if (!isDateKey(dateKey.value)) return label.value.slice(0, 2);
   const [, month, day] = dateKey.value.split("-");
   return `${Number(month)}/${Number(day)}`;

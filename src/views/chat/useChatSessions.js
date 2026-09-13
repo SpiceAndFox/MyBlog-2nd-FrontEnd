@@ -72,7 +72,10 @@ export function useChatSessions({
   const activeMessages = computed(() => messagesBySessionId[activeSessionId.value] || []);
 
   const sessionsForActivePreset = computed(() =>
-    sessions.value.filter((session) => String(session?.presetId || "") === resolvedActivePresetId.value)
+    sessions.value
+      .filter((session) => String(session?.presetId || "") === resolvedActivePresetId.value)
+      // This is a day archive; updates to older sessions must not reorder days.
+      .sort((a, b) => getSessionDateKey(b).localeCompare(getSessionDateKey(a)))
   );
 
   const activeSessionDateKey = computed(() => (activeSession.value ? getSessionDateKey(activeSession.value) : ""));

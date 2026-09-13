@@ -67,8 +67,7 @@ export function formatSessionDateLabel(
     Date.parse(`${todayKey}T00:00:00Z`) - Date.parse(`${dateKey}T00:00:00Z`);
   if (difference === 86_400_000) return "昨天";
   const [year, month, day] = dateKey.split("-");
-  const prefix = year === todayKey.slice(0, 4) ? "" : `${year} 年 `;
-  return `${prefix}${Number(month)} 月 ${Number(day)} 日`;
+  return `${year} 年 ${Number(month)} 月 ${Number(day)} 日`;
 }
 
 export function formatLocalDateKey(value = new Date()) {
