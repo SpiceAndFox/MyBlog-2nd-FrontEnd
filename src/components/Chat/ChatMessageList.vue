@@ -1,12 +1,5 @@
 <script setup>
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  watch,
-} from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ChatMessageBubble from "@/components/Chat/ChatMessageBubble.vue";
 
 const props = defineProps({
@@ -20,12 +13,7 @@ const props = defineProps({
   actionsDisabled: { type: Boolean, default: false },
 });
 
-const emit = defineEmits([
-  "request-edit",
-  "update-edit-draft",
-  "commit-edit",
-  "cancel-edit",
-]);
+const emit = defineEmits(["request-edit", "update-edit-draft", "commit-edit", "cancel-edit"]);
 
 const listRef = ref(null);
 
@@ -34,8 +22,7 @@ const shouldAutoScroll = ref(true);
 let pendingScrollFrame = 0;
 
 function isNearBottom(element) {
-  const distance =
-    element.scrollHeight - element.scrollTop - element.clientHeight;
+  const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
   return distance <= AUTO_SCROLL_THRESHOLD_PX;
 }
 
@@ -86,12 +73,8 @@ watch(
   { immediate: true },
 );
 
-const lastMessageContent = computed(
-  () => props.messages[props.messages.length - 1]?.content || "",
-);
-const lastMessageId = computed(
-  () => props.messages[props.messages.length - 1]?.id || "",
-);
+const lastMessageContent = computed(() => props.messages[props.messages.length - 1]?.content || "");
+const lastMessageId = computed(() => props.messages[props.messages.length - 1]?.id || "");
 
 watch(lastMessageContent, async () => {
   if (!shouldAutoScroll.value) return;
@@ -105,45 +88,26 @@ watch(lastMessageId, async () => {
 </script>
 
 <template>
-  <div
-    ref="listRef"
-    class="list"
-    :class="{ 'is-empty': messages.length === 0 }"
-  >
+  <div ref="listRef" class="list" :class="{ 'is-empty': messages.length === 0 }">
     <div v-if="messages.length && sessionLabel" class="session-date">
       {{ sessionLabel }}
     </div>
     <div v-if="messages.length === 0" class="empty">
-      <img
-        class="empty-gif"
-        src="/chat-default.gif"
-        alt=""
-        aria-hidden="true"
-      />
-      <p class="empty-caption">想聊些什么？</p>
+      <img class="empty-gif" src="/chat-default.gif" alt="" aria-hidden="true" />
+      <p class="empty-caption">...</p>
     </div>
 
     <transition-group v-else name="chat-message" tag="div" class="messages">
       <ChatMessageBubble
         v-for="(message, index) in messages"
-        :key="
-          message.clientId ||
-          message.id ||
-          `${message.role || 'message'}_${index}`
-        "
+        :key="message.clientId || message.id || `${message.role || 'message'}_${index}`"
         :message="message"
         :userProfile="userProfile"
         :assistantProfile="assistantProfile"
         :isEditing="String(message.id) === String(editingMessageId)"
-        :editDraft="
-          String(message.id) === String(editingMessageId) ? editingDraft : ''
-        "
-        :processing="
-          editingProcessing && String(message.id) === String(editingMessageId)
-        "
-        :actionsDisabled="
-          actionsDisabled && String(message.id) !== String(editingMessageId)
-        "
+        :editDraft="String(message.id) === String(editingMessageId) ? editingDraft : ''"
+        :processing="editingProcessing && String(message.id) === String(editingMessageId)"
+        :actionsDisabled="actionsDisabled && String(message.id) !== String(editingMessageId)"
         @request-edit="emit('request-edit', $event)"
         @update:editDraft="emit('update-edit-draft', $event)"
         @commit-edit="emit('commit-edit', $event)"

@@ -181,6 +181,7 @@ defineExpose({ focus });
 }
 .input {
   flex: 1;
+  align-self: center;
   min-width: 0;
   box-sizing: border-box;
   min-height: 36px;

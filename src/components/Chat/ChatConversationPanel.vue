@@ -53,9 +53,7 @@ const emit = defineEmits([
 
 const composerRef = ref(null);
 const headerRef = ref(null);
-const sessionLabel = computed(() =>
-  formatSessionDateLabel(props.sessionTitle, props.todayKey),
-);
+const sessionLabel = computed(() => formatSessionDateLabel(props.sessionTitle, props.todayKey));
 const composerDraftModel = computed({
   get: () => props.composerDraft,
   set: (value) => emit("update:composerDraft", value),
@@ -121,12 +119,7 @@ defineExpose({
     />
 
     <transition name="day-rollover-toast">
-      <div
-        v-if="showDayRollover"
-        class="day-rollover-toast"
-        role="status"
-        aria-live="polite"
-      >
+      <div v-if="showDayRollover" class="day-rollover-toast" role="status" aria-live="polite">
         <div class="day-rollover-card">
           <div class="day-rollover-title">新的一天</div>
           <div class="day-rollover-date">{{ dayRolloverTo }}</div>
@@ -134,12 +127,7 @@ defineExpose({
       </div>
     </transition>
 
-    <div
-      v-if="!readOnly && memoryLockMessage"
-      class="memory-lock-banner"
-      role="note"
-      aria-label="记忆重建提示"
-    >
+    <div v-if="!readOnly && memoryLockMessage" class="memory-lock-banner" role="note" aria-label="记忆重建提示">
       <div class="memory-lock-text">{{ memoryLockMessage }}</div>
     </div>
 
@@ -162,12 +150,7 @@ defineExpose({
       :editingDraft="editingDraft"
       :editingProcessing="editingProcessing"
       :actionsDisabled="
-        readOnly ||
-        isSending ||
-        isStreaming ||
-        isEditingActive ||
-        editingProcessing ||
-        Boolean(memoryLockMessage)
+        readOnly || isSending || isStreaming || isEditingActive || editingProcessing || Boolean(memoryLockMessage)
       "
       @request-edit="emit('request-edit-message', $event)"
       @update-edit-draft="emit('update-edit-draft', $event)"
@@ -178,13 +161,7 @@ defineExpose({
     <div v-if="readOnly" class="read-only-shell">
       <div class="read-only-banner" role="note" aria-label="历史会话提示">
         <span class="read-only-text">历史对话，只读</span>
-        <button
-          class="read-only-action"
-          type="button"
-          @click="emit('go-today')"
-        >
-          回到今天
-        </button>
+        <button class="read-only-action" type="button" @click="emit('go-today')">回到今天</button>
       </div>
     </div>
     <ChatComposer
@@ -192,9 +169,7 @@ defineExpose({
       ref="composerRef"
       v-model="composerDraftModel"
       :disabled="Boolean(memoryLockMessage)"
-      :placeholder="
-        memoryLockMessage ? '记忆重建中，请稍后再试…' : '想聊些什么？'
-      "
+      :placeholder="memoryLockMessage ? '记忆重建中…' : ''"
       :isSending="isSending || isEditingActive"
       :isStreaming="isStreaming"
       @send="emit('send-message', $event)"
