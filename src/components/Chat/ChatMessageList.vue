@@ -1,9 +1,17 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import ChatMessageBubble from "@/components/Chat/ChatMessageBubble.vue";
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
+  sessionLabel: { type: String, default: "" },
   userProfile: { type: Object, default: null },
   assistantProfile: { type: Object, default: null },
   editingMessageId: { type: String, default: "" },
@@ -12,7 +20,12 @@ const props = defineProps({
   actionsDisabled: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["request-edit", "update-edit-draft", "commit-edit", "cancel-edit"]);
+const emit = defineEmits([
+  "request-edit",
+  "update-edit-draft",
+  "commit-edit",
+  "cancel-edit",
+]);
 
 const listRef = ref(null);
 
@@ -21,7 +34,8 @@ const shouldAutoScroll = ref(true);
 let pendingScrollFrame = 0;
 
 function isNearBottom(element) {
-  const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+  const distance =
+    element.scrollHeight - element.scrollTop - element.clientHeight;
   return distance <= AUTO_SCROLL_THRESHOLD_PX;
 }
 
@@ -72,8 +86,12 @@ watch(
   { immediate: true },
 );
 
-const lastMessageContent = computed(() => props.messages[props.messages.length - 1]?.content || "");
-const lastMessageId = computed(() => props.messages[props.messages.length - 1]?.id || "");
+const lastMessageContent = computed(
+  () => props.messages[props.messages.length - 1]?.content || "",
+);
+const lastMessageId = computed(
+  () => props.messages[props.messages.length - 1]?.id || "",
+);
 
 watch(lastMessageContent, async () => {
   if (!shouldAutoScroll.value) return;
@@ -87,23 +105,45 @@ watch(lastMessageId, async () => {
 </script>
 
 <template>
-  <div ref="listRef" class="list" :class="{ 'is-empty': messages.length === 0 }">
+  <div
+    ref="listRef"
+    class="list"
+    :class="{ 'is-empty': messages.length === 0 }"
+  >
+    <div v-if="messages.length && sessionLabel" class="session-date">
+      {{ sessionLabel }}
+    </div>
     <div v-if="messages.length === 0" class="empty">
-      <img class="empty-gif" src="/chat-default.gif" alt="" aria-hidden="true" />
-      <p class="empty-caption">开始新的一天 ...</p>
+      <img
+        class="empty-gif"
+        src="/chat-default.gif"
+        alt=""
+        aria-hidden="true"
+      />
+      <p class="empty-caption">想聊些什么？</p>
     </div>
 
     <transition-group v-else name="chat-message" tag="div" class="messages">
       <ChatMessageBubble
         v-for="(message, index) in messages"
-        :key="message.clientId || message.id || `${message.role || 'message'}_${index}`"
+        :key="
+          message.clientId ||
+          message.id ||
+          `${message.role || 'message'}_${index}`
+        "
         :message="message"
         :userProfile="userProfile"
         :assistantProfile="assistantProfile"
         :isEditing="String(message.id) === String(editingMessageId)"
-        :editDraft="String(message.id) === String(editingMessageId) ? editingDraft : ''"
-        :processing="editingProcessing && String(message.id) === String(editingMessageId)"
-        :actionsDisabled="actionsDisabled && String(message.id) !== String(editingMessageId)"
+        :editDraft="
+          String(message.id) === String(editingMessageId) ? editingDraft : ''
+        "
+        :processing="
+          editingProcessing && String(message.id) === String(editingMessageId)
+        "
+        :actionsDisabled="
+          actionsDisabled && String(message.id) !== String(editingMessageId)
+        "
         @request-edit="emit('request-edit', $event)"
         @update:editDraft="emit('update-edit-draft', $event)"
         @commit-edit="emit('commit-edit', $event)"
@@ -120,11 +160,11 @@ watch(lastMessageId, async () => {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 18px 22px;
+  padding: 22px 30px 28px;
   box-sizing: border-box;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
+  scrollbar-color: var(--chat-scrollbar) transparent;
 }
 
 .list::-webkit-scrollbar {
@@ -155,10 +195,17 @@ watch(lastMessageId, async () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 28px;
   width: 100%;
-  max-width: 820px;
+  max-width: 720px;
   margin: 0 auto;
+}
+
+.session-date {
+  text-align: center;
+  color: var(--chat-muted);
+  font-size: 12px;
+  margin: 0 0 32px;
 }
 
 .chat-message-enter-active {
@@ -234,14 +281,14 @@ watch(lastMessageId, async () => {
 
 .empty-caption {
   margin: 0;
-  color: rgba(17, 24, 39, 0.68);
-  font-size: 1.8rem;
-  font-weight: 750;
+  color: var(--chat-muted);
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 @media (max-width: 900px) {
   .list {
-    padding: 14px 14px 18px;
+    padding: 22px 20px 26px;
   }
 
   .empty-gif {

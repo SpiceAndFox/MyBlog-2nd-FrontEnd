@@ -57,6 +57,20 @@ export function isDateKey(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim());
 }
 
+export function formatSessionDateLabel(
+  dateKey,
+  todayKey = formatLocalDateKey(),
+) {
+  if (!isDateKey(dateKey) || !isDateKey(todayKey)) return dateKey;
+  if (dateKey === todayKey) return "今天";
+  const difference =
+    Date.parse(`${todayKey}T00:00:00Z`) - Date.parse(`${dateKey}T00:00:00Z`);
+  if (difference === 86_400_000) return "昨天";
+  const [year, month, day] = dateKey.split("-");
+  const prefix = year === todayKey.slice(0, 4) ? "" : `${year} 年 `;
+  return `${prefix}${Number(month)} 月 ${Number(day)} 日`;
+}
+
 export function formatLocalDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -83,7 +97,14 @@ export function getMsUntilNextDayBoundary(value = new Date()) {
 
   try {
     const zonedNow = getZonedParts(now);
-    const zonedTodayUtcMidnight = Date.UTC(zonedNow.year, zonedNow.month - 1, zonedNow.day, 0, 0, 0);
+    const zonedTodayUtcMidnight = Date.UTC(
+      zonedNow.year,
+      zonedNow.month - 1,
+      zonedNow.day,
+      0,
+      0,
+      0,
+    );
     const zonedTomorrow = new Date(zonedTodayUtcMidnight + 24 * 60 * 60 * 1000);
 
     const desired = {
@@ -95,7 +116,14 @@ export function getMsUntilNextDayBoundary(value = new Date()) {
       second: 0,
     };
 
-    let utcGuess = Date.UTC(desired.year, desired.month - 1, desired.day, desired.hour, desired.minute, desired.second);
+    let utcGuess = Date.UTC(
+      desired.year,
+      desired.month - 1,
+      desired.day,
+      desired.hour,
+      desired.minute,
+      desired.second,
+    );
     for (let i = 0; i < 3; i += 1) {
       const guessParts = getZonedParts(new Date(utcGuess));
       const guessAsUtc = Date.UTC(
@@ -104,7 +132,7 @@ export function getMsUntilNextDayBoundary(value = new Date()) {
         guessParts.day,
         guessParts.hour,
         guessParts.minute,
-        guessParts.second
+        guessParts.second,
       );
       const desiredAsUtc = Date.UTC(
         desired.year,
@@ -112,7 +140,7 @@ export function getMsUntilNextDayBoundary(value = new Date()) {
         desired.day,
         desired.hour,
         desired.minute,
-        desired.second
+        desired.second,
       );
       const diff = desiredAsUtc - guessAsUtc;
       utcGuess += diff;
@@ -129,7 +157,11 @@ export function getSessionDateKey(session) {
   const title = String(session?.title || "").trim();
   if (isDateKey(title)) return title;
 
-  const fallbackRaw = session?.createdAt || session?.created_at || session?.updatedAt || session?.updated_at;
+  const fallbackRaw =
+    session?.createdAt ||
+    session?.created_at ||
+    session?.updatedAt ||
+    session?.updated_at;
   const fallback = formatLocalDateKey(fallbackRaw);
   return fallback || title || DEFAULT_SESSION_TITLE;
 }

@@ -1,5 +1,13 @@
 <script setup>
-import { computed, nextTick, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
+import ChatIcon from "./ChatIcon.vue";
 
 const props = defineProps({
   modelValue: { type: String, default: "" },
@@ -16,9 +24,25 @@ const draftText = computed({
   set: (value) => emit("update:modelValue", String(value ?? "")),
 });
 const textareaRef = ref(null);
+let textareaObserver;
+let lastTextareaWidth = 0;
+
+onMounted(() => {
+  textareaObserver = new ResizeObserver(([entry]) => {
+    if (entry.contentRect.width === lastTextareaWidth) return;
+    lastTextareaWidth = entry.contentRect.width;
+    resizeTextarea();
+  });
+  if (textareaRef.value) textareaObserver.observe(textareaRef.value);
+});
+onBeforeUnmount(() => textareaObserver?.disconnect());
 
 const canSend = computed(
-  () => !props.disabled && !props.isSending && !props.isStreaming && String(draftText.value || "").trim().length > 0
+  () =>
+    !props.disabled &&
+    !props.isSending &&
+    !props.isStreaming &&
+    String(draftText.value || "").trim().length > 0,
 );
 
 function send() {
@@ -52,7 +76,7 @@ function resizeTextarea() {
   if (!element) return;
   element.style.height = "0px";
   const nextHeight = Math.min(element.scrollHeight, 160);
-  element.style.height = `${Math.max(nextHeight, 44)}px`;
+  element.style.height = `${Math.max(nextHeight, 36)}px`;
 }
 
 watch(
@@ -60,7 +84,7 @@ watch(
   () => {
     nextTick(resizeTextarea);
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 function onCardPointerDown(event) {
@@ -116,10 +140,15 @@ defineExpose({ focus });
           <path d="M7 7h10v10H7V7Z" fill="currentColor" />
         </svg>
       </button>
-      <button v-else class="send-button" type="button" :disabled="!canSend" @click="send" aria-label="发送">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M3.4 20.6 21 12 3.4 3.4l.6 7.2L15 12 4 13.4l-.6 7.2Z" fill="currentColor" />
-        </svg>
+      <button
+        v-else
+        class="send-button"
+        type="button"
+        :disabled="!canSend"
+        @click="send"
+        aria-label="发送"
+      >
+        <ChatIcon name="arrow" />
       </button>
     </div>
   </div>
@@ -127,108 +156,113 @@ defineExpose({ focus });
 
 <style scoped>
 .composer-shell {
-  padding: 12px 14px 16px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  background: transparent;
+  padding: 10px 30px 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  flex: 0 0 auto;
 }
-
 .composer-card {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  padding: 10px 10px 10px 12px;
-  border-radius: 22px;
-  cursor: text;
+  gap: 12px;
   width: 100%;
-  max-width: 820px;
-  margin: 0 auto;
-  border: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.62));
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  max-width: 720px;
   box-sizing: border-box;
-  transition: box-shadow 0.3s ease;
+  margin: 0 auto;
+  padding: 11px 11px 11px 17px;
+  border: 1px solid var(--chat-border);
+  border-radius: 18px;
+  background: var(--chat-composer-bg);
+  box-shadow: 0 2px 5px rgba(57, 57, 52, 0.02);
+  cursor: text;
+  transition: border-color 0.16s ease;
 }
-
 .composer-card:focus-within {
-  box-shadow: 0 0 0 2px rgba(79, 88, 86, 0.16), 0 22px 60px rgba(51, 56, 68, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border-color: var(--chat-accent);
 }
-
 .input {
   flex: 1;
-  border: none;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 36px;
+  max-height: 160px;
+  padding: 5px 0;
+  border: 0;
   outline: none;
   resize: none;
-  min-height: 44px;
-  max-height: 160px;
-  padding: 8px 10px 8px 0;
-  font-size: 1rem;
-  line-height: 1.55;
+  font: inherit;
+  font-size: 15px;
+  line-height: 26px;
   background: transparent;
-  color: var(--chat-text, rgba(17, 24, 39, 0.92));
-  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, "Segoe UI", system-ui, sans-serif;
+  color: var(--chat-text);
+  scrollbar-width: thin;
 }
-
 .input::placeholder {
-  color: var(--chat-muted, rgba(17, 24, 39, 0.58));
+  color: var(--chat-muted);
 }
-
 .send-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: linear-gradient(180deg, #795226, #6b4111);
-  color: #fff;
-  cursor: pointer;
   display: grid;
   place-items: center;
-  box-shadow: 0 12px 26px rgba(16, 163, 127, 0.18);
-  transition: filter 0.18s ease, transform 0.06s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--chat-accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
 }
-
 .send-button:hover:not(:disabled) {
-  filter: brightness(1.03);
-  box-shadow: 0 14px 30px rgba(16, 163, 127, 0.22);
+  background: var(--chat-accent-strong);
 }
-
-.send-button:active:not(:disabled) {
-  transform: translateY(1px);
+.send-button:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 3px;
 }
-
 .send-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
+  background: var(--chat-sidebar-hover);
+  color: var(--chat-muted);
+  cursor: default;
 }
-
 .stop-button {
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
-  box-shadow: 0 12px 26px rgba(239, 68, 68, 0.18);
+  background: var(--chat-text);
 }
-
 .stop-button:hover:not(:disabled) {
-  filter: brightness(1.03);
-  box-shadow: 0 14px 30px rgba(239, 68, 68, 0.22);
+  background: #56564e;
 }
-
 @media (max-width: 900px) {
   .composer-shell {
-    padding: 10px 10px 14px;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    padding: 10px 14px 18px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
   }
-
   .composer-card {
     gap: 8px;
-    padding: 9px 9px 9px 11px;
+    padding: 8px 8px 8px 14px;
     border-radius: 20px;
-    box-shadow: 0 16px 44px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.62);
   }
-
   .input {
-    font-size: 0.98rem;
+    font-size: 16px;
+    line-height: 28px;
+  }
+  .send-button {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (pointer: coarse) {
+  .send-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .input {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-card,
+  .send-button {
+    transition: none;
   }
 }
 </style>

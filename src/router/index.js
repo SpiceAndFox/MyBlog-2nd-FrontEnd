@@ -69,6 +69,7 @@ const routes = [
     component: Chat,
     meta: {
       layoutClass: "chat",
+      hideNavigation: true,
       requiresAuth: true,
     },
   },

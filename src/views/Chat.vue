@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import ChatSessionSidebar from "@/components/Chat/ChatSessionSidebar.vue";
 import ChatConversationPanel from "@/components/Chat/ChatConversationPanel.vue";
@@ -20,7 +20,6 @@ const {
   isSettingsOpen,
   isPresetsOpen,
   isTrashOpen,
-  navHeight,
   isSending,
   isStreaming,
   memoryLockMessage,
@@ -91,6 +90,64 @@ const {
 } = useChatPage({ router });
 
 const conversationPanelRef = ref(null);
+const sidebarRef = ref(null);
+const pageRef = ref(null);
+let dialogReturnFocus = null;
+const anyDialogOpen = computed(
+  () =>
+    isSettingsOpen.value ||
+    isPresetsOpen.value ||
+    isTrashOpen.value ||
+    deleteDialog.value?.open,
+);
+
+function activeDialog() {
+  return pageRef.value?.querySelector(
+    '.modal-overlay[role="dialog"], .dialog-overlay[role="dialog"]',
+  );
+}
+
+function dialogControls() {
+  return Array.from(
+    activeDialog()?.querySelectorAll(
+      "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
+    ) || [],
+  ).filter((element) => element.getClientRects().length > 0);
+}
+
+watch(anyDialogOpen, async (open) => {
+  if (open) dialogReturnFocus = document.activeElement;
+  await nextTick();
+  if (open) dialogControls()[0]?.focus();
+  else if (
+    dialogReturnFocus?.isConnected &&
+    dialogReturnFocus.getClientRects().length
+  )
+    dialogReturnFocus.focus();
+  else if (isMobile.value) conversationPanelRef.value?.focusSidebarButton?.();
+  else sidebarRef.value?.focusToggle();
+});
+
+function onDialogKeydown(event) {
+  if (!anyDialogOpen.value || event.key !== "Tab") return;
+  const controls = dialogControls();
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
+}
+
+watch(isMobileSidebarOpen, async (open, wasOpen) => {
+  if (open || !wasOpen || anyDialogOpen.value) return;
+  await nextTick();
+  if (isMobile.value) conversationPanelRef.value?.focusSidebarButton?.();
+  else sidebarRef.value?.focusToggle();
+});
 
 async function handleGoToToday(options) {
   await goToToday(options);
@@ -108,23 +165,21 @@ useChatComposerSlashFocus({
 </script>
 
 <template>
-  <div class="chat-page" :style="{ '--chat-nav-height': navHeight + 'px' }">
+  <div ref="pageRef" class="chat-page" @keydown="onDialogKeydown">
     <ChatSessionSidebar
+      ref="sidebarRef"
+      :inert="anyDialogOpen ? true : undefined"
       :sessions="sessions"
       :activeSessionId="activeSessionId"
       :collapsed="isSidebarCollapsed"
       :isMobile="isMobile"
       :mobileOpen="isMobileSidebarOpen"
-      :assistantProfile="assistantProfile"
-      :promptPresets="promptPresets"
-      :activePresetId="settings.systemPromptPresetId"
-      :presetLocked="isPresetLocked"
+      :todayKey="todayKey"
       @select-session="selectSession"
       @go-today="handleGoToToday"
       @toggle-collapse="toggleSidebarCollapsed"
       @request-close="closeMobileSidebar"
       @request-delete-session="requestDeleteSession"
-      @select-preset="selectPreset"
       @open-presets="openPresets"
       @open-trash="openTrash"
       @open-settings="openSettings"
@@ -133,10 +188,17 @@ useChatComposerSlashFocus({
     <ChatConversationPanel
       ref="conversationPanelRef"
       class="chat-conversation"
+      :inert="
+        anyDialogOpen || (isMobile && isMobileSidebarOpen) ? true : undefined
+      "
       :sessionTitle="activeSessionDateKey || todayKey || DEFAULT_SESSION_TITLE"
       :messages="activeMessages"
       :userProfile="userProfile"
       :assistantProfile="assistantProfile"
+      :promptPresets="promptPresets"
+      :activePresetId="settings.systemPromptPresetId"
+      :presetLocked="isPresetLocked"
+      :todayKey="todayKey"
       :isMobile="isMobile"
       :readOnly="isReadOnly"
       v-model:composerDraft="composerDraft"
@@ -153,6 +215,10 @@ useChatComposerSlashFocus({
       :healthLoading="isHealthLoading"
       :healthRetrying="healthRetrying"
       @open-sidebar="openMobileSidebar"
+      @select-preset="selectPreset"
+      @open-presets="openPresets"
+      @open-settings="openSettings"
+      @open-trash="openTrash"
       @go-today="handleGoToToday"
       @send-message="sendMessage"
       @stop-output="stopStreaming"
@@ -179,7 +245,9 @@ useChatComposerSlashFocus({
       :currentSettings="settings"
       :defaultSettings="chatDefaults"
       :presetLocked="isPresetLocked"
-      :refreshPresets="() => refreshPromptPresets({ silent: false, forceSystemPrompt: true })"
+      :refreshPresets="
+        () => refreshPromptPresets({ silent: false, forceSystemPrompt: true })
+      "
       :createPreset="createPromptPreset"
       :updatePreset="updatePromptPreset"
       :deletePreset="deletePromptPreset"
@@ -221,46 +289,46 @@ useChatComposerSlashFocus({
 
 <style scoped>
 .chat-page {
-  /* Light / ChatGPT-like theme */
-  --chat-sidebar-bg: #f9fafb;
-  --chat-sidebar-border: rgba(15, 23, 42, 0.12);
-  --chat-sidebar-text: rgba(15, 23, 42, 0.92);
-  --chat-sidebar-muted: rgba(15, 23, 42, 0.58);
-  --chat-sidebar-hover: rgba(15, 23, 42, 0.05);
-  --chat-sidebar-active: rgba(15, 23, 42, 0.06);
-  --chat-sidebar-actions-bg: rgba(255, 255, 255, 0.82);
+  --chat-sidebar-bg: #f7f6f3;
+  --chat-sidebar-border: #eae9e4;
+  --chat-sidebar-text: #393934;
+  --chat-sidebar-muted: #74746c;
+  --chat-sidebar-hover: #eeede8;
+  --chat-sidebar-active: #f0e7e9;
+  --chat-sidebar-actions-bg: #f7f6f3;
 
-  --chat-surface: #ffffff;
-  --chat-surface-2: #ffffff;
-  --chat-border: rgba(15, 23, 42, 0.12);
-  --chat-text: #0f172a;
-  --chat-muted: rgba(15, 23, 42, 0.58);
+  --chat-surface: #fffefd;
+  --chat-surface-2: #f7f6f3;
+  --chat-border: #eae9e4;
+  --chat-text: #393934;
+  --chat-muted: #74746c;
+  --chat-scrollbar: #d3d1c9;
 
-  --chat-accent: #10a37f;
-  --chat-accent-strong: #0f8a6c;
+  --chat-accent: #996a77;
+  --chat-accent-strong: #825563;
 
-  --chat-topbar-bg: rgba(255, 255, 255, 0.92);
-  --chat-topbar-hover: rgba(15, 23, 42, 0.05);
-  --chat-composer-bg: rgba(255, 255, 255, 0.92);
+  --chat-topbar-bg: #fffefd;
+  --chat-topbar-hover: #eeede8;
+  --chat-composer-bg: #fffefd;
 
-  --chat-bubble-bg: rgba(255, 255, 255, 0.98);
-  --chat-bubble-user-bg: rgba(15, 23, 42, 0.04);
-  --chat-bubble-border: rgba(15, 23, 42, 0.1);
-  --chat-bubble-user-border: rgba(132, 188, 240, 0.22);
+  --chat-bubble-bg: transparent;
+  --chat-bubble-user-bg: #f7f6f3;
+  --chat-bubble-border: transparent;
+  --chat-bubble-user-border: transparent;
 
-  --chat-avatar-bg: rgba(15, 23, 42, 0.12);
-  --chat-avatar-text: rgba(15, 23, 42, 0.92);
+  --chat-avatar-bg: #e7ddd6;
+  --chat-avatar-text: #766355;
   --chat-avatar-user-bg: var(--chat-accent);
   --chat-avatar-user-text: #ffffff;
 
-  --chat-card-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --chat-card-shadow: 0 8px 28px rgba(53, 53, 47, 0.08);
 
   --chat-radius-lg: 14px;
   --chat-radius-md: 10px;
   --chat-radius-sm: 8px;
 
-  --chat-nav-height: 60px;
-
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;

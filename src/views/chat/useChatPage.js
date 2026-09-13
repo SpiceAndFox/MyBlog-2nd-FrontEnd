@@ -4,40 +4,28 @@ import { DEFAULT_ASSISTANT_AVATAR_URL, DEFAULT_PROMPT_PRESET_ID } from "@/config
 import { getMeApi } from "@/api/auth";
 import { createApiErrorHandler } from "./apiError";
 import { isPlainObject } from "./helpers";
-import { lockBodyScroll, startNavHeightTracking } from "./ui";
+import { lockBodyScroll } from "./ui";
 import { useChatMessaging } from "./useChatMessaging";
 import { useChatSessions } from "./useChatSessions";
 import { useChatSettings } from "./useChatSettings";
 import { useChatTrash } from "./useChatTrash";
 import { useChatHealth } from "./useChatHealth";
+import { useChatSidebar } from "./useChatSidebar";
 
 export function useChatPage({ router }) {
   const handleApiError = createApiErrorHandler(router);
 
   const isMobile = useMediaQuery("(max-width: 900px)");
-  const isSidebarCollapsed = ref(false);
-  const isMobileSidebarOpen = ref(false);
+  const {
+    isSidebarCollapsed,
+    isMobileSidebarOpen,
+    openMobileSidebar,
+    closeMobileSidebar,
+    toggleSidebarCollapsed,
+  } = useChatSidebar(isMobile);
   const isSettingsOpen = ref(false);
   const isPresetsOpen = ref(false);
   const isTrashOpen = ref(false);
-  const navHeight = ref(60);
-
-  function openMobileSidebar() {
-    if (!isMobile.value) return;
-    isMobileSidebarOpen.value = true;
-  }
-
-  function closeMobileSidebar() {
-    isMobileSidebarOpen.value = false;
-  }
-
-  function toggleSidebarCollapsed() {
-    isSidebarCollapsed.value = !isSidebarCollapsed.value;
-  }
-
-  watch(isMobile, () => {
-    isMobileSidebarOpen.value = false;
-  });
 
   const currentUser = ref(null);
 
@@ -374,20 +362,16 @@ export function useChatPage({ router }) {
     }
   }
 
-  let stopNavTracking = null;
   let releaseBodyScrollLock = null;
 
   onMounted(() => {
     releaseBodyScrollLock = lockBodyScroll();
-    stopNavTracking = startNavHeightTracking(navHeight);
     window.addEventListener("beforeunload", flushDraftPersistence);
     document.addEventListener("visibilitychange", onVisibilityChange);
     void initializeChat();
   });
 
   onBeforeUnmount(() => {
-    stopNavTracking?.();
-    stopNavTracking = null;
     flushDraftPersistence();
     window.removeEventListener("beforeunload", flushDraftPersistence);
     document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -403,7 +387,6 @@ export function useChatPage({ router }) {
     isSettingsOpen,
     isPresetsOpen,
     isTrashOpen,
-    navHeight,
 
     isSending: chatMessaging.isSending,
     isStreaming: chatMessaging.isStreaming,

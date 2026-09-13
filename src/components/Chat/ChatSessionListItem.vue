@@ -1,56 +1,54 @@
 <script setup>
 import { computed } from "vue";
-import { getSessionDateKey, isDateKey } from "@/components/Chat/utils/sessionDate";
-
+import ChatIcon from "./ChatIcon.vue";
+import {
+  formatSessionDateLabel,
+  getSessionDateKey,
+  isDateKey,
+} from "./utils/sessionDate";
 const props = defineProps({
   session: { type: Object, required: true },
   active: { type: Boolean, default: false },
-  collapsed: { type: Boolean, default: false },
+  todayKey: { type: String, default: "" },
+  compact: { type: Boolean, default: false },
 });
-
 const emit = defineEmits(["select", "delete"]);
-
-const sessionDateKey = computed(() => getSessionDateKey(props.session));
-const collapsedLabel = computed(() => {
-  const dateKey = String(sessionDateKey.value || "").trim();
-  if (isDateKey(dateKey)) return dateKey.slice(8, 10);
-  return dateKey.slice(0, 1).toUpperCase() || "·";
+const dateKey = computed(() => getSessionDateKey(props.session));
+const label = computed(() =>
+  formatSessionDateLabel(dateKey.value, props.todayKey),
+);
+const compactLabel = computed(() => {
+  if (!isDateKey(dateKey.value)) return label.value.slice(0, 2);
+  const [, month, day] = dateKey.value.split("-");
+  return `${Number(month)}/${Number(day)}`;
 });
-
-function onMainKeydown(event) {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    emit("select");
-  }
-}
 </script>
 
 <template>
-  <div class="session-item" :class="{ active, collapsed }">
-    <div
+  <div class="session-item" :class="{ active, compact }">
+    <button
       class="session-main"
-      role="button"
-      tabindex="0"
-      :title="sessionDateKey"
+      type="button"
+      :title="dateKey"
+      :aria-label="`${label}（${dateKey}）`"
+      :aria-current="active ? 'true' : undefined"
       @click="emit('select')"
-      @keydown="onMainKeydown"
     >
-      <span v-if="collapsed" class="collapsed-badge" aria-hidden="true">
-        <span class="collapsed-badge-fallback">{{ collapsedLabel }}</span>
+      <span class="session-label" aria-hidden="true">{{ label }}</span>
+      <span class="session-thumbnail" aria-hidden="true">
+        {{ compactLabel }}
       </span>
-
-      <template v-else>
-        <span class="session-title">{{ sessionDateKey }}</span>
-      </template>
-    </div>
-
-    <div v-if="!collapsed" class="actions" aria-label="会话操作">
-      <button class="icon-button danger" type="button" @click="emit('delete')" aria-label="删除">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z" fill="currentColor" />
-        </svg>
-      </button>
-    </div>
+    </button>
+    <span v-if="active" class="active-dot" aria-hidden="true"></span>
+    <button
+      v-show="!compact"
+      class="delete-button"
+      type="button"
+      :aria-label="`删除 ${dateKey} 的对话`"
+      @click="emit('delete')"
+    >
+      <ChatIcon name="trash" :size="15" />
+    </button>
   </div>
 </template>
 
@@ -59,123 +57,114 @@ function onMainKeydown(event) {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border-radius: 12px;
-  padding: 2px;
+  margin: 3px 0;
+  border-radius: 8px;
+  color: var(--chat-sidebar-muted);
 }
-
 .session-item:hover {
-  background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
+  background: var(--chat-sidebar-hover);
 }
-
 .session-item.active {
-  background: var(--chat-sidebar-active, rgba(255, 255, 255, 0.1));
+  background: var(--chat-sidebar-active);
+  color: var(--chat-accent);
 }
-
 .session-main {
-  flex: 1;
-  width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 10px;
-
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.18s ease, border-color 0.18s ease;
-  min-width: 0;
-  outline: none;
-}
-
-.session-main:focus-visible {
-  border-color: rgba(16, 163, 127, 0.65);
-  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
-}
-
-.collapsed-badge {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: var(--chat-sidebar-active, rgba(255, 255, 255, 0.12));
-  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.92));
-  font-weight: 800;
-  font-size: 0.85rem;
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-
-.collapsed-badge-fallback {
   width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
+  min-width: 0;
+  height: 44px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
-
-.session-title {
-  font-size: 0.92rem;
-  white-space: nowrap;
+.session-label {
+  position: absolute;
+  left: 12px;
+  right: 38px;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
+  white-space: nowrap;
+  transition: opacity var(--sidebar-duration) var(--sidebar-easing);
 }
-
-.actions {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px;
-  border-radius: 999px;
-  background: var(--chat-sidebar-actions-bg, rgba(32, 33, 35, 0.35));
-  border: 1px solid var(--chat-sidebar-border, rgba(255, 255, 255, 0.08));
-  backdrop-filter: blur(6px);
-
+.session-thumbnail {
+  width: var(--sidebar-icon-width);
+  flex: 0 0 var(--sidebar-icon-width);
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.18s ease;
+  transition: opacity var(--sidebar-duration) var(--sidebar-easing);
 }
-
-.session-item:hover .actions {
+.compact .session-label {
+  opacity: 0;
+}
+.compact .session-thumbnail {
   opacity: 1;
-  pointer-events: auto;
 }
-
-.icon-button {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  color: var(--chat-sidebar-muted, rgba(236, 236, 241, 0.62));
+.session-main:focus-visible,
+.delete-button:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: -2px;
+}
+.active-dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  right: 15px;
+  pointer-events: none;
+}
+.compact .active-dot {
+  display: none;
+}
+.delete-button {
+  position: absolute;
+  right: 3px;
   display: grid;
   place-items: center;
-  transition: background-color 0.18s ease, color 0.18s ease;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--chat-muted);
+  opacity: 0;
+  cursor: pointer;
 }
-
-.icon-button:hover {
-  background: var(--chat-sidebar-hover, rgba(255, 255, 255, 0.08));
-  color: var(--chat-sidebar-text, rgba(236, 236, 241, 0.95));
+.session-item:hover .delete-button,
+.session-item:focus-within .delete-button {
+  opacity: 1;
 }
-
-.icon-button.danger:hover {
-  background: rgba(239, 68, 68, 0.16);
-  color: rgba(185, 28, 28, 0.95);
+.session-item:hover .active-dot,
+.session-item:focus-within .active-dot {
+  opacity: 0;
 }
-
-.collapsed .session-main {
-  justify-content: center;
-  padding: 10px 8px;
+.delete-button:hover {
+  color: #ae4949;
+  background: rgba(174, 73, 73, 0.08);
+}
+@media (max-width: 900px), (pointer: coarse) {
+  .session-label {
+    right: 48px;
+  }
+  .delete-button {
+    width: 44px;
+    height: 44px;
+    right: 0;
+    opacity: 1;
+  }
+  .active-dot {
+    display: none;
+  }
 }
 </style>

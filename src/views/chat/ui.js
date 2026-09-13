@@ -37,26 +37,3 @@ export function lockBodyScroll() {
     window.scrollTo(0, scrollY);
   };
 }
-
-export function startNavHeightTracking(navHeightRef) {
-  function updateNavHeight() {
-    const navigation = document.querySelector(".navigation");
-    if (!navigation) return;
-    navHeightRef.value = Math.max(0, Math.round(navigation.getBoundingClientRect().height));
-  }
-
-  updateNavHeight();
-  window.addEventListener("resize", updateNavHeight);
-
-  const navigation = document.querySelector(".navigation");
-  let navResizeObserver;
-  if (navigation && typeof ResizeObserver !== "undefined") {
-    navResizeObserver = new ResizeObserver(updateNavHeight);
-    navResizeObserver.observe(navigation);
-  }
-
-  return () => {
-    window.removeEventListener("resize", updateNavHeight);
-    navResizeObserver?.disconnect();
-  };
-}

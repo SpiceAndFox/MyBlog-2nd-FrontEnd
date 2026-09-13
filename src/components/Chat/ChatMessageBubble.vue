@@ -12,43 +12,33 @@ const props = defineProps({
   actionsDisabled: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["request-edit", "cancel-edit", "commit-edit", "update:editDraft"]);
+const emit = defineEmits([
+  "request-edit",
+  "cancel-edit",
+  "commit-edit",
+  "update:editDraft",
+]);
 
 const isUser = computed(() => props.message?.role === "user");
-const renderedAssistantHtml = computed(() => renderChatMarkdown(props.message?.content ?? ""));
+const renderedAssistantHtml = computed(() =>
+  renderChatMarkdown(props.message?.content ?? ""),
+);
 const displayName = computed(() => {
-  if (isUser.value) return String(props.userProfile?.username || props.userProfile?.name || "User");
+  if (isUser.value)
+    return String(
+      props.userProfile?.username || props.userProfile?.name || "User",
+    );
   return String(props.assistantProfile?.name || "Assistant");
 });
-
-const avatarUrl = computed(() => {
-  const candidate = isUser.value
-    ? props.userProfile?.avatarUrl || props.userProfile?.avatar_url
-    : props.assistantProfile?.avatarUrl || props.assistantProfile?.avatar_url;
-  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : "";
-});
-
-const avatarFailed = ref(false);
-
-watch(avatarUrl, () => {
-  avatarFailed.value = false;
-});
-
-const avatarFallbackText = computed(() => {
-  const name = String(displayName.value || "").trim();
-  if (!name) return isUser.value ? "你" : "AI";
-  return name.slice(0, 1).toUpperCase();
-});
-
-function markAvatarFailed() {
-  avatarFailed.value = true;
-}
 
 const timeLabel = computed(() => {
   const value = props.message?.createdAt;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 });
 
 const editInputRef = ref(null);
@@ -71,7 +61,7 @@ watch(
     input?.focus?.();
     const cursorPosition = String(input?.value || "").length;
     input?.setSelectionRange?.(cursorPosition, cursorPosition);
-  }
+  },
 );
 
 watch(
@@ -80,13 +70,22 @@ watch(
     if (!props.isEditing) return;
     await nextTick();
     resizeEditInput();
-  }
+  },
 );
 
-const canStartEditing = computed(() => isUser.value && !props.isEditing && !props.processing && !props.actionsDisabled);
+const canStartEditing = computed(
+  () =>
+    isUser.value &&
+    !props.isEditing &&
+    !props.processing &&
+    !props.actionsDisabled,
+);
 const canCancelEditing = computed(() => props.isEditing && !props.processing);
 const canCommitEditing = computed(
-  () => props.isEditing && !props.processing && String(props.editDraft || "").trim().length > 0
+  () =>
+    props.isEditing &&
+    !props.processing &&
+    String(props.editDraft || "").trim().length > 0,
 );
 
 function requestEdit() {
@@ -125,14 +124,13 @@ function onEditKeydown(event) {
 </script>
 
 <template>
-  <div class="row" :class="{ user: isUser, editing: isEditing }">
-    <div class="avatar" :class="{ user: isUser }" aria-hidden="true">
-      <img v-if="avatarUrl && !avatarFailed" class="avatar-image" :src="avatarUrl" alt="" @error="markAvatarFailed" />
-      <span v-else>{{ avatarFallbackText }}</span>
-    </div>
+  <div
+    class="row"
+    :class="{ user: isUser, editing: isEditing }"
+    :aria-label="displayName"
+  >
     <div class="bubble" :class="{ user: isUser }">
       <div class="meta">
-        <span class="name">{{ displayName }}</span>
         <div class="meta-right">
           <span v-if="timeLabel" class="time">{{ timeLabel }}</span>
           <button
@@ -185,7 +183,6 @@ function onEditKeydown(event) {
         <div v-if="isUser" class="plain">{{ message.content }}</div>
         <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
       </div>
-
     </div>
   </div>
 </template>
@@ -194,130 +191,82 @@ function onEditKeydown(event) {
 .row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-}
-
-.row.user {
-  flex-direction: row-reverse;
-}
-
-.avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 0.85rem;
-  color: var(--chat-avatar-text, #ffffff);
-  background: var(--chat-avatar-bg, rgba(17, 24, 39, 0.78));
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-
-.avatar.user {
-  background: var(--chat-avatar-user-bg, rgba(59, 130, 246, 0.95));
-  color: var(--chat-avatar-user-text, #ffffff);
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.bubble {
-  max-width: min(820px, 100%);
   min-width: 0;
-  border-radius: 18px;
-  border: 1px solid var(--chat-bubble-border, rgba(17, 24, 39, 0.1));
-  background: var(--chat-bubble-bg, rgba(255, 255, 255, 0.9));
-  padding: 12px 14px 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(15, 23, 42, 0.06);
 }
-
+.row.user {
+  justify-content: flex-end;
+}
+.bubble {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 0;
+  background: var(--chat-bubble-bg);
+}
 .bubble.user {
-  background: var(--chat-bubble-user-bg, rgba(15, 23, 42, 0.04));
-  border-color: var(--chat-bubble-user-border, rgba(16, 163, 127, 0.24));
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 24px rgba(16, 163, 127, 0.05);
+  max-width: 90%;
+  padding: 10px 15px;
+  border-radius: 16px 16px 5px 16px;
+  background: var(--chat-bubble-user-bg);
 }
-
+.row.editing .bubble {
+  width: 100%;
+}
 .meta {
+  position: absolute;
+  right: 0;
+  top: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
+  min-height: 28px;
+  opacity: 0;
+  pointer-events: none;
 }
-
 .meta-right {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
-
-.name {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--chat-muted, rgba(17, 24, 39, 0.75));
+.row:hover .meta,
+.row:focus-within .meta,
+.row.editing .meta {
+  opacity: 1;
+  pointer-events: auto;
 }
-
 .time {
-  font-size: 0.75rem;
-  color: rgba(15, 23, 42, 0.45);
+  font-size: 11px;
+  color: var(--chat-muted);
   white-space: nowrap;
 }
-
 .edit-button {
-  border: 1px solid transparent;
-  background: transparent;
-  color: rgba(15, 23, 42, 0.42);
-  width: 28px;
-  height: 28px;
-  border-radius: 10px;
   display: grid;
   place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--chat-muted);
   cursor: pointer;
-  opacity: 0;
-  transform: translateY(-1px);
-  transition: opacity 0.16s ease, background-color 0.16s ease, color 0.16s ease;
 }
-
-.row:hover .edit-button {
-  opacity: 1;
-}
-
-.row.editing .edit-button {
-  opacity: 1;
-}
-
 .edit-button:hover {
-  background: rgba(15, 23, 42, 0.06);
-  color: rgba(15, 23, 42, 0.72);
+  background: var(--chat-sidebar-hover);
+  color: var(--chat-text);
 }
-
 .edit-button.cancel {
-  color: rgba(239, 68, 68, 0.7);
+  color: #ae4949;
 }
-
-.edit-button.cancel:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: rgba(220, 38, 38, 0.9);
-}
-
 .edit-button:focus-visible {
-  opacity: 1;
-  outline: 2px solid rgba(16, 163, 127, 0.7);
+  outline: 2px solid var(--chat-accent);
   outline-offset: 2px;
 }
-
 .content {
   overflow-wrap: anywhere;
   word-break: break-word;
-  line-height: 1.55;
+  line-height: 1.9;
   color: var(--chat-text, rgba(17, 24, 39, 0.9));
-  font-size: 0.98rem;
+  font-size: 15px;
 }
 
 .plain {
@@ -354,7 +303,9 @@ function onEditKeydown(event) {
   padding: 0;
   background: transparent;
   border: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   font-size: 0.9em;
   line-height: 1.55;
   white-space: pre;
@@ -365,7 +316,9 @@ function onEditKeydown(event) {
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.06);
   border: 1px solid rgba(15, 23, 42, 0.1);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   font-size: 0.92em;
 }
 
@@ -407,7 +360,7 @@ function onEditKeydown(event) {
   border: 1px solid rgba(17, 24, 39, 0.14);
   background: rgba(255, 255, 255, 0.85);
   padding: 9px 10px;
-  font-size: 0.98rem;
+  font-size: 15px;
   line-height: 1.55;
   resize: vertical;
   outline: none;
@@ -420,8 +373,8 @@ function onEditKeydown(event) {
 }
 
 .edit-input:focus {
-  border-color: rgba(16, 163, 127, 0.65);
-  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.18);
+  border-color: var(--chat-accent);
+  box-shadow: 0 0 0 2px var(--chat-sidebar-active);
 }
 
 .edit-input:disabled {
@@ -433,9 +386,17 @@ function onEditKeydown(event) {
   color: rgba(15, 23, 42, 0.5);
 }
 
-@media (max-width: 900px) {
-  .edit-button {
+@media (max-width: 900px), (pointer: coarse) {
+  .meta {
     opacity: 1;
+    pointer-events: auto;
+  }
+  .edit-button {
+    width: 44px;
+    height: 36px;
+  }
+  .edit-input {
+    font-size: 16px;
   }
 }
 </style>
