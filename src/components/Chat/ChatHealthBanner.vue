@@ -12,6 +12,10 @@ const emit = defineEmits(["refresh", "retry"]);
 
 const canRetryMemory = computed(() => props.retryableComponents.includes("memory"));
 const hasHealthReadError = computed(() => props.warnings.some((warning) => warning?.component === "health"));
+const isBackgroundUpdate = computed(() => props.warnings.length > 0
+  && !canRetryMemory.value
+  && props.warnings.every((warning) => warning?.status === "rebuilding"));
+const title = computed(() => isBackgroundUpdate.value ? "记忆正在后台更新" : "记忆状态需要关注");
 
 function componentLabel(component) {
   if (component === "health") return "状态检查";
@@ -26,16 +30,17 @@ function statusText(warning) {
       return `预计 ${next.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} 自动重试`;
     }
   }
-  if (warning?.status === "rebuilding") return "恢复中";
+  if (warning?.status === "rebuilding") return "更新中";
   return "";
 }
 </script>
 
 <template>
-  <section v-if="warnings.length" class="health-banner" role="alert" aria-live="polite">
-    <div class="health-icon" aria-hidden="true">!</div>
+  <section v-if="warnings.length" class="health-banner" :class="{ 'is-updating': isBackgroundUpdate }"
+    :role="isBackgroundUpdate ? 'status' : 'alert'" aria-live="polite">
+    <div class="health-icon" aria-hidden="true">{{ isBackgroundUpdate ? "↻" : "!" }}</div>
     <div class="health-content">
-      <div class="health-title">部分记忆能力当前不可用</div>
+      <div class="health-title">{{ title }}</div>
       <ul class="health-list">
         <li v-for="(warning, index) in warnings" :key="`${warning.component}:${warning.message}:${index}`">
           <span class="health-component">{{ componentLabel(warning.component) }}</span>
@@ -90,6 +95,22 @@ function statusText(warning) {
   color: #b45309;
   font-weight: 850;
   line-height: 1;
+}
+
+.health-banner.is-updating {
+  border-bottom-color: rgba(37, 99, 235, 0.16);
+  background: rgba(239, 246, 255, 0.96);
+  color: #1e40af;
+}
+
+.is-updating .health-icon {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.is-updating .health-message,
+.is-updating .health-meta {
+  color: #1d4ed8;
 }
 
 .health-content {
