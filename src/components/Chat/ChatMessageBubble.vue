@@ -134,7 +134,28 @@ function onEditKeydown(event) {
     :aria-label="displayName"
   >
     <ChatAvatar class="message-avatar" :src="avatarUrl" :name="displayName" />
-    <div class="bubble" :class="{ user: isUser }">
+    <div class="message-body">
+      <div class="bubble" :class="{ user: isUser }">
+        <div v-if="isEditing" class="edit-shell">
+          <textarea
+            ref="editInputRef"
+            class="edit-input"
+            :value="editDraft"
+            :disabled="processing"
+            rows="4"
+            @input="onEditInput"
+            @keydown="onEditKeydown"
+          ></textarea>
+          <div class="edit-hint">
+            <span v-if="processing">保存中…</span>
+            <span v-else>Enter 保存，Shift+Enter 换行，Esc 取消</span>
+          </div>
+        </div>
+        <div v-else class="content" @dblclick="requestEdit">
+          <div v-if="isUser" class="plain">{{ message.content }}</div>
+          <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
+        </div>
+      </div>
       <div class="meta">
         <div class="meta-right">
           <span v-if="timeLabel" class="time">{{ timeLabel }}</span>
@@ -169,25 +190,6 @@ function onEditKeydown(event) {
           </button>
         </div>
       </div>
-      <div v-if="isEditing" class="edit-shell">
-        <textarea
-          ref="editInputRef"
-          class="edit-input"
-          :value="editDraft"
-          :disabled="processing"
-          rows="4"
-          @input="onEditInput"
-          @keydown="onEditKeydown"
-        ></textarea>
-        <div class="edit-hint">
-          <span v-if="processing">保存中…</span>
-          <span v-else>Enter 保存，Shift+Enter 换行，Esc 取消</span>
-        </div>
-      </div>
-      <div v-else class="content" @dblclick="requestEdit">
-        <div v-if="isUser" class="plain">{{ message.content }}</div>
-        <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
-      </div>
     </div>
   </div>
 </template>
@@ -213,11 +215,15 @@ function onEditKeydown(event) {
   --chat-avatar-bg: var(--chat-avatar-user-bg);
   --chat-avatar-text: var(--chat-avatar-user-text);
 }
-.bubble {
-  box-sizing: border-box;
+.message-body {
   position: relative;
   min-width: 0;
   max-width: calc(100% - var(--message-avatar-size) - var(--message-gap));
+}
+.bubble {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   padding: 4px 0;
   background: var(--chat-bubble-bg);
 }
@@ -226,18 +232,23 @@ function onEditKeydown(event) {
   border-radius: 16px 16px 5px 16px;
   background: var(--chat-bubble-user-bg);
 }
+.row.editing .message-body,
 .row.editing .bubble {
   width: 100%;
 }
 .meta {
   position: absolute;
-  right: 0;
+  left: 0;
   top: 100%;
   display: flex;
   align-items: center;
   min-height: 28px;
   opacity: 0;
   pointer-events: none;
+}
+.row.user .meta {
+  left: auto;
+  right: 0;
 }
 .meta-right {
   display: flex;
@@ -408,9 +419,25 @@ function onEditKeydown(event) {
     --message-avatar-size: 28px;
     --message-gap: 9px;
   }
+  .message-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .row.user .message-body {
+    align-items: flex-end;
+  }
   .meta {
+    /* Reserve space even before the first assistant token arrives. */
+    position: static;
+    align-self: flex-end;
+    margin-top: 4px;
+    min-height: 24px;
     opacity: 1;
     pointer-events: auto;
+  }
+  .time {
+    font-size: 12px;
   }
   .edit-button {
     width: 44px;
@@ -418,7 +445,10 @@ function onEditKeydown(event) {
   }
   .content,
   .edit-input {
-    font-size: 16px;
+    font-size: 17px;
+  }
+  .content {
+    min-height: 1.9em;
   }
 }
 </style>

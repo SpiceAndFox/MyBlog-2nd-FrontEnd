@@ -255,6 +255,10 @@ watch(lastMessageId, async () => {
     padding: 22px 20px 26px;
   }
 
+  .messages {
+    gap: 16px;
+  }
+
   .empty-gif {
     width: min(280px, 72vw);
     max-height: min(240px, 38vh);

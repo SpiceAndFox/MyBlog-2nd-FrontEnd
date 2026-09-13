@@ -66,8 +66,12 @@ const compactLabel = computed(() => {
   background: var(--chat-sidebar-hover);
 }
 .session-item.active {
-  background: var(--chat-sidebar-active);
-  color: var(--chat-accent);
+  background: var(--chat-session-active-bg);
+  color: var(--chat-sidebar-text);
+  box-shadow: inset 0 0 0 1px var(--chat-session-active-border);
+}
+.session-item.active .session-main {
+  font-weight: 500;
 }
 .session-main {
   display: flex;
@@ -83,7 +87,7 @@ const compactLabel = computed(() => {
   color: inherit;
   text-align: left;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 .session-label {
@@ -99,7 +103,7 @@ const compactLabel = computed(() => {
   width: var(--sidebar-icon-width);
   flex: 0 0 var(--sidebar-icon-width);
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   opacity: 0;
   transition: opacity var(--sidebar-duration) var(--sidebar-easing);
@@ -155,6 +159,10 @@ const compactLabel = computed(() => {
   background: rgba(174, 73, 73, 0.08);
 }
 @media (max-width: 900px), (pointer: coarse) {
+  .session-main {
+    height: 48px;
+    font-size: 16px;
+  }
   .session-label {
     right: 48px;
   }

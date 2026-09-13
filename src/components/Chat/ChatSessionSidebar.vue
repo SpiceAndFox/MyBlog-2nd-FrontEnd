@@ -279,7 +279,7 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
 }
 .brand-name {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.025em;
@@ -345,24 +345,28 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   display: none;
 }
 .section-label {
-  height: 16px;
+  min-height: 18px;
   padding: 0 12px;
   margin-bottom: 9px;
   color: var(--chat-muted);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .sidebar-footer {
   flex: 0 0 auto;
   padding-top: 12px;
   padding-bottom: env(safe-area-inset-bottom);
   color: var(--chat-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .settings-dropdown :deep(summary) {
   justify-content: flex-start;
   gap: 0;
   height: 44px;
   padding: 0;
+}
+.sidebar :deep(.menu-item) {
+  font-size: 14px;
 }
 .mobile-overlay {
   position: absolute;
@@ -402,6 +406,15 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
 .sidebar-drawer-enter-from .sidebar,
 .sidebar-drawer-leave-to .sidebar {
   transform: translateX(-100%);
+}
+@media (max-width: 900px), (pointer: coarse) {
+  .section-label {
+    font-size: 13px;
+  }
+  .sidebar-footer,
+  .sidebar :deep(.menu-item) {
+    font-size: 16px;
+  }
 }
 @media (pointer: coarse) {
   .sidebar-wrapper {

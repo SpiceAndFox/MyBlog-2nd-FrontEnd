@@ -294,6 +294,8 @@ useChatComposerSlashFocus({
   --chat-sidebar-muted: #74746c;
   --chat-sidebar-hover: #eeede8;
   --chat-sidebar-active: var(--chat-accent-soft);
+  --chat-session-active-bg: #eae7e1;
+  --chat-session-active-border: #e1dcd4;
   --chat-sidebar-actions-bg: #f7f6f3;
 
   --chat-surface: #fffefd;
