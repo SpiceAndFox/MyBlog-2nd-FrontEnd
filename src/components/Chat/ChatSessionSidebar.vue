@@ -26,13 +26,7 @@ const emit = defineEmits([
 ]);
 const compact = computed(() => !props.isMobile && props.collapsed);
 const visible = computed(() => !props.isMobile || props.mobileOpen);
-const toggleLabel = computed(() =>
-  props.isMobile
-    ? "关闭会话侧栏"
-    : compact.value
-      ? "展开会话侧栏"
-      : "收起会话侧栏",
-);
+const toggleLabel = computed(() => (props.isMobile ? "关闭会话侧栏" : compact.value ? "展开会话侧栏" : "收起会话侧栏"));
 const sidebarRef = ref(null);
 const toggleButtonRef = ref(null);
 const siteMenuRef = ref(null);
@@ -50,13 +44,10 @@ const settingsActions = [
   { label: "回收站", icon: "trash", event: "open-trash", divider: true },
 ];
 
-watch(
-  [() => props.mobileOpen, () => props.collapsed, () => props.isMobile],
-  () => {
-    siteMenuRef.value?.close();
-    settingsMenuRef.value?.close();
-  },
-);
+watch([() => props.mobileOpen, () => props.collapsed, () => props.isMobile], () => {
+  siteMenuRef.value?.close();
+  settingsMenuRef.value?.close();
+});
 watch(
   () => props.isMobile && props.mobileOpen,
   async (open, _, onCleanup) => {
@@ -94,9 +85,7 @@ function onKeydown(event) {
   }
   if (event.key !== "Tab") return;
   const controls = Array.from(
-    sidebarRef.value?.querySelectorAll(
-      "button:not(:disabled), a[href], summary",
-    ) || [],
+    sidebarRef.value?.querySelectorAll("button:not(:disabled), a[href], summary") || [],
   ).filter((element) => element.getClientRects().length > 0);
   const first = controls[0];
   const last = controls[controls.length - 1];
@@ -184,13 +173,7 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
         </header>
 
         <nav class="session-list" aria-label="历史对话">
-          <div
-            v-if="sessions.length"
-            class="section-label expanded-label"
-            aria-hidden="true"
-          >
-            最近
-          </div>
+          <div v-if="sessions.length" class="section-label expanded-label" aria-hidden="true">最近</div>
           <ChatSessionListItem
             v-for="session in sessions"
             :key="session.id"
@@ -204,23 +187,14 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
         </nav>
 
         <footer class="sidebar-footer">
-          <ChatDropdown
-            ref="settingsMenuRef"
-            class="settings-dropdown"
-            label="设置"
-            placement="top"
-          >
+          <ChatDropdown ref="settingsMenuRef" class="settings-dropdown" label="设置" placement="top">
             <template #trigger>
               <span class="rail-icon"><ChatIcon name="settings" /></span>
               <span class="expanded-label" aria-hidden="true">设置</span>
             </template>
             <template v-for="action in settingsActions" :key="action.event">
               <div v-if="action.divider" class="menu-divider"></div>
-              <button
-                class="menu-item"
-                type="button"
-                @click="selectSettingsAction(action)"
-              >
+              <button class="menu-item" type="button" @click="selectSettingsAction(action)">
                 <ChatIcon :name="action.icon" />
                 <span>{{ action.label }}</span>
               </button>
@@ -238,9 +212,7 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   --sidebar-rail-width: 80px;
   --sidebar-toggle-width: 28px;
   --sidebar-padding: 8px;
-  --sidebar-icon-width: calc(
-    var(--sidebar-rail-width) - var(--sidebar-padding) * 2 - 1px
-  );
+  --sidebar-icon-width: calc(var(--sidebar-rail-width) - var(--sidebar-padding) * 2 - 1px);
   --sidebar-duration: 240ms;
   --sidebar-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
   flex: 0 0 var(--sidebar-expanded-width);
@@ -298,6 +270,7 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   flex: 0 0 auto;
   object-fit: cover;
   border-radius: 8px;
+  margin-left: 8px;
 }
 .brand-description {
   display: flex;
@@ -306,8 +279,9 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
 }
 .brand-name {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.025em;
 }
 .expanded-label {
@@ -338,9 +312,7 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   transition: transform var(--sidebar-duration) var(--sidebar-easing);
 }
 .compact .sidebar-toggle {
-  transform: translateX(
-    calc((var(--sidebar-toggle-width) - var(--sidebar-icon-width)) / 2)
-  );
+  transform: translateX(calc((var(--sidebar-toggle-width) - var(--sidebar-icon-width)) / 2));
 }
 .sidebar-toggle:hover {
   background: var(--chat-sidebar-hover);
@@ -410,7 +382,7 @@ defineExpose({ focusToggle: () => toggleButtonRef.value?.focus() });
   --sidebar-icon-width: 36px;
   position: relative;
   width: min(280px, 85vw);
-  padding-top: max(17px, env(safe-area-inset-top));
+  padding-top: max(14px, env(safe-area-inset-top));
 }
 .mobile-overlay .sidebar-toggle {
   width: 44px;

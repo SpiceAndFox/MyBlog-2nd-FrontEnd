@@ -416,6 +416,7 @@ function onEditKeydown(event) {
     width: 44px;
     height: 36px;
   }
+  .content,
   .edit-input {
     font-size: 16px;
   }
