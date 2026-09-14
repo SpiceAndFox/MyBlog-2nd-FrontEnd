@@ -11,11 +11,14 @@ const props = defineProps({
 const emit = defineEmits(["refresh", "retry"]);
 
 const canRetryMemory = computed(() => props.retryableComponents.includes("memory"));
-const hasHealthReadError = computed(() => props.warnings.some((warning) => warning?.component === "health"));
-const isBackgroundUpdate = computed(() => props.warnings.length > 0
-  && !canRetryMemory.value
-  && props.warnings.every((warning) => warning?.status === "rebuilding"));
-const title = computed(() => isBackgroundUpdate.value ? "记忆正在后台更新" : "记忆状态需要关注");
+// Keep background progress in the health data for polling, but out of the conversation.
+const visibleWarnings = computed(() => props.warnings.filter((warning) =>
+  warning?.component !== "memory"
+  || warning?.status !== "rebuilding"
+  || warning?.retryMode === "manual"
+  || Boolean(warning?.nextRetryAt)
+));
+const hasHealthReadError = computed(() => visibleWarnings.value.some((warning) => warning?.component === "health"));
 
 function componentLabel(component) {
   if (component === "health") return "状态检查";
@@ -36,13 +39,12 @@ function statusText(warning) {
 </script>
 
 <template>
-  <section v-if="warnings.length" class="health-banner" :class="{ 'is-updating': isBackgroundUpdate }"
-    :role="isBackgroundUpdate ? 'status' : 'alert'" aria-live="polite">
-    <div class="health-icon" aria-hidden="true">{{ isBackgroundUpdate ? "↻" : "!" }}</div>
+  <section v-if="visibleWarnings.length || canRetryMemory" class="health-banner" role="alert" aria-live="polite">
+    <div class="health-icon" aria-hidden="true">!</div>
     <div class="health-content">
-      <div class="health-title">{{ title }}</div>
-      <ul class="health-list">
-        <li v-for="(warning, index) in warnings" :key="`${warning.component}:${warning.message}:${index}`">
+      <div class="health-title">记忆状态需要关注</div>
+      <ul v-if="visibleWarnings.length" class="health-list">
+        <li v-for="(warning, index) in visibleWarnings" :key="`${warning.component}:${warning.message}:${index}`">
           <span class="health-component">{{ componentLabel(warning.component) }}</span>
           <span class="health-message">{{ warning.message }}</span>
           <span v-if="statusText(warning)" class="health-meta">{{ statusText(warning) }}</span>
@@ -95,22 +97,6 @@ function statusText(warning) {
   color: #b45309;
   font-weight: 850;
   line-height: 1;
-}
-
-.health-banner.is-updating {
-  border-bottom-color: rgba(37, 99, 235, 0.16);
-  background: rgba(239, 246, 255, 0.96);
-  color: #1e40af;
-}
-
-.is-updating .health-icon {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-}
-
-.is-updating .health-message,
-.is-updating .health-meta {
-  color: #1d4ed8;
 }
 
 .health-content {
