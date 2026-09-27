@@ -12,6 +12,7 @@ function normalizedWarning(warning) {
     message,
     nextRetryAt: warning?.nextRetryAt || null,
     retryMode: warning?.retryMode || null,
+    chatBlocked: warning?.chatBlocked === true,
   };
 }
 
@@ -75,7 +76,7 @@ export function useChatHealth({ activePresetId, handleApiError } = {}) {
   function scheduleRefresh(delayMs = DEGRADED_REFRESH_INTERVAL_MS, { force = false } = {}) {
     clearRefreshTimer();
     const hasServerWarning = Array.isArray(health.value?.warnings) && health.value.warnings.length > 0;
-    if (!force && !hasServerWarning) return;
+    if (!force && !hasServerWarning && !loadError.value && health.value?.memory?.scope?.chatBlocked !== true) return;
     refreshTimer = window.setTimeout(() => {
       refreshTimer = null;
       void refresh({ silent: true });
@@ -92,13 +93,14 @@ export function useChatHealth({ activePresetId, handleApiError } = {}) {
       if (version !== requestVersion || presetId !== String(activePresetId?.value || "").trim()) return null;
       health.value = next;
       loadError.value = "";
-      scheduleRefresh();
+      scheduleRefresh(next?.memory?.scope?.chatBlocked ? 3000 : DEGRADED_REFRESH_INTERVAL_MS);
       return next;
     } catch (error) {
       if (version !== requestVersion) return null;
       loadError.value = String(error?.message || "获取记忆服务状态失败");
       clearRefreshTimer();
       handleApiError?.(error, { silent });
+      scheduleRefresh(DEGRADED_REFRESH_INTERVAL_MS, { force: true });
       return null;
     } finally {
       if (version === requestVersion) isLoading.value = false;

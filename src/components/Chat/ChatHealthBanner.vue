@@ -14,11 +14,13 @@ const canRetryMemory = computed(() => props.retryableComponents.includes("memory
 // Keep background progress in the health data for polling, but out of the conversation.
 const visibleWarnings = computed(() => props.warnings.filter((warning) =>
   warning?.component !== "memory"
+  || warning?.chatBlocked === true
   || warning?.status !== "rebuilding"
   || warning?.retryMode === "manual"
   || Boolean(warning?.nextRetryAt)
 ));
 const hasHealthReadError = computed(() => visibleWarnings.value.some((warning) => warning?.component === "health"));
+const chatBlocked = computed(() => props.warnings.some(warning => warning?.chatBlocked === true));
 
 function componentLabel(component) {
   if (component === "health") return "状态检查";
@@ -33,7 +35,7 @@ function statusText(warning) {
       return `预计 ${next.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} 自动重试`;
     }
   }
-  if (warning?.status === "rebuilding") return "更新中";
+  if (warning?.status === "rebuilding") return warning.chatBlocked ? "等待记忆恢复" : "更新中";
   return "";
 }
 </script>
@@ -42,7 +44,7 @@ function statusText(warning) {
   <section v-if="visibleWarnings.length || canRetryMemory" class="health-banner" role="alert" aria-live="polite">
     <div class="health-icon" aria-hidden="true">!</div>
     <div class="health-content">
-      <div class="health-title">记忆状态需要关注</div>
+      <div class="health-title">{{ chatBlocked ? "历史上下文尚未就绪，暂时无法继续对话" : "记忆状态需要关注" }}</div>
       <ul v-if="visibleWarnings.length" class="health-list">
         <li v-for="(warning, index) in visibleWarnings" :key="`${warning.component}:${warning.message}:${index}`">
           <span class="health-component">{{ componentLabel(warning.component) }}</span>

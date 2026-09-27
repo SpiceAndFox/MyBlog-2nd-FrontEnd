@@ -173,6 +173,8 @@ export function useChatPage({ router }) {
   );
 
   const chatMessaging = useChatMessaging({
+    memoryHealth: chatHealth.health,
+    refreshMemoryHealth: () => chatHealth.refresh({ silent: true }),
     settings: chatSettings.settings,
     getComposerDraft: () => composerDraft.value,
     setComposerDraft: (value) => {
@@ -309,7 +311,14 @@ export function useChatPage({ router }) {
   async function restoreTrashedSession(sessionId) {
     const restored = await chatTrash.restore(sessionId);
     await chatSessions.loadSessions({ preserveActive: true });
+    await chatHealth.refresh({ silent: true });
     return restored;
+  }
+
+  async function confirmDeleteSession() {
+    const mutating = chatSessions.deleteDialog.value.step === 2;
+    await chatSessions.confirmDeleteSession();
+    if (mutating) await chatHealth.refresh({ silent: true });
   }
 
   async function deleteTrashedSessionPermanently(sessionId) {
@@ -452,7 +461,7 @@ export function useChatPage({ router }) {
     deleteDialog: chatSessions.deleteDialog,
     requestDeleteSession: chatSessions.requestDeleteSession,
     cancelDeleteSession: chatSessions.cancelDeleteSession,
-    confirmDeleteSession: chatSessions.confirmDeleteSession,
+    confirmDeleteSession,
 
     sendMessage: chatMessaging.sendMessage,
     requestEditMessage: chatMessaging.requestEditMessage,

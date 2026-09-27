@@ -292,7 +292,7 @@ export async function editChatMessage(
     return { kind: "privacy_pending", session: data.session, user_message: data.user_message, privacy: data.privacy, regeneration: data.regeneration };
   }
   if (res.status === 409 && data?.regeneration) {
-    return { kind: "regeneration_required", regeneration: data.regeneration };
+    return { kind: "regeneration_required", session: data.session, user_message: data.user_message, regeneration: data.regeneration };
   }
   if (!res.ok) throw createApiError(res, data, "修改对话失败");
   return { kind: "updated", session: data.session, user_message: data.user_message };

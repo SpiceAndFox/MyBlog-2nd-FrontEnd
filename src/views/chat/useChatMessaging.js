@@ -1,9 +1,12 @@
-import { nextTick, reactive, ref, watch } from "vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
+import { isMemoryPendingError, memoryBlockingMessage } from "./memoryReadiness";
 import { editChatMessage, getChatPrivacyOperation, sendChatMessage, streamChatMessage } from "@/api/chat";
 import { createId, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 
 export function useChatMessaging({
+  memoryHealth,
+  refreshMemoryHealth,
   settings,
   getComposerDraft,
   setComposerDraft,
@@ -28,10 +31,12 @@ export function useChatMessaging({
   const isStreaming = ref(false);
   let activeStreamAbortController = null;
 
-  const memoryLockMessage = ref("");
+  const pendingMemoryMessage = ref("");
+  const memoryLockMessage = computed(() => memoryBlockingMessage(memoryHealth?.value) || pendingMemoryMessage.value);
+  const pendingTurns = new Map();
 
   function isMemoryRebuildingError(error) {
-    return ["CHAT_MEMORY_REBUILDING", "CHAT_PRIVACY_PENDING"].includes(error?.code) || error?.status === 423;
+    return isMemoryPendingError(error);
   }
 
   function restoreComposerDraftIfIdle(value) {
@@ -47,14 +52,19 @@ export function useChatMessaging({
   }
 
   function setMemoryLocked(error) {
-    memoryLockMessage.value = error?.code === "CHAT_PRIVACY_PENDING"
+    pendingMemoryMessage.value = error?.code === "CHAT_PRIVACY_PENDING"
       ? "记忆正在重建，完成前暂时无法发送新消息"
       : String(error?.message || "记忆重建中，请稍后再试");
+    void refreshMemoryHealth?.();
   }
 
   function clearMemoryLocked() {
-    memoryLockMessage.value = "";
+    pendingMemoryMessage.value = "";
   }
+
+  if (memoryHealth) watch(memoryHealth, (health) => {
+    if (health?.memory?.scope?.chatBlocked === false) clearMemoryLocked();
+  });
 
   watch(activeSessionId, () => {
     clearMemoryLocked();
@@ -122,6 +132,18 @@ export function useChatMessaging({
     );
   }
 
+  function keepPendingTurn(error, sessionId, content, idempotencyKey, userMessage, assistantMessage) {
+    const persisted = applyServerPayload(sessionId, error?.data, { optimisticUserMessage: userMessage }).userMessage;
+    if (persisted) {
+      pendingTurns.set(sessionId, { content, idempotencyKey, messageId: persisted.id });
+      messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(message => message !== assistantMessage);
+    } else {
+      removeOptimisticTurn(sessionId, userMessage, assistantMessage);
+    }
+    restoreComposerDraftIfIdle(content);
+    setMemoryLocked(error);
+  }
+
   async function waitForPrivacyOperation(operationId, targetStatus, signal) {
     const intervalMs = 1000;
     while (true) {
@@ -145,7 +167,7 @@ export function useChatMessaging({
     if (regeneration?.status === "blocked_until_privacy_completed") {
       const operationId = privacy?.operationId;
       if (!operationId) throw new Error("缺少隐私操作ID，无法恢复生成");
-      memoryLockMessage.value = "记忆正在后台重建，完成后将自动继续生成；长对话可能需要较长时间…";
+      pendingMemoryMessage.value = "记忆正在重建，完成后将自动继续生成；长对话可能需要较长时间…";
       try {
         await waitForPrivacyOperation(operationId, regeneration.resumeAfterStatus || "completed", signal);
       } finally {
@@ -154,29 +176,37 @@ export function useChatMessaging({
     }
     const idempotencyKey = regeneration?.idempotencyKey;
     if (!idempotencyKey) throw new Error("缺少幂等键，无法恢复生成");
-    if (settings?.stream) {
-      await streamChatMessage(sessionId, {
-        content,
-        settings,
-        idempotencyKey,
-        signal,
-        onStart: (payload) => {
-          applyServerPayload(sessionId, payload, { optimisticUserMessage });
-        },
-        onDelta: (delta) => {
-          if (optimisticAssistantMessage) optimisticAssistantMessage.content += delta;
-        },
-        onDone: (payload) => {
-          applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage });
-        },
-        onError: (message) => {
-          if (optimisticAssistantMessage) optimisticAssistantMessage.content = `（请求失败）${message}`;
-          onError?.(message);
-        },
-      });
-    } else {
-      const result = await sendChatMessage(sessionId, { content, settings, idempotencyKey });
-      applyServerPayload(sessionId, result, { optimisticUserMessage, optimisticAssistantMessage });
+    try {
+      if (settings?.stream) {
+        await streamChatMessage(sessionId, {
+          content,
+          settings,
+          idempotencyKey,
+          signal,
+          onStart: (payload) => {
+            applyServerPayload(sessionId, payload, { optimisticUserMessage });
+          },
+          onDelta: (delta) => {
+            if (optimisticAssistantMessage) optimisticAssistantMessage.content += delta;
+          },
+          onDone: (payload) => {
+            applyServerPayload(sessionId, payload, { optimisticUserMessage, optimisticAssistantMessage });
+          },
+          onError: (message) => {
+            if (optimisticAssistantMessage) optimisticAssistantMessage.content = `（请求失败）${message}`;
+            onError?.(message);
+          },
+        });
+      } else {
+        const result = await sendChatMessage(sessionId, { content, settings, idempotencyKey });
+        applyServerPayload(sessionId, result, { optimisticUserMessage, optimisticAssistantMessage });
+      }
+      pendingTurns.delete(sessionId);
+    } catch (error) {
+      if (isMemoryRebuildingError(error)) {
+        keepPendingTurn(error, sessionId, content, idempotencyKey, optimisticUserMessage, optimisticAssistantMessage);
+      }
+      throw error;
     }
   }
 
@@ -247,6 +277,7 @@ export function useChatMessaging({
     const nowIso = new Date().toISOString();
 
     const snapshot = (messagesBySessionId[sessionId] || []).map((m) => ({ ...m }));
+    let editCommitted = false;
 
     try {
       await ensureMessagesLoaded(sessionId);
@@ -292,11 +323,10 @@ export function useChatMessaging({
             settings: outgoingSettings,
             signal: abortController.signal,
           });
+          editCommitted = true;
+          applyServerPayload(sessionId, editResult, { optimisticUserMessage: targetMessage });
 
           if (editResult.kind === "regeneration_required" || editResult.kind === "privacy_pending") {
-            if (editResult.kind === "privacy_pending") {
-              applyServerPayload(sessionId, { session: editResult.session, user_message: editResult.user_message }, { optimisticUserMessage: targetMessage });
-            }
             await resumeRegeneration(sessionId, {
               content: normalizedContent,
               settings: outgoingSettings,
@@ -312,8 +342,12 @@ export function useChatMessaging({
             clearMemoryLocked();
           }
         } catch (error) {
-          if (isMemoryRebuildingError(error)) {
+          if (!editCommitted) {
             messagesBySessionId[sessionId] = snapshot;
+            handleApiError(error);
+            return;
+          }
+          if (isMemoryRebuildingError(error)) {
             setMemoryLocked(error);
             handleApiError(error, { silent: true });
             return;
@@ -342,6 +376,8 @@ export function useChatMessaging({
         regenerate: true,
         settings: outgoingSettings,
       });
+      editCommitted = true;
+      applyServerPayload(sessionId, editResult, { optimisticUserMessage: targetMessage });
 
       if (editResult.kind === "regeneration_required" || editResult.kind === "privacy_pending") {
         await resumeRegeneration(sessionId, {
@@ -357,7 +393,7 @@ export function useChatMessaging({
         clearMemoryLocked();
       }
     } catch (error) {
-      messagesBySessionId[sessionId] = snapshot;
+      if (!editCommitted) messagesBySessionId[sessionId] = snapshot;
       if (isMemoryRebuildingError(error)) {
         setMemoryLocked(error);
         handleApiError(error, { silent: true });
@@ -373,6 +409,7 @@ export function useChatMessaging({
   async function sendMessage(text) {
     if (isSending.value) return;
     if (isReadOnly?.value) return;
+    if (memoryLockMessage.value) return;
 
     const content = String(text || "").trim();
     if (!content) return;
@@ -385,20 +422,29 @@ export function useChatMessaging({
     let sessionId = "";
     let optimisticUserMessage = null;
     let optimisticAssistantMessage = null;
+    let idempotencyKey = createId("chat_turn");
 
     try {
       sessionId = await ensureWritableSessionId();
       await ensureMessagesLoaded(sessionId);
 
-      const optimisticUserMessageId = createId("tmp_msg");
-      optimisticUserMessage = reactive({
-        id: optimisticUserMessageId,
-        clientId: optimisticUserMessageId,
-        role: "user",
-        content,
-        createdAt: nowIso,
-      });
-      messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticUserMessage];
+      const pending = pendingTurns.get(sessionId);
+      if (pending?.content === content) {
+        idempotencyKey = pending.idempotencyKey;
+        optimisticUserMessage = (messagesBySessionId[sessionId] || []).find(message => message.id === pending.messageId);
+      }
+
+      if (!optimisticUserMessage) {
+        const optimisticUserMessageId = createId("tmp_msg");
+        optimisticUserMessage = reactive({
+          id: optimisticUserMessageId,
+          clientId: optimisticUserMessageId,
+          role: "user",
+          content,
+          createdAt: nowIso,
+        });
+        messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticUserMessage];
+      }
 
       const session = sessions.value.find((s) => s.id === sessionId);
       if (session) {
@@ -428,6 +474,7 @@ export function useChatMessaging({
         try {
           await streamChatMessage(sessionId, {
             content,
+            idempotencyKey,
             settings: outgoingSettings,
             signal: abortController.signal,
             onStart: (payload) => {
@@ -443,13 +490,10 @@ export function useChatMessaging({
               optimisticAssistantMessage.content = `（请求失败）${message}`;
             },
           });
+          pendingTurns.delete(sessionId);
         } catch (error) {
           if (isMemoryRebuildingError(error)) {
-            setMemoryLocked(error);
-            restoreComposerDraftIfIdle(content);
-            messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
-              (m) => m !== optimisticUserMessage && m !== optimisticAssistantMessage
-            );
+            keepPendingTurn(error, sessionId, content, idempotencyKey, optimisticUserMessage, optimisticAssistantMessage);
             handleApiError(error, { silent: true });
             return;
           }
@@ -478,18 +522,13 @@ export function useChatMessaging({
         return;
       }
 
-      const result = await sendChatMessage(sessionId, { content, settings: outgoingSettings });
+      const result = await sendChatMessage(sessionId, { content, settings: outgoingSettings, idempotencyKey });
       applyServerPayload(sessionId, result, { optimisticUserMessage });
+      pendingTurns.delete(sessionId);
       clearMemoryLocked();
     } catch (error) {
       if (isMemoryRebuildingError(error)) {
-        setMemoryLocked(error);
-        restoreComposerDraftIfIdle(content);
-        if (sessionId) {
-          messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
-            (m) => m !== optimisticUserMessage && m !== optimisticAssistantMessage
-          );
-        }
+        keepPendingTurn(error, sessionId, content, idempotencyKey, optimisticUserMessage, optimisticAssistantMessage);
         handleApiError(error, { silent: true });
         return;
       }
