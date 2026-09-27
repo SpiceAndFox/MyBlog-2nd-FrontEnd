@@ -274,6 +274,20 @@ export async function sendChatMessage(sessionId, { content, settings, idempotenc
   return data;
 }
 
+export async function resumeChatMessage(sessionId, messageId, { settings, signal, ...callbacks } = {}) {
+  const res = await fetch(`/api/chat/sessions/${normalizeSessionId(sessionId)}/messages/${normalizeMessageId(messageId)}/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader() },
+    body: JSON.stringify({ settings }),
+    signal,
+  });
+  if (!res.ok) throw createApiError(res, await readJsonSafe(res), "补回复失败");
+  if (settings?.stream) return readChatStream(res, callbacks);
+  const payload = await readJsonSafe(res);
+  callbacks.onDone?.(payload);
+  return payload;
+}
+
 export async function editChatMessage(
   sessionId,
   messageId,
@@ -348,10 +362,22 @@ export async function streamChatMessage(
     throw createApiError(res, data, "发送消息失败");
   }
 
+  return readChatStream(res, { onDelta, onStart, onDone, onError });
+}
+
+async function readChatStream(res, { onDelta, onStart, onDone, onError } = {}) {
+  // A completed turn is replayed as JSON even when the request asked for SSE.
+  if (res.headers.get("Content-Type")?.includes("application/json")) {
+    const payload = await readJsonSafe(res);
+    if (!payload?.assistant_message) throw new Error("回复尚未完成，请重试补回复");
+    onDone?.(payload);
+    return payload;
+  }
   if (!res.body) throw new Error("响应流不可用");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+  let completed = false;
 
   const state = {
     buffer: "",
@@ -375,19 +401,27 @@ export async function streamChatMessage(
       }
 
       if (payload?.type === "done") {
+        completed = true;
         onDone?.(payload);
         return;
       }
 
       if (payload?.type === "error") {
         onError?.(payload.error || "未知错误");
+        throw Object.assign(new Error(payload.error || "回复未完成"), { code: payload.code, data: payload });
       }
     },
   };
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    parseSseFrames(decoder.decode(value, { stream: true }), state);
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      parseSseFrames(decoder.decode(value, { stream: true }), state);
+    }
+    if (!completed) throw new Error("连接已中断，回复尚未确认保存，请重试补回复");
+  } finally {
+    if (!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 }

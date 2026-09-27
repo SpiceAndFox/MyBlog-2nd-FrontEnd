@@ -401,6 +401,8 @@ export function useChatPage({ router }) {
     isStreaming: chatMessaging.isStreaming,
     memoryLockMessage: chatMessaging.memoryLockMessage,
     stopStreaming: chatMessaging.stopStreaming,
+    resumingMessageId: chatMessaging.resumingMessageId,
+    resumeReply: chatMessaging.resumeReply,
     healthWarnings: chatHealth.warnings,
     healthRetryableComponents: chatHealth.retryableComponents,
     isHealthLoading: chatHealth.isLoading,

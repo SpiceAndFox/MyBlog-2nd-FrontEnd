@@ -11,10 +11,14 @@ const props = defineProps({
   editDraft: { type: String, default: "" },
   processing: { type: Boolean, default: false },
   actionsDisabled: { type: Boolean, default: false },
+  resumeDisabled: { type: Boolean, default: false },
+  resuming: { type: Boolean, default: false },
+  memoryBlocked: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
   "request-edit",
+  "resume-reply",
   "cancel-edit",
   "commit-edit",
   "update:editDraft",
@@ -156,6 +160,14 @@ function onEditKeydown(event) {
           <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
         </div>
       </div>
+      <div v-if="isUser && message.replyStatus === 'incomplete' && !isEditing" class="reply-recovery" role="status">
+        <span v-if="resuming">正在补回复…</span>
+        <span v-else-if="message.replyInFlight">正在生成回复…</span>
+        <span v-else-if="message.canResume && memoryBlocked">回复未完成，等待记忆恢复后可补回复</span>
+        <span v-else>{{ message.replyError || (message.canResume ? '回复未完成' : '回复未完成，请在今天的会话中继续') }}</span>
+        <button v-if="message.canResume" type="button" class="resume-button"
+          :disabled="resumeDisabled || resuming" @click="emit('resume-reply', message)">补回复</button>
+      </div>
       <div class="meta">
         <div class="meta-right">
           <span v-if="timeLabel" class="time">{{ timeLabel }}</span>
@@ -195,6 +207,26 @@ function onEditKeydown(event) {
 </template>
 
 <style scoped>
+.reply-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--chat-muted);
+}
+.resume-button {
+  padding: 5px 10px;
+  border: 1px solid var(--chat-muted);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chat-text);
+  cursor: pointer;
+}
+.resume-button:disabled { opacity: 0.5; cursor: default; }
+.resume-button:focus-visible { outline: 2px solid var(--chat-accent); outline-offset: 2px; }
 .row {
   --message-avatar-size: 32px;
   --message-gap: 12px;

@@ -11,9 +11,12 @@ const props = defineProps({
   editingDraft: { type: String, default: "" },
   editingProcessing: { type: Boolean, default: false },
   actionsDisabled: { type: Boolean, default: false },
+  resumeDisabled: { type: Boolean, default: false },
+  resumingMessageId: { type: String, default: "" },
+  memoryBlocked: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["request-edit", "update-edit-draft", "commit-edit", "cancel-edit"]);
+const emit = defineEmits(["request-edit", "update-edit-draft", "commit-edit", "cancel-edit", "resume-reply"]);
 
 const listRef = ref(null);
 
@@ -108,7 +111,11 @@ watch(lastMessageId, async () => {
         :editDraft="String(message.id) === String(editingMessageId) ? editingDraft : ''"
         :processing="editingProcessing && String(message.id) === String(editingMessageId)"
         :actionsDisabled="actionsDisabled && String(message.id) !== String(editingMessageId)"
+        :resumeDisabled="resumeDisabled"
+        :resuming="String(message.id) === resumingMessageId"
+        :memoryBlocked="memoryBlocked"
         @request-edit="emit('request-edit', $event)"
+        @resume-reply="emit('resume-reply', $event)"
         @update:editDraft="emit('update-edit-draft', $event)"
         @commit-edit="emit('commit-edit', $event)"
         @cancel-edit="emit('cancel-edit', $event)"

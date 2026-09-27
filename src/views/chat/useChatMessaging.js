@@ -1,6 +1,6 @@
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { isMemoryPendingError, memoryBlockingMessage } from "./memoryReadiness";
-import { editChatMessage, getChatPrivacyOperation, sendChatMessage, streamChatMessage } from "@/api/chat";
+import { editChatMessage, getChatPrivacyOperation, listChatMessages, resumeChatMessage, sendChatMessage, streamChatMessage } from "@/api/chat";
 import { createId, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 
@@ -29,6 +29,7 @@ export function useChatMessaging({
 }) {
   const isSending = ref(false);
   const isStreaming = ref(false);
+  const resumingMessageId = ref("");
   let activeStreamAbortController = null;
 
   const pendingMemoryMessage = ref("");
@@ -122,6 +123,9 @@ export function useChatMessaging({
     optimisticUserMessage.role = mapped.role;
     optimisticUserMessage.content = mapped.content;
     optimisticUserMessage.createdAt = mapped.createdAt;
+    optimisticUserMessage.replyStatus = mapped.replyStatus;
+    optimisticUserMessage.canResume = mapped.canResume;
+    optimisticUserMessage.replyInFlight = isSending.value;
     return mapped;
   }
 
@@ -135,6 +139,9 @@ export function useChatMessaging({
   function keepPendingTurn(error, sessionId, content, idempotencyKey, userMessage, assistantMessage) {
     const persisted = applyServerPayload(sessionId, error?.data, { optimisticUserMessage: userMessage }).userMessage;
     if (persisted) {
+      userMessage.replyStatus = "incomplete";
+      userMessage.canResume = true;
+      userMessage.replyInFlight = false;
       pendingTurns.set(sessionId, { content, idempotencyKey, messageId: persisted.id });
       messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(message => message !== assistantMessage);
     } else {
@@ -226,6 +233,11 @@ export function useChatMessaging({
       const mapped = mapMessage(payload.assistant_message);
       if (!mapped) return applied;
       applied.assistantMessage = mapped;
+      if (optimisticUserMessage) {
+        optimisticUserMessage.replyStatus = "complete";
+        optimisticUserMessage.canResume = false;
+        optimisticUserMessage.replyInFlight = false;
+      }
 
       if (optimisticAssistantMessage) {
         optimisticAssistantMessage.id = mapped.id;
@@ -238,6 +250,81 @@ export function useChatMessaging({
     }
 
     return applied;
+  }
+
+  async function refreshTurnMessages(sessionId) {
+    try {
+      const messages = await listChatMessages(sessionId);
+      messagesBySessionId[sessionId] = messages.map(mapMessage).filter(Boolean);
+    } catch {
+      // Retain the known persisted turn while offline; a page reload also
+      // reconstructs reply status from the server, without a local retry key.
+    }
+  }
+
+  async function recoverFailedTurn(error, sessionId, userMessage, assistantMessage) {
+    applyServerPayload(sessionId, error?.data, { optimisticUserMessage: userMessage });
+    const persisted = /^\d+$/.test(String(userMessage?.id || ""));
+    messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || [])
+      .filter(entry => entry !== assistantMessage && (persisted || entry !== userMessage));
+    if (persisted) {
+      userMessage.replyStatus = "incomplete";
+      userMessage.canResume = true;
+      userMessage.replyInFlight = false;
+      userMessage.replyError = isAbortError(error) ? "回复已中断，可以补回复" : String(error?.message || "回复未完成");
+    } else {
+      restoreComposerDraftIfIdle(userMessage?.content || "");
+    }
+    // The server may have committed even when the response was lost.
+    await refreshTurnMessages(sessionId);
+    if (!isAbortError(error)) handleApiError(error, { silent: persisted });
+  }
+
+  async function resumeReply(message) {
+    if (isSending.value || isStreaming.value || isEditingActive.value || isEditingMessage.value || memoryLockMessage.value) return;
+    const sessionId = String(activeSessionId.value || "");
+    const target = (messagesBySessionId[sessionId] || []).find(entry => entry.id === message?.id);
+    if (!sessionId || target?.role !== "user" || !target.canResume || target.replyStatus !== "incomplete") return;
+    isSending.value = true;
+    resumingMessageId.value = target.id;
+    target.replyError = "";
+    const outgoingSettings = buildOutgoingSettings();
+    const abortController = new AbortController();
+    activeStreamAbortController = abortController;
+    isStreaming.value = Boolean(outgoingSettings.stream);
+    const optimisticAssistantMessage = reactive({ id: createId("tmp_msg"), role: "assistant", content: "",
+      createdAt: new Date().toISOString() });
+    messagesBySessionId[sessionId] = [...messagesBySessionId[sessionId], optimisticAssistantMessage];
+    let completed = false;
+    try {
+      await resumeChatMessage(sessionId, target.id, {
+        settings: outgoingSettings, signal: abortController.signal,
+        onStart: payload => applyServerPayload(sessionId, payload, { optimisticUserMessage: target }),
+        onDelta: delta => { optimisticAssistantMessage.content += delta; },
+        onDone: payload => {
+          applyServerPayload(sessionId, payload, { optimisticUserMessage: target, optimisticAssistantMessage });
+          completed = Boolean(payload?.assistant_message);
+        },
+      });
+      if (!completed) throw new Error("回复尚未完成，请重试补回复");
+      pendingTurns.delete(sessionId);
+      clearMemoryLocked();
+    } catch (error) {
+      target.replyError = isAbortError(error) ? "回复已中断，可以再次补回复" : String(error?.message || "补回复失败");
+      target.replyInFlight = false;
+      if (error?.code === "CHAT_RESUME_NOT_LATEST" || error?.code === "CHAT_RESUME_UNAVAILABLE") target.canResume = false;
+      if (isMemoryRebuildingError(error)) setMemoryLocked(error);
+      handleApiError(error, { silent: true });
+    } finally {
+      if (!completed) {
+        messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(entry => entry !== optimisticAssistantMessage);
+        await refreshTurnMessages(sessionId);
+      }
+      if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+      isStreaming.value = false;
+      isSending.value = false;
+      resumingMessageId.value = "";
+    }
   }
 
   async function ensureWritableSessionId() {
@@ -352,16 +439,7 @@ export function useChatMessaging({
             handleApiError(error, { silent: true });
             return;
           }
-          if (isAbortError(error)) {
-            if (!String(optimisticAssistantMessage.content || "").trim()) {
-              messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
-                (m) => m !== optimisticAssistantMessage
-              );
-            }
-          } else if (!handleApiError(error, { silent: true })) {
-            applyServerPayload(sessionId, error?.data, { optimisticUserMessage: targetMessage });
-            optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
-          }
+          await recoverFailedTurn(error, sessionId, targetMessage, optimisticAssistantMessage);
         } finally {
           if (activeStreamAbortController === abortController) activeStreamAbortController = null;
           isStreaming.value = false;
@@ -399,7 +477,10 @@ export function useChatMessaging({
         handleApiError(error, { silent: true });
         return;
       }
-      handleApiError(error);
+      if (editCommitted) {
+        const target = (messagesBySessionId[sessionId] || []).find(message => message.id === targetMessageId);
+        await recoverFailedTurn(error, sessionId, target);
+      } else handleApiError(error);
     } finally {
       isSending.value = false;
       isEditingMessage.value = false;
@@ -497,23 +578,7 @@ export function useChatMessaging({
             handleApiError(error, { silent: true });
             return;
           }
-          if (isAbortError(error)) {
-            if (!String(optimisticAssistantMessage.content || "").trim()) {
-              messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(
-                (m) => m !== optimisticAssistantMessage
-              );
-            }
-            return;
-          }
-          const applied = applyServerPayload(sessionId, error?.data, { optimisticUserMessage });
-          if (!applied.userMessage) {
-            restoreComposerDraftIfIdle(content);
-            removeOptimisticTurn(sessionId, optimisticUserMessage, optimisticAssistantMessage);
-            handleApiError(error);
-            return;
-          }
-          if (handleApiError(error, { silent: true })) return;
-          optimisticAssistantMessage.content = `（请求失败）${error?.message || error}`;
+          await recoverFailedTurn(error, sessionId, optimisticUserMessage, optimisticAssistantMessage);
         } finally {
           if (activeStreamAbortController === abortController) activeStreamAbortController = null;
           isStreaming.value = false;
@@ -532,27 +597,8 @@ export function useChatMessaging({
         handleApiError(error, { silent: true });
         return;
       }
-      const applied = applyServerPayload(sessionId, error?.data, { optimisticUserMessage });
-      const hasPersistedUserMessage = Boolean(applied.userMessage);
-      const redirected = handleApiError(error, { silent: Boolean(sessionId && hasPersistedUserMessage) });
-
-      if (!redirected && sessionId) {
-        if (!hasPersistedUserMessage) {
-          restoreComposerDraftIfIdle(content);
-          removeOptimisticTurn(sessionId, optimisticUserMessage, optimisticAssistantMessage);
-          return;
-        }
-
-        messagesBySessionId[sessionId] = [
-          ...(messagesBySessionId[sessionId] || []),
-          {
-            id: createId("msg"),
-            role: "assistant",
-            content: `（请求失败）${error?.message || error}`,
-            createdAt: new Date().toISOString(),
-          },
-        ];
-      }
+      if (sessionId) await recoverFailedTurn(error, sessionId, optimisticUserMessage, optimisticAssistantMessage);
+      else handleApiError(error);
     } finally {
       isSending.value = false;
     }
@@ -561,6 +607,8 @@ export function useChatMessaging({
   return {
     isSending,
     isStreaming,
+    resumingMessageId,
+    resumeReply,
     memoryLockMessage,
     stopStreaming,
     requestEditMessage,

@@ -18,6 +18,7 @@ const props = defineProps({
   todayKey: { type: String, default: "" },
   isMobile: { type: Boolean, default: false },
   readOnly: { type: Boolean, default: false },
+  resumingMessageId: { type: String, default: "" },
   composerDraft: { type: String, default: "" },
   dayRollover: { type: Object, default: null },
   isSending: { type: Boolean, default: false },
@@ -44,6 +45,7 @@ const emit = defineEmits([
   "send-message",
   "stop-output",
   "request-edit-message",
+  "resume-reply",
   "update-edit-draft",
   "commit-edit-message",
   "cancel-edit-message",
@@ -127,7 +129,7 @@ defineExpose({
       </div>
     </transition>
 
-    <div v-if="!readOnly && memoryLockMessage" class="memory-lock-banner" role="note" aria-label="记忆重建提示">
+    <div v-if="memoryLockMessage" class="memory-lock-banner" role="note" aria-label="记忆重建提示">
       <div class="memory-lock-text">{{ memoryLockMessage }}</div>
     </div>
 
@@ -149,10 +151,14 @@ defineExpose({
       :editingMessageId="editingMessageId"
       :editingDraft="editingDraft"
       :editingProcessing="editingProcessing"
+      :resumingMessageId="resumingMessageId"
+      :resumeDisabled="isSending || isStreaming || isEditingActive || editingProcessing || Boolean(memoryLockMessage)"
+      :memoryBlocked="Boolean(memoryLockMessage)"
       :actionsDisabled="
         readOnly || isSending || isStreaming || isEditingActive || editingProcessing || Boolean(memoryLockMessage)
       "
       @request-edit="emit('request-edit-message', $event)"
+      @resume-reply="emit('resume-reply', $event)"
       @update-edit-draft="emit('update-edit-draft', $event)"
       @commit-edit="emit('commit-edit-message', $event)"
       @cancel-edit="emit('cancel-edit-message', $event)"
@@ -160,7 +166,8 @@ defineExpose({
 
     <div v-if="readOnly" class="read-only-shell">
       <div class="read-only-banner" role="note" aria-label="历史会话提示">
-        <span class="read-only-text">历史对话，只读</span>
+        <span class="read-only-text">历史对话，只读；最新一条未完成的消息仍可补回复</span>
+        <button v-if="resumingMessageId && isStreaming" class="read-only-action" type="button" @click="emit('stop-output')">停止回复</button>
         <button class="read-only-action" type="button" @click="emit('go-today')">回到今天</button>
       </div>
     </div>

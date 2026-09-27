@@ -154,6 +154,8 @@ export function mapMessage(raw) {
     id,
     clientId: id || createId("msg"),
     role: raw.role,
+    replyStatus: raw.reply_status ?? raw.replyStatus ?? null,
+    canResume: Boolean(raw.can_resume ?? raw.canResume),
     content: raw.content || "",
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
   };

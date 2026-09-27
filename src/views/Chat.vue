@@ -24,6 +24,8 @@ const {
   isStreaming,
   memoryLockMessage,
   stopStreaming,
+  resumingMessageId,
+  resumeReply,
   healthWarnings,
   healthRetryableComponents,
   isHealthLoading,
@@ -205,6 +207,7 @@ useChatComposerSlashFocus({
       :isSending="isSending"
       :isStreaming="isStreaming"
       :memoryLockMessage="memoryLockMessage"
+      :resumingMessageId="resumingMessageId"
       :isEditingActive="isEditingActive"
       :editingMessageId="editingMessageId"
       :editingDraft="editingDraft"
@@ -222,6 +225,7 @@ useChatComposerSlashFocus({
       @send-message="sendMessage"
       @stop-output="stopStreaming"
       @request-edit-message="requestEditMessage"
+      @resume-reply="resumeReply"
       @update-edit-draft="updateEditDraft"
       @commit-edit-message="commitEditMessage"
       @cancel-edit-message="cancelEditMessage"
