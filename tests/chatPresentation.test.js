@@ -144,3 +144,25 @@ test("missing profile images fall back to a visible initial for either role", as
     assert.match(html, />小<\/span>/);
   }
 });
+
+test("reply recovery is shown only for stopped incomplete replies, without generation notices", async () => {
+  const message = { id: "88", role: "user", content: "你好", replyStatus: "incomplete", canResume: true };
+  for (const [label, messageOverrides, props, recovery, button] of [
+    ["failed or reloaded", {}, {}, true, true],
+    ["streaming", { replyInFlight: true }, {}, false, false],
+    ["retry before the first token", {}, { resuming: true }, false, false],
+    ["editing", {}, { isEditing: true }, false, false],
+    ["saving an edit", {}, { processing: true }, false, false],
+    ["completed", { replyStatus: "complete", canResume: false }, {}, false, false],
+    ["legacy message", { replyStatus: "", canResume: false }, {}, false, false],
+    ["older incomplete turn", { canResume: false }, {}, true, false],
+    ["assistant", { role: "assistant" }, {}, false, false],
+  ]) {
+    const html = await renderToString(createSSRApp(MessageBubble, {
+      message: { ...message, ...messageOverrides }, ...props,
+    }));
+    assert.equal(html.includes('class="reply-recovery"'), recovery, label);
+    assert.equal(html.includes('class="resume-button"'), button, label);
+    assert.doesNotMatch(html, /正在生成回复|正在补回复/);
+  }
+});

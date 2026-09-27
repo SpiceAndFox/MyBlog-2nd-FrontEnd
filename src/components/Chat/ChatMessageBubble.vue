@@ -25,6 +25,14 @@ const emit = defineEmits([
 ]);
 
 const isUser = computed(() => props.message?.role === "user");
+const showReplyRecovery = computed(() =>
+  isUser.value &&
+  props.message.replyStatus === "incomplete" &&
+  !props.message.replyInFlight &&
+  !props.resuming &&
+  !props.processing &&
+  !props.isEditing,
+);
 const avatarUrl = computed(() =>
   (isUser.value ? props.userProfile : props.assistantProfile)?.avatarUrl || "",
 );
@@ -160,13 +168,11 @@ function onEditKeydown(event) {
           <div v-else class="markdown" v-html="renderedAssistantHtml"></div>
         </div>
       </div>
-      <div v-if="isUser && message.replyStatus === 'incomplete' && !isEditing" class="reply-recovery" role="status">
-        <span v-if="resuming">正在补回复…</span>
-        <span v-else-if="message.replyInFlight">正在生成回复…</span>
-        <span v-else-if="message.canResume && memoryBlocked">回复未完成，等待记忆恢复后可补回复</span>
+      <div v-if="showReplyRecovery" class="reply-recovery" role="status">
+        <span v-if="message.canResume && memoryBlocked">回复未完成，等待记忆恢复后可补回复</span>
         <span v-else>{{ message.replyError || (message.canResume ? '回复未完成' : '回复未完成，请在今天的会话中继续') }}</span>
         <button v-if="message.canResume" type="button" class="resume-button"
-          :disabled="resumeDisabled || resuming" @click="emit('resume-reply', message)">补回复</button>
+          :disabled="resumeDisabled || memoryBlocked" @click="emit('resume-reply', message)">补回复</button>
       </div>
       <div class="meta">
         <div class="meta-right">
@@ -212,18 +218,27 @@ function onEditKeydown(event) {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 4px;
   font-size: 12px;
   color: var(--chat-muted);
 }
 .resume-button {
-  padding: 5px 10px;
-  border: 1px solid var(--chat-muted);
-  border-radius: 8px;
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
-  color: var(--chat-text);
+  color: var(--chat-muted);
+  font: inherit;
+  line-height: 1.4;
   cursor: pointer;
+}
+.resume-button:hover:not(:disabled) {
+  color: var(--chat-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .resume-button:disabled { opacity: 0.5; cursor: default; }
 .resume-button:focus-visible { outline: 2px solid var(--chat-accent); outline-offset: 2px; }

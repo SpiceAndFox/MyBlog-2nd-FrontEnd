@@ -85,6 +85,7 @@ for (const stream of [false, true]) test(`a reloaded read-only session resumes b
   assert.equal(original.createdAt, "2026-01-01T12:00:00Z");
   assert.equal(original.content, "昨天的问题");
   assert.equal(original.canResume, false);
+  assert.equal(original.replyInFlight, false);
   assert.deepEqual(h.messages["1"].map(message => message.id), ["88", "89"]);
   assert.equal(h.chat.isSending.value, false);
 });
@@ -101,6 +102,7 @@ test("double-clicking resume sends only one request and preserves the current co
   await h.chat.resumeReply(h.messages["1"][0]);
   assert.equal(calls, 1);
   assert.equal(h.chat.resumingMessageId.value, "88");
+  assert.equal(h.messages["1"][0].replyInFlight, true);
   pending.resolve();
   await first;
   assert.equal(h.draft.value, "今天的新草稿");
@@ -155,6 +157,7 @@ for (const errorFrame of [false, true]) test(`interrupted SSE never marks a part
   assert.equal(h.messages["1"][0].canResume, true);
   assert.equal(h.messages["1"][0].replyStatus, "incomplete");
   assert.match(h.messages["1"][0].replyError, /中断/);
+  assert.equal(h.messages["1"][0].replyInFlight, false);
   assert.equal(h.chat.isStreaming.value, false);
 });
 
@@ -235,6 +238,7 @@ test("blocking rebuild warnings remain visible while ordinary background updates
 for (const stream of [false, true]) test(`coverage-pending replies keep persisted messages and reuse the original key on retry (stream=${stream})`, async t => {
   t.mock.method(globalThis, "fetch", async (_url, options) => {
     calls.push(options.headers["Idempotency-Key"]);
+    assert.equal(h.messages["1"][0].replyInFlight, true, "initial sends and reused pending turns are generating before the response arrives");
     const payload = calls.length === 1 ? { code: "CHAT_MEMORY_COVERAGE_PENDING",
       error: "记忆正在补齐上下文，请稍后重试", user_message: { id: 88, role: "user", content: "你好" } }
       : { user_message: { id: 88, role: "user", content: "你好" },
@@ -250,6 +254,7 @@ for (const stream of [false, true]) test(`coverage-pending replies keep persiste
   await h.chat.sendMessage("你好");
   assert.equal(h.messages["1"].length, 1);
   assert.equal(h.messages["1"][0].id, "88");
+  assert.equal(h.messages["1"][0].replyInFlight, false);
   assert.equal(h.draft.value, "你好");
   assert.match(h.chat.memoryLockMessage.value, /记忆/);
   h.health.value = { memory: { scope: { chatBlocked: false } } };
@@ -259,6 +264,7 @@ for (const stream of [false, true]) test(`coverage-pending replies keep persiste
   assert.equal(calls[0], calls[1]);
   assert.equal(h.messages["1"].filter(message => message.role === "user").length, 1);
   assert.equal(h.messages["1"].filter(message => message.role === "assistant").length, 1);
+  assert.equal(h.messages["1"][0].replyInFlight, false);
 });
 
 for (const stream of [false, true]) test(`a committed edit survives coverage-pending regeneration and retries without duplicating the edited message (stream=${stream})`, async t => {
@@ -266,8 +272,11 @@ for (const stream of [false, true]) test(`a committed edit survives coverage-pen
   t.mock.method(globalThis, "fetch", async (_url, options) => {
     calls.push(options);
     const user_message = { id: 88, role: "user", content: "修改后的消息" };
-    if (options.method === "PATCH") return new Response(JSON.stringify({ user_message,
-      regeneration: { idempotencyKey: "edit-original-key" } }), { status: 409 });
+    if (options.method === "PATCH") {
+      assert.equal(h.messages["1"][0].replyInFlight, true, "editing marks the turn as generating before awaiting the server");
+      return new Response(JSON.stringify({ user_message,
+        regeneration: { idempotencyKey: "edit-original-key" } }), { status: 409 });
+    }
     if (calls.length === 2) return new Response(JSON.stringify({ code: "CHAT_MEMORY_COVERAGE_PENDING",
       error: "记忆正在补齐上下文，请稍后重试", user_message }), { status: 409 });
     const payload = { user_message, assistant_message: { id: 91, role: "assistant", content: "修改后的回复" } };
@@ -284,6 +293,7 @@ for (const stream of [false, true]) test(`a committed edit survives coverage-pen
   await h.chat.commitEditMessage("88");
   assert.equal(calls.length, 2);
   assert.deepEqual(h.messages["1"].map(message => message.content), ["修改后的消息"]);
+  assert.equal(h.messages["1"][0].replyInFlight, false);
   assert.equal(h.draft.value, "修改后的消息");
   assert.match(h.chat.memoryLockMessage.value, /记忆/);
   h.health.value = { memory: { scope: { chatBlocked: false } } };

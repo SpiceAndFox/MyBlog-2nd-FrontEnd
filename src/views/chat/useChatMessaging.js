@@ -287,6 +287,7 @@ export function useChatMessaging({
     if (!sessionId || target?.role !== "user" || !target.canResume || target.replyStatus !== "incomplete") return;
     isSending.value = true;
     resumingMessageId.value = target.id;
+    target.replyInFlight = true;
     target.replyError = "";
     const outgoingSettings = buildOutgoingSettings();
     const abortController = new AbortController();
@@ -321,6 +322,7 @@ export function useChatMessaging({
         await refreshTurnMessages(sessionId);
       }
       if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+      target.replyInFlight = false;
       isStreaming.value = false;
       isSending.value = false;
       resumingMessageId.value = "";
@@ -374,6 +376,7 @@ export function useChatMessaging({
       if (messageIndex === -1) throw new Error("未找到要修改的消息");
 
       const targetMessage = list[messageIndex];
+      targetMessage.replyInFlight = true;
       targetMessage.content = normalizedContent;
       messagesBySessionId[sessionId] = list.slice(0, messageIndex + 1);
 
@@ -482,6 +485,8 @@ export function useChatMessaging({
         await recoverFailedTurn(error, sessionId, target);
       } else handleApiError(error);
     } finally {
+      const target = (messagesBySessionId[sessionId] || []).find(message => message.id === targetMessageId);
+      if (target) target.replyInFlight = false;
       isSending.value = false;
       isEditingMessage.value = false;
     }
@@ -526,6 +531,7 @@ export function useChatMessaging({
         });
         messagesBySessionId[sessionId] = [...(messagesBySessionId[sessionId] || []), optimisticUserMessage];
       }
+      optimisticUserMessage.replyInFlight = true;
 
       const session = sessions.value.find((s) => s.id === sessionId);
       if (session) {
@@ -600,6 +606,7 @@ export function useChatMessaging({
       if (sessionId) await recoverFailedTurn(error, sessionId, optimisticUserMessage, optimisticAssistantMessage);
       else handleApiError(error);
     } finally {
+      if (optimisticUserMessage) optimisticUserMessage.replyInFlight = false;
       isSending.value = false;
     }
   }
