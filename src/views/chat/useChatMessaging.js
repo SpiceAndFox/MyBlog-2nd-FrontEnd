@@ -255,7 +255,14 @@ export function useChatMessaging({
   async function refreshTurnMessages(sessionId) {
     try {
       const messages = await listChatMessages(sessionId);
-      messagesBySessionId[sessionId] = messages.map(mapMessage).filter(Boolean);
+      const previous = new Map((messagesBySessionId[sessionId] || []).map(message => [message.id, message]));
+      messagesBySessionId[sessionId] = messages.map(mapMessage).filter(Boolean).map(message => {
+        const known = previous.get(message.id);
+        if (message.replyStatus === "incomplete" && known?.content === message.content && known?.replyError) {
+          message.replyError = known.replyError;
+        }
+        return message;
+      });
     } catch {
       // Retain the known persisted turn while offline; a page reload also
       // reconstructs reply status from the server, without a local retry key.

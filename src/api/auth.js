@@ -3,7 +3,7 @@ const BASE_URL = "";
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
-  if (!token) throw new Error("尚未登录或登录已过期");
+  if (!token) throw Object.assign(new Error("尚未登录或登录已过期"), { status: 401, code: "AUTH_REQUIRED" });
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -31,6 +31,6 @@ export async function getMeApi() {
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "获取用户信息失败");
+  if (!res.ok) throw Object.assign(new Error(data.error || "获取用户信息失败"), { status: res.status, code: data.code });
   return data.user;
 }

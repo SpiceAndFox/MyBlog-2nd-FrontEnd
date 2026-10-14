@@ -2,7 +2,7 @@
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
-  if (!token) throw new Error("尚未登录或登录已过期");
+  if (!token) throw new ApiError("尚未登录或登录已过期", { status: 401, code: "AUTH_REQUIRED" });
   return { Authorization: `Bearer ${token}` };
 }
 

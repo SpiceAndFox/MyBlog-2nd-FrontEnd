@@ -1,7 +1,11 @@
 export function shouldRedirectToLogin(error) {
-  const msg = String(error?.message || "");
-  if (!msg) return false;
-  return /token|登录|过期|unauthorized|forbidden/i.test(msg);
+  // Provider errors can mention API tokens or model access after our own
+  // authentication succeeded. Only the site's authentication failures redirect.
+  if (error?.code === "AUTH_REQUIRED") return true;
+  const status = Number(error?.status);
+  if (status === 401) return true;
+  // The existing backend returns 403 for a missing Authorization header.
+  return status === 403 && error?.message === "需要提供Token用于认证";
 }
 
 export function createApiErrorHandler(router) {

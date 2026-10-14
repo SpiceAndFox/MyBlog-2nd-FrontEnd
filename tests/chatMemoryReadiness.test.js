@@ -173,6 +173,7 @@ test("a lost done event reloads the server's committed reply instead of offering
   await h.chat.resumeReply(h.messages["1"][0]);
   assert.deepEqual(h.messages["1"].map(message => message.id), ["88", "89"]);
   assert.equal(h.messages["1"][0].canResume, false);
+  assert.equal(h.messages["1"][0].replyError, undefined);
 });
 
 test("a stale resume button is removed when another conversation has advanced the preset", async t => {
@@ -195,6 +196,28 @@ test("a failed ordinary send retains its persisted user message and exposes resu
   await h.chat.sendMessage("昨天的问题");
   assert.equal(h.messages["1"].length, 1);
   assert.equal(h.messages["1"][0].canResume, true);
+  assert.equal(h.messages["1"][0].replyError, "provider unavailable");
+});
+
+for (const stream of [false, true]) test(`a BotCF model denial remains visible after the message refresh (stream=${stream})`, async t => {
+  auth(t);
+  const error = "This token has no access to model gemini-4-argon";
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    if (!options.method) return Response.json({ messages: [pendingMessage()] });
+    const failure = { error, code: "CHAT_MESSAGE_SEND_FAILED", user_message: pendingMessage() };
+    return stream ? new Response([
+      { type: "start", user_message: pendingMessage() },
+      { type: "error", ...failure },
+    ].map(payload => `data: ${JSON.stringify(payload)}\n\n`).join(""))
+      : Response.json(failure, { status: 500 });
+  });
+  const h = messaging(t, stream);
+  await h.chat.sendMessage("昨天的问题");
+  assert.equal(h.messages["1"].length, 1);
+  assert.equal(h.messages["1"][0].replyError, error);
+  assert.equal(h.messages["1"][0].canResume, true);
+  const html = await renderToString(createSSRApp(Panel, { messages: h.messages["1"] }));
+  assert.ok(html.includes(error));
 });
 
 test("historical messages render a separate resume action while editing stays disabled", async () => {
