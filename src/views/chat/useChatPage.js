@@ -384,7 +384,7 @@ export function useChatPage({ router }) {
     flushDraftPersistence();
     window.removeEventListener("beforeunload", flushDraftPersistence);
     document.removeEventListener("visibilitychange", onVisibilityChange);
-    chatMessaging.stopStreaming();
+    chatMessaging.detachStream();
     releaseBodyScrollLock?.();
     releaseBodyScrollLock = null;
   });

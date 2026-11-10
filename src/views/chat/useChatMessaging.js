@@ -1,6 +1,6 @@
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { isMemoryPendingError, memoryBlockingMessage } from "./memoryReadiness";
-import { editChatMessage, getChatPrivacyOperation, listChatMessages, resumeChatMessage, sendChatMessage, streamChatMessage } from "@/api/chat";
+import { editChatMessage, getChatPrivacyOperation, listChatMessages, resumeChatMessage, sendChatMessage, stopChatGeneration, streamChatMessage } from "@/api/chat";
 import { createId, isAbortError } from "./helpers";
 import { mapMessage } from "./mappers";
 
@@ -30,7 +30,7 @@ export function useChatMessaging({
   const isSending = ref(false);
   const isStreaming = ref(false);
   const resumingMessageId = ref("");
-  let activeStreamAbortController = null;
+  let activeStream = null;
 
   const pendingMemoryMessage = ref("");
   const memoryLockMessage = computed(() => memoryBlockingMessage(memoryHealth?.value) || pendingMemoryMessage.value);
@@ -87,9 +87,46 @@ export function useChatMessaging({
     return base;
   }
 
+  function beginStream(sessionId) {
+    const controller = new AbortController();
+    const id = createId("generation");
+    let submitted = false;
+    let stopRequested = false;
+    async function stop() {
+      if (!submitted) {
+        controller.abort();
+        return;
+      }
+      stopRequested = true;
+      try {
+        if (await stopChatGeneration(sessionId, id)) controller.abort();
+      } catch (error) {
+        handleApiError(error);
+      }
+    }
+    activeStream = {
+      signal: controller.signal,
+      detach: () => controller.abort(),
+      stop,
+      submit() {
+        controller.signal.throwIfAborted();
+        submitted = true;
+        return id;
+      },
+      started() {
+        // A stop POST can reach the server before the generation POST.
+        if (stopRequested) void stop();
+      },
+    };
+    return activeStream;
+  }
+
   function stopStreaming() {
-    if (!isStreaming.value) return;
-    activeStreamAbortController?.abort?.();
+    if (isStreaming.value) return activeStream?.stop();
+  }
+
+  function detachStream() {
+    activeStream?.detach();
   }
 
   function requestEditMessage(message) {
@@ -169,6 +206,7 @@ export function useChatMessaging({
     optimisticUserMessage,
     optimisticAssistantMessage,
     signal,
+    stream,
     onError,
   }) {
     if (regeneration?.status === "blocked_until_privacy_completed") {
@@ -189,8 +227,10 @@ export function useChatMessaging({
           content,
           settings,
           idempotencyKey,
+          generationId: stream.submit(),
           signal,
           onStart: (payload) => {
+            stream.started();
             applyServerPayload(sessionId, payload, { optimisticUserMessage });
           },
           onDelta: (delta) => {
@@ -297,8 +337,7 @@ export function useChatMessaging({
     target.replyInFlight = true;
     target.replyError = "";
     const outgoingSettings = buildOutgoingSettings();
-    const abortController = new AbortController();
-    activeStreamAbortController = abortController;
+    const stream = beginStream(sessionId);
     isStreaming.value = Boolean(outgoingSettings.stream);
     const optimisticAssistantMessage = reactive({ id: createId("tmp_msg"), role: "assistant", content: "",
       createdAt: new Date().toISOString() });
@@ -306,8 +345,11 @@ export function useChatMessaging({
     let completed = false;
     try {
       await resumeChatMessage(sessionId, target.id, {
-        settings: outgoingSettings, signal: abortController.signal,
-        onStart: payload => applyServerPayload(sessionId, payload, { optimisticUserMessage: target }),
+        settings: outgoingSettings, signal: stream.signal, generationId: stream.submit(),
+        onStart: payload => {
+          stream.started();
+          applyServerPayload(sessionId, payload, { optimisticUserMessage: target });
+        },
         onDelta: delta => { optimisticAssistantMessage.content += delta; },
         onDone: payload => {
           applyServerPayload(sessionId, payload, { optimisticUserMessage: target, optimisticAssistantMessage });
@@ -328,7 +370,7 @@ export function useChatMessaging({
         messagesBySessionId[sessionId] = (messagesBySessionId[sessionId] || []).filter(entry => entry !== optimisticAssistantMessage);
         await refreshTurnMessages(sessionId);
       }
-      if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+      if (activeStream === stream) activeStream = null;
       target.replyInFlight = false;
       isStreaming.value = false;
       isSending.value = false;
@@ -399,8 +441,7 @@ export function useChatMessaging({
 
       if (outgoingSettings.stream) {
         isStreaming.value = true;
-        const abortController = new AbortController();
-        activeStreamAbortController = abortController;
+        const stream = beginStream(sessionId);
 
         const optimisticAssistantMessageId = createId("tmp_msg");
         const optimisticAssistantMessage = reactive({
@@ -418,7 +459,7 @@ export function useChatMessaging({
             truncate: true,
             regenerate: true,
             settings: outgoingSettings,
-            signal: abortController.signal,
+            signal: stream.signal,
           });
           editCommitted = true;
           applyServerPayload(sessionId, editResult, { optimisticUserMessage: targetMessage });
@@ -431,7 +472,8 @@ export function useChatMessaging({
               privacy: editResult.privacy,
               optimisticUserMessage: targetMessage,
               optimisticAssistantMessage,
-              signal: abortController.signal,
+              stream,
+              signal: stream.signal,
             });
             clearMemoryLocked();
           } else {
@@ -451,7 +493,7 @@ export function useChatMessaging({
           }
           await recoverFailedTurn(error, sessionId, targetMessage, optimisticAssistantMessage);
         } finally {
-          if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+          if (activeStream === stream) activeStream = null;
           isStreaming.value = false;
         }
 
@@ -552,8 +594,7 @@ export function useChatMessaging({
 
       if (outgoingSettings.stream) {
         isStreaming.value = true;
-        const abortController = new AbortController();
-        activeStreamAbortController = abortController;
+        const stream = beginStream(sessionId);
 
         const optimisticAssistantMessageId = createId("tmp_msg");
         optimisticAssistantMessage = reactive({
@@ -570,8 +611,10 @@ export function useChatMessaging({
             content,
             idempotencyKey,
             settings: outgoingSettings,
-            signal: abortController.signal,
+            signal: stream.signal,
+            generationId: stream.submit(),
             onStart: (payload) => {
+              stream.started();
               applyServerPayload(sessionId, payload, { optimisticUserMessage });
             },
             onDelta: (delta) => {
@@ -593,7 +636,7 @@ export function useChatMessaging({
           }
           await recoverFailedTurn(error, sessionId, optimisticUserMessage, optimisticAssistantMessage);
         } finally {
-          if (activeStreamAbortController === abortController) activeStreamAbortController = null;
+          if (activeStream === stream) activeStream = null;
           isStreaming.value = false;
         }
 
@@ -625,6 +668,7 @@ export function useChatMessaging({
     resumeReply,
     memoryLockMessage,
     stopStreaming,
+    detachStream,
     requestEditMessage,
     updateEditDraft,
     cancelEditMessage,

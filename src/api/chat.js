@@ -274,11 +274,21 @@ export async function sendChatMessage(sessionId, { content, settings, idempotenc
   return data;
 }
 
-export async function resumeChatMessage(sessionId, messageId, { settings, signal, ...callbacks } = {}) {
+export async function stopChatGeneration(sessionId, generationId) {
+  const res = await fetch(`/api/chat/sessions/${normalizeSessionId(sessionId)}/generations/${generationId}/stop`, {
+    method: "POST",
+    headers: getAuthHeader(),
+  });
+  const data = await readJsonSafe(res);
+  if (!res.ok) throw createApiError(res, data, "停止回复失败");
+  return data.stopped;
+}
+
+export async function resumeChatMessage(sessionId, messageId, { settings, signal, generationId, ...callbacks } = {}) {
   const res = await fetch(`/api/chat/sessions/${normalizeSessionId(sessionId)}/messages/${normalizeMessageId(messageId)}/resume`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    body: JSON.stringify({ settings }),
+    body: JSON.stringify({ settings, generationId }),
     signal,
   });
   if (!res.ok) throw createApiError(res, await readJsonSafe(res), "补回复失败");
@@ -346,14 +356,14 @@ function parseSseFrames(chunkText, state) {
 
 export async function streamChatMessage(
   sessionId,
-  { content, settings, idempotencyKey, onDelta, onStart, onDone, onError, signal } = {}
+  { content, settings, idempotencyKey, generationId, onDelta, onStart, onDone, onError, signal } = {}
 ) {
   const normalizedId = normalizeSessionId(sessionId);
   const key = idempotencyKey || crypto.randomUUID();
   const res = await fetch(`/api/chat/sessions/${normalizedId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": key, ...getAuthHeader() },
-    body: JSON.stringify({ content, settings: { ...(settings || {}), stream: true } }),
+    body: JSON.stringify({ content, generationId, settings: { ...(settings || {}), stream: true } }),
     signal,
   });
 
@@ -419,7 +429,7 @@ async function readChatStream(res, { onDelta, onStart, onDone, onError } = {}) {
       if (done) break;
       parseSseFrames(decoder.decode(value, { stream: true }), state);
     }
-    if (!completed) throw new Error("连接已中断，回复尚未确认保存，请重试补回复");
+    if (!completed) throw new Error("连接已中断，回复可能仍在生成，请稍后刷新查看");
   } finally {
     if (!completed) await reader.cancel().catch(() => {});
     reader.releaseLock();

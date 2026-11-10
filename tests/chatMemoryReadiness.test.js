@@ -59,10 +59,62 @@ function auth(t) {
   t.after(() => { if (previous === undefined) delete globalThis.localStorage; else globalThis.localStorage = previous; });
 }
 
+for (const explicit of [false, true]) test(`leaving chat detaches locally, only the stop button cancels the server (explicit=${explicit})`, async t => {
+  auth(t);
+  const started = Promise.withResolvers();
+  const stops = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    if (url.endsWith("/stop")) {
+      stops.push(url);
+      return Response.json({ stopped: true });
+    }
+    if (!options.method) return Response.json({ messages: [pendingMessage()] });
+    const { generationId } = JSON.parse(options.body);
+    started.resolve(generationId);
+    return new Promise((_, reject) => options.signal.addEventListener("abort", () => reject(options.signal.reason)));
+  });
+  const h = messaging(t, true);
+  h.messages["1"] = [mapMessage(pendingMessage())];
+  const reply = h.chat.resumeReply(h.messages["1"][0]);
+  const id = await started.promise;
+  if (explicit) await h.chat.stopStreaming();
+  else h.chat.detachStream();
+  await reply;
+  assert.ok(id);
+  assert.deepEqual(stops, explicit ? [`/api/chat/sessions/1/generations/${id}/stop`] : []);
+});
+
 const pendingMessage = () => ({ id: 88, role: "user", content: "昨天的问题", created_at: "2026-01-01T12:00:00Z",
   reply_status: "incomplete", can_resume: true });
 const completedTurn = () => ({ user_message: { ...pendingMessage(), reply_status: "complete", can_resume: false },
   assistant_message: { id: 89, role: "assistant", content: "补回的回复" } });
+
+test("a stop that arrives ahead of the generation is retried on SSE start", async t => {
+  auth(t);
+  const connected = Promise.withResolvers();
+  const stops = [];
+  let body;
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    if (url.endsWith("/stop")) {
+      stops.push(url);
+      return Response.json({ stopped: stops.length === 2 });
+    }
+    if (!options.method) return Response.json({ messages: [pendingMessage()] });
+    const response = new Response(new ReadableStream({ start(controller) { body = controller; } }));
+    options.signal.addEventListener("abort", () => body.error(options.signal.reason));
+    connected.resolve();
+    return response;
+  });
+  const h = messaging(t, true);
+  h.messages["1"] = [mapMessage(pendingMessage())];
+  const reply = h.chat.resumeReply(h.messages["1"][0]);
+  await connected.promise;
+  await h.chat.stopStreaming();
+  body.enqueue(new TextEncoder().encode('data: {"type":"start"}\n\n'));
+  await reply;
+  assert.equal(stops.length, 2);
+  assert.equal(stops[0], stops[1]);
+});
 
 for (const stream of [false, true]) test(`a reloaded read-only session resumes by message ID without editing or resending (stream=${stream})`, async t => {
   auth(t);
