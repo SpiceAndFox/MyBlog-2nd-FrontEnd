@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
       }),
       VitePWA({
         registerType: "autoUpdate",
+        includeAssets: ["apple-touch-icon.png"],
         workbox: {
           navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/uploads(?:\/|$)/],
         },
